@@ -327,7 +327,15 @@ fun SuhoodNavGraph(
             composable(Routes.NASHEEDIFY_QUEUE) {
                 NasheedifyScreens.Queue(
                     state = playbackState,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onTrack = { track ->
+                        playbackState = playbackState.copy(
+                            currentTrack = track,
+                            isPlaying = true,
+                            isDemoPlayback = true
+                        )
+                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
+                    }
                 )
             }
             composable(Routes.NASHEEDIFY_CREATE_PLAYLIST) {
