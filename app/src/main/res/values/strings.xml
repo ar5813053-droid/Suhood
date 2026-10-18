@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Suhood</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_worship">Worship</string>
+    <string name="nav_focus">Focus</string>
+    <string name="nav_audio">Audio</string>
+    <string name="demo_label">Demo</string>
+    <string name="phase1_note">Phase 1 — Demo data. Real prayer times, alarms, and blocking arrive in Phase 2.</string>
+</resources>
