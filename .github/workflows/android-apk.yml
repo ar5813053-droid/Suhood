@@ -24,19 +24,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # Google removed the legacy SDK "tools" package. setup-android@v3
-      # still requests it by default and fails with:
-      #   Failed to find package 'tools'
-      # v4 defaults to platform-tools only and accepts SDK licenses.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
           accept-android-sdk-licenses: true
 
-      # Install platform + build-tools required by compileSdk/targetSdk 35.
-      # AGP can download these itself once licenses are accepted; this makes
-      # the first Gradle run more reliable on a clean runner.
       - name: Install Android platform 35 and build-tools
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
