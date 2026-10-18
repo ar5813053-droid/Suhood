@@ -668,6 +668,9 @@ object NasheedifyScreens {
 
     @Composable
     fun Queue(state: PlaybackState, onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
+        val vm = rememberNasheedifyVm()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
+
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Queue", onBack = onBack)
             LazyColumn(contentPadding = PaddingValues(horizontal = SuhoodSpacing.screenHorizontal)) {
@@ -675,7 +678,7 @@ object NasheedifyScreens {
                     TrackRow(
                         track = track,
                         isFavorite = track.id in favorites,
-                        onFavorite = {},
+                        onFavorite = { vm.toggleFavorite(track.id) },
                         onClick = { onTrack(track) }
                     )
                 }
