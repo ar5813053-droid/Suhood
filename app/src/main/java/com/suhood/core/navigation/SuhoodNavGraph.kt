@@ -18,7 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.suhood.core.designsystem.components.FloatingTopNavigation
+import com.suhood.core.designsystem.components.FloatingBottomNavigation
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.feature.alarms.AlarmScreens
 import com.suhood.feature.focus.FocusScreens
@@ -45,7 +45,7 @@ fun SuhoodNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val showTopNav = currentRoute in listOf(
+    val showBottomNav = currentRoute in listOf(
         Routes.HOME, Routes.WORSHIP, Routes.FOCUS, Routes.AUDIO
     ) || currentRoute?.startsWith("audio/") == true && currentRoute != Routes.NASHEEDIFY_PLAYER
 
@@ -80,19 +80,19 @@ fun SuhoodNavGraph(
             composable(Routes.HOME) {
                 HomeScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    topContentPadding = if (showTopNav) SuhoodSpacing.underNav else 0.dp
+                    bottomContentPadding = if (showBottomNav) SuhoodSpacing.aboveBottomNav else 0.dp
                 )
             }
             composable(Routes.WORSHIP) {
                 WorshipScreens.Dashboard(
                     onNavigate = { route -> navController.navigate(route) },
-                    topContentPadding = SuhoodSpacing.underNav
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.FOCUS) {
                 FocusScreens.Dashboard(
                     onNavigate = { route -> navController.navigate(route) },
-                    topContentPadding = SuhoodSpacing.underNav
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.AUDIO) {
@@ -100,7 +100,7 @@ fun SuhoodNavGraph(
                     onNavigate = { route -> navController.navigate(route) },
                     playbackState = playbackState,
                     onPlaybackChange = { playbackState = it },
-                    topContentPadding = SuhoodSpacing.underNav
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
 
@@ -373,8 +373,8 @@ fun SuhoodNavGraph(
             }
         }
 
-        if (showTopNav && currentRoute != Routes.ONBOARDING) {
-            FloatingTopNavigation(
+        if (showBottomNav && currentRoute != Routes.ONBOARDING) {
+            FloatingBottomNavigation(
                 selected = selectedTop,
                 onSelect = { dest ->
                     navController.navigate(dest.route) {
@@ -383,7 +383,7 @@ fun SuhoodNavGraph(
                         restoreState = true
                     }
                 },
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }

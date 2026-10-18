@@ -40,7 +40,7 @@ object NasheedifyScreens {
         onNavigate: (String) -> Unit,
         playbackState: PlaybackState,
         onPlaybackChange: (PlaybackState) -> Unit,
-        topContentPadding: Dp
+        bottomContentPadding: Dp
     ) {
         val colors = suhoodColors
         Box(modifier = Modifier.fillMaxSize()) {
@@ -48,7 +48,8 @@ object NasheedifyScreens {
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = topContentPadding)
+                    .statusBarsPadding()
+                .padding(bottom = bottomContentPadding)
                     .padding(bottom = if (playbackState.currentTrack != null) 80.dp else 32.dp)
             ) {
                 Row(

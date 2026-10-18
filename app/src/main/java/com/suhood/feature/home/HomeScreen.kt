@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Timelapse
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +31,7 @@ import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.DemoStatusLabel
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassPill
+import com.suhood.core.designsystem.components.GlassIconButton
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
@@ -37,7 +40,7 @@ import com.suhood.core.navigation.Routes
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit,
-    topContentPadding: Dp
+    bottomContentPadding: Dp
 ) {
     val colors = suhoodColors
     val schedule = remember { DemoData.demoPrayerSchedule() }
@@ -47,15 +50,30 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scroll)
-            .padding(top = topContentPadding)
+            .statusBarsPadding()
+                .padding(bottom = bottomContentPadding)
             .padding(horizontal = SuhoodSpacing.screenHorizontal)
             .padding(bottom = 32.dp)
     ) {
-        // Greeting
-        Text("Assalamu alaikum", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
-        Spacer(Modifier.height(4.dp))
-        Text(schedule.dateLabel, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-        Text(schedule.hijriLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+        // Greeting + settings
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Assalamu alaikum", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Text(schedule.dateLabel, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
+                Text(schedule.hijriLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            }
+            GlassIconButton(
+                icon = Icons.Filled.Settings,
+                contentDescription = "Settings",
+                onClick = { onNavigate(Routes.SETTINGS) },
+                size = 44.dp,
+                iconSize = 22.dp
+            )
+        }
         Spacer(Modifier.height(20.dp))
 
         // Next Salah card
@@ -151,10 +169,7 @@ fun HomeScreen(
             Text("Nasheeds · Demo playback", style = SuhoodTypography.bodySmall, color = colors.textMuted)
         }
 
-        Spacer(Modifier.height(16.dp))
-        GlassPill(onClick = { onNavigate(Routes.SETTINGS) }) {
-            Text("Settings", style = SuhoodTypography.labelMedium, color = colors.textSecondary)
-        }
+
     }
 }
 

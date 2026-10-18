@@ -144,12 +144,12 @@ fun GlassPill(
     val colors = suhoodColors
     val bg by animateColorAsState(
         targetValue = if (selected) colors.surfaceSelected else colors.surfaceGlass,
-        animationSpec = tween(200),
+        animationSpec = tween(150),
         label = "pillBg"
     )
     val border by animateColorAsState(
         targetValue = if (selected) colors.borderStrong else colors.borderSubtle,
-        animationSpec = tween(200),
+        animationSpec = tween(150),
         label = "pillBorder"
     )
 

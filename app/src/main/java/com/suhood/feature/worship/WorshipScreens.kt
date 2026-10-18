@@ -20,13 +20,14 @@ import com.suhood.core.navigation.Routes
 object WorshipScreens {
 
     @Composable
-    fun Dashboard(onNavigate: (String) -> Unit, topContentPadding: Dp) {
+    fun Dashboard(onNavigate: (String) -> Unit, bottomContentPadding: Dp) {
         val colors = suhoodColors
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(top = topContentPadding)
+                .statusBarsPadding()
+                .padding(bottom = bottomContentPadding)
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
                 .padding(bottom = 32.dp)
         ) {

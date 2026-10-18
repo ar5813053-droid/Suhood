@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -59,12 +58,11 @@ val primaryNavItems = listOf(
 )
 
 /**
- * Compact floating top navigation capsule.
- * Positioned below status bar with horizontal insets.
- * Hybrid Glass appearance: translucent + silver border.
+ * Floating bottom navigation capsule.
+ * Sits above the system navigation / gesture area with a small lift gap.
  */
 @Composable
-fun FloatingTopNavigation(
+fun FloatingBottomNavigation(
     selected: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier
@@ -74,27 +72,26 @@ fun FloatingTopNavigation(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(60.dp)
                 .shadow(
-                    elevation = 12.dp,
+                    elevation = 16.dp,
                     shape = SuhoodShapes.navPill,
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
+                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                    spotColor = Color.Black.copy(alpha = 0.25f)
                 )
                 .clip(SuhoodShapes.navPill)
-                .background(colors.surfaceElevated.copy(alpha = 0.92f))
+                .background(colors.surfaceElevated.copy(alpha = 0.94f))
                 .border(1.dp, colors.borderStrong, SuhoodShapes.navPill)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Subtle top glass highlight
             primaryNavItems.forEach { item ->
                 NavPillItem(
                     item = item,
@@ -107,6 +104,14 @@ fun FloatingTopNavigation(
     }
 }
 
+/** Alias kept so older call sites still compile during migration. */
+@Composable
+fun FloatingTopNavigation(
+    selected: TopLevelDestination,
+    onSelect: (TopLevelDestination) -> Unit,
+    modifier: Modifier = Modifier
+) = FloatingBottomNavigation(selected, onSelect, modifier)
+
 @Composable
 private fun NavPillItem(
     item: NavItem,
@@ -117,18 +122,18 @@ private fun NavPillItem(
     val colors = suhoodColors
     val iconColor by animateColorAsState(
         targetValue = if (selected) colors.silverBright else colors.textMuted,
-        animationSpec = tween(200),
+        animationSpec = tween(150),
         label = "navIcon"
     )
     val bg by animateColorAsState(
         targetValue = if (selected) colors.surfaceSelected else Color.Transparent,
-        animationSpec = tween(200),
+        animationSpec = tween(150),
         label = "navBg"
     )
 
     Box(
         modifier = modifier
-            .height(40.dp)
+            .height(48.dp)
             .clip(SuhoodShapes.pill)
             .background(bg)
             .clickable(
@@ -151,7 +156,7 @@ private fun NavPillItem(
                 imageVector = item.icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
             if (selected) {
                 Spacer(Modifier.width(6.dp))
