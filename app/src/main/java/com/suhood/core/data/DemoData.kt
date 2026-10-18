@@ -159,19 +159,19 @@ object DemoData {
         AudioCategory("reminders", "Reminders", "Short reminders", 4)
     )
 
-    val audioTracks = listOf(
-        AudioTrack("t1", "Morning Light", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 210),
-        AudioTrack("t2", "Path of Peace", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 185),
-        AudioTrack("t3", "Ya Rahman", "Demo Vocalists", "Devotion", "madah", "Arabic", 240),
-        AudioTrack("t4", "Al-Fatihah (Demo Sample)", "Demo Qari", "Short Surahs", "tilawat", "Arabic", 95),
-        AudioTrack("t5", "Morning Adhkar Set", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 320),
-        AudioTrack("t6", "Evening Adhkar Set", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 280),
-        AudioTrack("t7", "Dua for Guidance", "Demo Reciter", "Selected Duas", "duas", "Arabic", 60),
-        AudioTrack("t8", "Remembering the Hereafter", "Demo Speaker", "Short Talks", "lectures", "English", 420),
-        AudioTrack("t9", "Gratitude Reminder", "Demo Speaker", "Short Talks", "reminders", "English", 90),
-        AudioTrack("t10", "Patience in Hardship", "Demo Speaker", "Short Talks", "reminders", "English", 110),
-        AudioTrack("t11", "Heart at Rest", "Demo Ensemble", "Calm", "nasheeds", "English", 195),
-        AudioTrack("t12", "Tawakkul", "Demo Vocalists", "Devotion", "madah", "Arabic", 220)
+        val audioTracks = listOf(
+        AudioTrack("t1", "Morning Light", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 210, titleAr = "نور الصباح", creatorAr = "فرقة تجريبية"),
+        AudioTrack("t2", "Path of Peace", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 185, titleAr = "طريق السلام", creatorAr = "فرقة تجريبية"),
+        AudioTrack("t3", "Ya Rahman", "Demo Vocalists", "Devotion", "madah", "Arabic", 240, titleAr = "يا رحمن", creatorAr = "منشدون"),
+        AudioTrack("t4", "Al-Fatihah (Demo)", "Demo Qari", "Short Surahs", "tilawat", "Arabic", 95, titleAr = "الفاتحة", creatorAr = "قارئ تجريبي"),
+        AudioTrack("t5", "Morning Adhkar", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 320, titleAr = "أذكار الصباح", creatorAr = "مُذكّر"),
+        AudioTrack("t6", "Evening Adhkar", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 280, titleAr = "أذكار المساء", creatorAr = "مُذكّر"),
+        AudioTrack("t7", "Dua for Guidance", "Demo Reciter", "Selected Duas", "duas", "Arabic", 60, titleAr = "دعاء الهداية", creatorAr = "مُذكّر"),
+        AudioTrack("t8", "Remembering the Hereafter", "Demo Speaker", "Short Talks", "lectures", "English", 420, titleAr = "تذكرة الآخرة", creatorAr = "محاضر"),
+        AudioTrack("t9", "Gratitude Reminder", "Demo Speaker", "Short Talks", "reminders", "English", 90, titleAr = "تذكير الشكر", creatorAr = "محاضر"),
+        AudioTrack("t10", "Patience in Hardship", "Demo Speaker", "Short Talks", "reminders", "English", 110, titleAr = "الصبر في البلاء", creatorAr = "محاضر"),
+        AudioTrack("t11", "Heart at Rest", "Demo Ensemble", "Calm", "nasheeds", "English", 195, titleAr = "قلب مطمئن", creatorAr = "فرقة تجريبية"),
+        AudioTrack("t12", "Tawakkul", "Demo Vocalists", "Devotion", "madah", "Arabic", 220, titleAr = "توكل", creatorAr = "منشدون")
     )
 
     val sampleAlarms = listOf(

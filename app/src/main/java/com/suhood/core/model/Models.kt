@@ -131,7 +131,9 @@ data class AudioTrack(
     val language: String,
     val durationSeconds: Int,
     val artworkKey: String = "default",
-    val isDemo: Boolean = true
+    val isDemo: Boolean = true,
+    val titleAr: String = "",
+    val creatorAr: String = ""
 )
 
 data class AudioCategory(

@@ -61,9 +61,11 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Assalamu alaikum", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+                Text("السلام عليكم", style = SuhoodTypography.arabicTitle, color = colors.textPrimary)
+                Spacer(Modifier.height(2.dp))
+                Text("Assalamu alaikum", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
                 Spacer(Modifier.height(4.dp))
-                Text(schedule.dateLabel, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
+                Text(schedule.dateLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
                 Text(schedule.hijriLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
             }
             GlassIconButton(
@@ -100,7 +102,7 @@ fun HomeScreen(
 
         // Five prayer times
         GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Text("Today's Salah", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+            Text("صلوات اليوم · Today's Salah", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
             Spacer(Modifier.height(12.dp))
             schedule.times.forEach { pt ->
                 Row(
@@ -134,7 +136,7 @@ fun HomeScreen(
         Spacer(Modifier.height(20.dp))
 
         // Quick actions
-        Text("Quick actions", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Text("اختصارات · Quick actions", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             QuickAction("Focus", Icons.Filled.Timelapse) { onNavigate(Routes.FOCUS) }
@@ -147,19 +149,25 @@ fun HomeScreen(
 
         // Daily reminder
         GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Text("Daily reminder", style = SuhoodTypography.titleSmall, color = colors.textMuted)
+            Text("تذكير يومي · Daily reminder", style = SuhoodTypography.titleSmall, color = colors.textMuted)
             Spacer(Modifier.height(6.dp))
             Text(
-                "\"Indeed, in the remembrance of Allah do hearts find rest.\" — Quran 13:28",
-                style = SuhoodTypography.bodyMedium,
+                "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                style = SuhoodTypography.arabicBody,
                 color = colors.textPrimary
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Indeed, in the remembrance of Allah do hearts find rest. — Quran 13:28",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textSecondary
             )
         }
 
         Spacer(Modifier.height(20.dp))
 
         // Recently played demo
-        Text("Recently played", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Text("استمعت مؤخراً · Recently played", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
         Spacer(Modifier.height(8.dp))
         GlassCard(
             modifier = Modifier.fillMaxWidth(),

@@ -31,7 +31,7 @@ object WorshipScreens {
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
                 .padding(bottom = 32.dp)
         ) {
-            Text("Worship", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+            Text("عبادة · Worship", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
             Spacer(Modifier.height(4.dp))
             Text("Dhikr, Adhkar, Duas, and learning", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
             Spacer(Modifier.height(20.dp))

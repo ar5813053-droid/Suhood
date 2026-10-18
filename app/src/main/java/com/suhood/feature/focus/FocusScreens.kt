@@ -31,7 +31,7 @@ object FocusScreens {
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
                 .padding(bottom = 32.dp)
         ) {
-            Text("Focus", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+            Text("تركيز · Focus", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
             Spacer(Modifier.height(4.dp))
             Text("Reduce distraction before Salah", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
             Spacer(Modifier.height(8.dp))
