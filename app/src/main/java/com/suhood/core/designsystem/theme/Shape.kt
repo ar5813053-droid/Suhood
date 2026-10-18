@@ -51,6 +51,10 @@ object SuhoodSpacing {
     /** Standard horizontal screen margin */
     val screenHorizontal = 20.dp
 
-    /** Top padding under floating nav */
-    val underNav = 72.dp
+    /**
+     * Top padding under floating nav.
+     * Must clear: status bar (~24–48dp) + nav vertical insets (16dp) + bar height (52dp).
+     * 72dp was too small — titles drew under the capsule on real devices.
+     */
+    val underNav = 112.dp
 }

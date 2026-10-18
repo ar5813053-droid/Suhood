@@ -123,7 +123,12 @@ fun GlassCard(
         elevated = true,
         selected = selected
     ) {
-        Box(modifier = Modifier.padding(contentPadding)) {
+        // Column (not Box) so title + subtitle + rows stack vertically
+        // instead of painting on top of each other.
+        Column(
+            modifier = Modifier.padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             content()
         }
     }
