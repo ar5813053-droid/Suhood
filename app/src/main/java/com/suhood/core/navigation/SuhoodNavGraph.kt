@@ -29,6 +29,9 @@ import com.suhood.feature.quran.QuranScreens
 import com.suhood.feature.settings.SettingsScreens
 import com.suhood.feature.settings.SettingsViewModel
 import com.suhood.feature.worship.WorshipScreens
+import com.suhood.app.SuhoodApplication
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SuhoodNavGraph(
@@ -39,8 +42,8 @@ fun SuhoodNavGraph(
     val navController = rememberNavController()
     val startDestination = if (onboardingCompleted) Routes.HOME else Routes.ONBOARDING
 
-    // Shared audio playback state (demo)
-    var playbackState by remember { mutableStateOf(com.suhood.core.model.PlaybackState()) }
+    val app = LocalContext.current.applicationContext as SuhoodApplication
+    val playbackState by app.playbackController.state.collectAsStateWithLifecycle()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -99,7 +102,7 @@ fun SuhoodNavGraph(
                 NasheedifyScreens.Home(
                     onNavigate = { route -> navController.navigate(route) },
                     playbackState = playbackState,
-                    onPlaybackChange = { playbackState = it },
+                    onPlaybackChange = { /* shared controller owns state */ },
                     bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
@@ -292,7 +295,7 @@ fun SuhoodNavGraph(
                 NasheedifyScreens.Search(
                     onBack = { navController.popBackStack() },
                     onTrack = { track ->
-                        playbackState = playbackState.copy(currentTrack = track, isPlaying = true, isDemoPlayback = true)
+                        app.playbackController.play(track)
                         navController.navigate(Routes.NASHEEDIFY_PLAYER)
                     }
                 )
@@ -305,7 +308,8 @@ fun SuhoodNavGraph(
                     categoryId = entry.arguments?.getString("categoryId") ?: "",
                     onBack = { navController.popBackStack() },
                     onTrack = { track ->
-                        playbackState = playbackState.copy(currentTrack = track, isPlaying = true, isDemoPlayback = true)
+                        app.playbackController.play(track)
+                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
                     }
                 )
             }
@@ -313,14 +317,15 @@ fun SuhoodNavGraph(
                 NasheedifyScreens.Favorites(
                     onBack = { navController.popBackStack() },
                     onTrack = { track ->
-                        playbackState = playbackState.copy(currentTrack = track, isPlaying = true)
+                        app.playbackController.play(track)
+                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
                     }
                 )
             }
             composable(Routes.NASHEEDIFY_PLAYER) {
                 NasheedifyScreens.FullPlayer(
                     state = playbackState,
-                    onStateChange = { playbackState = it },
+                    onStateChange = { /* shared controller owns state */ },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -329,11 +334,7 @@ fun SuhoodNavGraph(
                     state = playbackState,
                     onBack = { navController.popBackStack() },
                     onTrack = { track ->
-                        playbackState = playbackState.copy(
-                            currentTrack = track,
-                            isPlaying = true,
-                            isDemoPlayback = true
-                        )
+                        app.playbackController.play(track)
                         navController.navigate(Routes.NASHEEDIFY_PLAYER)
                     }
                 )
@@ -365,7 +366,7 @@ fun SuhoodNavGraph(
                 SettingsScreens.Privacy(onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS_PRAYER) {
-                SettingsScreens.PrayerPrefs(onBack = { navController.popBackStack() })
+                SettingsScreens.PrayerPrefs(settingsViewModel = settingsViewModel, onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS_NOTIFICATIONS) {
                 SettingsScreens.NotificationPrefs(onBack = { navController.popBackStack() })

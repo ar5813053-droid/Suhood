@@ -14,6 +14,9 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
+import com.suhood.core.prayer.PrayerTimesCalculator
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 object SettingsScreens {
 
@@ -142,8 +145,84 @@ object SettingsScreens {
     }
 
     @Composable
-    fun PrayerPrefs(onBack: () -> Unit) {
-        Phase2Note(title = "Prayer preferences", message = "Calculation method, madhab, and high-latitude rules will be configurable in Phase 2 when real prayer times are integrated.", onBack = onBack)
+    fun PrayerPrefs(settingsViewModel: SettingsViewModel, onBack: () -> Unit) {
+        val colors = suhoodColors
+        val method by settingsViewModel.prayerMethod.collectAsStateWithLifecycle()
+        val label by settingsViewModel.locationLabel.collectAsStateWithLifecycle()
+        val lat by settingsViewModel.latitude.collectAsStateWithLifecycle()
+        val lng by settingsViewModel.longitude.collectAsStateWithLifecycle()
+        val methods = PrayerTimesCalculator.Method.entries
+        val methodIndex = methods.indexOf(method).coerceAtLeast(0)
+        var latText by remember { mutableStateOf(lat.toString()) }
+        var lngText by remember { mutableStateOf(lng.toString()) }
+        var nameText by remember { mutableStateOf(label) }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 24.dp)
+        ) {
+            ScreenHeader(title = "Prayer preferences", onBack = onBack)
+            Spacer(Modifier.height(8.dp))
+            DemoStatusLabel("Calculated times · not a mosque timetable")
+            Spacer(Modifier.height(16.dp))
+            Text("Calculation method", style = SuhoodTypography.titleSmall, color = colors.textMuted)
+            Spacer(Modifier.height(8.dp))
+            methods.forEachIndexed { i, m ->
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    selected = i == methodIndex,
+                    onClick = { settingsViewModel.setPrayerMethod(m) }
+                ) {
+                    Text(m.label, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text(m.name, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("Manual location", style = SuhoodTypography.titleSmall, color = colors.textMuted)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Used when location permission is not granted. Default is a Makkah fallback — change this to your city.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(12.dp))
+            GlassSearchField(query = nameText, onQueryChange = { nameText = it }, placeholder = "City label")
+            Spacer(Modifier.height(8.dp))
+            GlassSearchField(query = latText, onQueryChange = { latText = it }, placeholder = "Latitude")
+            Spacer(Modifier.height(8.dp))
+            GlassSearchField(query = lngText, onQueryChange = { lngText = it }, placeholder = "Longitude")
+            Spacer(Modifier.height(12.dp))
+            GlassButton(
+                text = "Save location",
+                onClick = {
+                    val la = latText.toDoubleOrNull()
+                    val ln = lngText.toDoubleOrNull()
+                    if (la != null && ln != null) {
+                        settingsViewModel.setManualLocation(la, ln, nameText.ifBlank { "Custom" })
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            GlassButton(
+                text = "Use Makkah fallback",
+                onClick = {
+                    settingsViewModel.setManualLocation(
+                        21.4225, 39.8262,
+                        "Fallback: Makkah (not your local mosque)"
+                    )
+                    latText = "21.4225"
+                    lngText = "39.8262"
+                    nameText = "Fallback: Makkah (not your local mosque)"
+                },
+                primary = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     @Composable
@@ -162,7 +241,11 @@ object SettingsScreens {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
             ScreenHeader(title = "Audio preferences", onBack = onBack)
             Spacer(Modifier.height(16.dp))
-            Text("Demo catalog is offline. Real Media3 playback arrives in Phase 2.", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
+            Text(
+                "Playback uses Media3 ExoPlayer with local sample tones (test audio only — not commercial nasheeds). A licensed catalog can plug into AudioCatalogProvider later.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
         }
     }
 

@@ -10,6 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.suhood.core.data.DemoData
+import com.suhood.app.SuhoodApplication
+import com.suhood.core.database.FocusHistoryEntity
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import java.util.UUID
 import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
@@ -212,8 +218,23 @@ object FocusScreens {
     }
 
     @Composable
-    fun SessionComplete(onDone: () -> Unit) {
+    fun SessionComplete(onDone: () -> Unit, durationMinutes: Int = 15) {
         val colors = suhoodColors
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        LaunchedEffect(Unit) {
+            runCatching {
+                val app = context.applicationContext as SuhoodApplication
+                app.database.dao().insertFocusHistory(
+                    FocusHistoryEntity(
+                        id = UUID.randomUUID().toString(),
+                        durationMinutes = durationMinutes,
+                        completedAt = System.currentTimeMillis(),
+                        wasCompleted = true
+                    )
+                )
+            }
+        }
         Column(
             modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,

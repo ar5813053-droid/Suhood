@@ -56,6 +56,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suhood.app.SuhoodApplication
 import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.DemoStatusLabel
 import com.suhood.core.designsystem.components.GlassCard
@@ -73,7 +77,18 @@ import com.suhood.core.navigation.Routes
 
 object NasheedifyScreens {
 
-    private val favorites = mutableStateListOf<String>()
+    @Composable
+    private fun rememberNasheedifyVm(): NasheedifyViewModel {
+        val app = LocalContext.current.applicationContext as SuhoodApplication
+        return viewModel(
+            factory = NasheedifyViewModel.Factory(
+                app.playbackController,
+                app.libraryRepository,
+                app.audioCatalog
+            )
+        )
+    }
+
 
     private val moodTiles = listOf(
         "سكينة" to "Calm",
@@ -96,7 +111,13 @@ object NasheedifyScreens {
         onPlaybackChange: (PlaybackState) -> Unit,
         bottomContentPadding: Dp
     ) {
+        val vm = rememberNasheedifyVm()
+        val sharedState by vm.playbackState.collectAsStateWithLifecycle()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
+        val error by vm.error.collectAsStateWithLifecycle()
         val colors = suhoodColors
+        // Prefer shared controller state over local nav-held copy
+        val activeState = sharedState.currentTrack?.let { sharedState } ?: playbackState
         val madeForYou = DemoData.audioTracks.take(6)
         val popular = DemoData.audioTracks.reversed()
 
@@ -106,7 +127,7 @@ object NasheedifyScreens {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
-                    .padding(bottom = bottomContentPadding + if (playbackState.currentTrack != null) 72.dp else 24.dp)
+                    .padding(bottom = bottomContentPadding + if (activeState.currentTrack != null) 72.dp else 24.dp)
             ) {
                 // Header
                 Row(
@@ -196,13 +217,7 @@ object NasheedifyScreens {
                         ArtworkCard(
                             track = track,
                             onClick = {
-                                onPlaybackChange(
-                                    playbackState.copy(
-                                        currentTrack = track,
-                                        isPlaying = true,
-                                        queue = DemoData.audioTracks
-                                    )
-                                )
+                                vm.play(track)
                                 onNavigate(Routes.NASHEEDIFY_PLAYER)
                             }
                         )
@@ -220,17 +235,10 @@ object NasheedifyScreens {
                             track = track,
                             isFavorite = track.id in favorites,
                             onFavorite = {
-                                if (track.id in favorites) favorites.remove(track.id)
-                                else favorites.add(track.id)
+                                vm.toggleFavorite(track.id)
                             },
                             onClick = {
-                                onPlaybackChange(
-                                    playbackState.copy(
-                                        currentTrack = track,
-                                        isPlaying = true,
-                                        queue = DemoData.audioTracks
-                                    )
-                                )
+                                vm.play(track)
                                 onNavigate(Routes.NASHEEDIFY_PLAYER)
                             }
                         )
@@ -239,18 +247,18 @@ object NasheedifyScreens {
 
                 Spacer(Modifier.height(16.dp))
                 DemoStatusLabel(
-                    "Demo catalog · no streaming",
+                    "Local sample tones · test audio only",
                     modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
                 )
             }
 
             // Mini player bar
-            playbackState.currentTrack?.let { track ->
+            activeState.currentTrack?.let { track ->
                 MiniPlayerBar(
                     track = track,
-                    isPlaying = playbackState.isPlaying,
+                    isPlaying = activeState.isPlaying,
                     onPlayPause = {
-                        onPlaybackChange(playbackState.copy(isPlaying = !playbackState.isPlaying))
+                        vm.togglePlayPause()
                     },
                     onOpen = { onNavigate(Routes.NASHEEDIFY_PLAYER) },
                     modifier = Modifier
@@ -264,18 +272,12 @@ object NasheedifyScreens {
 
     @Composable
     fun Search(onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
+        val vm = rememberNasheedifyVm()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
         val colors = suhoodColors
         var query by remember { mutableStateOf("") }
         var tab by remember { mutableStateOf(0) }
-        val filtered = remember(query) {
-            if (query.isBlank()) emptyList()
-            else DemoData.audioTracks.filter {
-                it.title.contains(query, true) ||
-                    it.titleAr.contains(query) ||
-                    it.creator.contains(query, true) ||
-                    it.collection.contains(query, true)
-            }
-        }
+        val filtered = remember(query) { vm.search(query) }
 
         Column(
             modifier = Modifier
@@ -311,8 +313,7 @@ object NasheedifyScreens {
                             track = track,
                             isFavorite = track.id in favorites,
                             onFavorite = {
-                                if (track.id in favorites) favorites.remove(track.id)
-                                else favorites.add(track.id)
+                                vm.toggleFavorite(track.id)
                             },
                             onClick = { onTrack(track) }
                         )
@@ -368,6 +369,8 @@ object NasheedifyScreens {
 
     @Composable
     fun CategoryDetail(categoryId: String, onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
+        val vm = rememberNasheedifyVm()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
         val cat = DemoData.audioCategories.find { it.id == categoryId }
         val tracks = DemoData.audioTracks.filter { it.categoryId == categoryId }
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -383,8 +386,7 @@ object NasheedifyScreens {
                         track = track,
                         isFavorite = track.id in favorites,
                         onFavorite = {
-                            if (track.id in favorites) favorites.remove(track.id)
-                            else favorites.add(track.id)
+                            vm.toggleFavorite(track.id)
                         },
                         onClick = { onTrack(track) }
                     )
@@ -395,10 +397,12 @@ object NasheedifyScreens {
 
     @Composable
     fun Favorites(onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
-        // Library-style screen
+        val vm = rememberNasheedifyVm()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
+        val recentIds by vm.recent.collectAsStateWithLifecycle()
         val colors = suhoodColors
         var tab by remember { mutableStateOf(0) }
-        val liked = DemoData.audioTracks.filter { it.id in favorites }
+        val liked = vm.allTracks().filter { it.id in favorites }
 
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "مكتبتي · Library", onBack = onBack)
@@ -460,8 +464,7 @@ object NasheedifyScreens {
                                 track = track,
                                 isFavorite = track.id in favorites,
                                 onFavorite = {
-                                    if (track.id in favorites) favorites.remove(track.id)
-                                    else favorites.add(track.id)
+                                    vm.toggleFavorite(track.id)
                                 },
                                 onClick = { onTrack(track) }
                             )
@@ -478,9 +481,14 @@ object NasheedifyScreens {
         onStateChange: (PlaybackState) -> Unit,
         onBack: () -> Unit
     ) {
+        val vm = rememberNasheedifyVm()
+        val shared by vm.playbackState.collectAsStateWithLifecycle()
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
         val colors = suhoodColors
-        val track = state.currentTrack ?: return
-        var progress by remember { mutableFloatStateOf(0.18f) }
+        val active = if (shared.currentTrack != null) shared else state
+        val track = active.currentTrack ?: return
+        val duration = track.durationSeconds * 1000L
+        val progress = if (duration > 0) (active.positionMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
         val artColor = artworkColors[track.id.hashCode().mod(artworkColors.size).let { if (it < 0) it + artworkColors.size else it }]
 
         Box(
@@ -517,8 +525,7 @@ object NasheedifyScreens {
                         icon = if (track.id in favorites) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Favorite",
                         onClick = {
-                            if (track.id in favorites) favorites.remove(track.id)
-                            else favorites.add(track.id)
+                            vm.toggleFavorite(track.id)
                         },
                         size = 40.dp,
                         iconSize = 20.dp
@@ -606,12 +613,7 @@ object NasheedifyScreens {
                     GlassIconButton(
                         icon = Icons.Filled.SkipPrevious,
                         contentDescription = "Previous",
-                        onClick = {
-                            val q = state.queue.ifEmpty { DemoData.audioTracks }
-                            val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
-                            onStateChange(state.copy(currentTrack = q[i], isPlaying = true))
-                            progress = 0f
-                        },
+                        onClick = { vm.previous() },
                         size = 52.dp,
                         iconSize = 28.dp
                     )
@@ -621,13 +623,13 @@ object NasheedifyScreens {
                             .clip(CircleShape)
                             .background(colors.silverBright)
                             .clickable {
-                                onStateChange(state.copy(isPlaying = !state.isPlaying))
+                                vm.togglePlayPause()
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
+                            if (active.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (active.isPlaying) "Pause" else "Play",
                             tint = colors.background,
                             modifier = Modifier.size(36.dp)
                         )
@@ -635,12 +637,7 @@ object NasheedifyScreens {
                     GlassIconButton(
                         icon = Icons.Filled.SkipNext,
                         contentDescription = "Next",
-                        onClick = {
-                            val q = state.queue.ifEmpty { DemoData.audioTracks }
-                            val i = q.indexOfFirst { it.id == track.id }.let { if (it < 0 || it >= q.lastIndex) 0 else it + 1 }
-                            onStateChange(state.copy(currentTrack = q[i], isPlaying = true))
-                            progress = 0f
-                        },
+                        onClick = { vm.next() },
                         size = 52.dp,
                         iconSize = 28.dp
                     )
@@ -664,7 +661,7 @@ object NasheedifyScreens {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                DemoStatusLabel("Demo playback · no real audio stream")
+                DemoStatusLabel("Test sample tone · not a commercial nasheed")
             }
         }
     }

@@ -28,6 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.suhood.core.data.DemoData
+import com.suhood.core.prayer.PrayerTimesCalculator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import java.util.Calendar
 import com.suhood.core.designsystem.components.DemoStatusLabel
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassPill
@@ -43,7 +50,26 @@ fun HomeScreen(
     bottomContentPadding: Dp
 ) {
     val colors = suhoodColors
-    val schedule = remember { DemoData.demoPrayerSchedule() }
+    // Calculated prayer times (offline). Default location: Makkah.
+    // Change latitude/longitude in Settings when location prefs are wired.
+    val prayerResult = remember {
+        PrayerTimesCalculator.calculate(
+            latitude = 21.4225,
+            longitude = 39.8262,
+            method = PrayerTimesCalculator.Method.MWL
+        )
+    }
+    var countdown by remember {
+        mutableIntStateOf(PrayerTimesCalculator.countdownSecondsToNext(prayerResult))
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            countdown = PrayerTimesCalculator.countdownSecondsToNext(prayerResult)
+            delay(1000)
+        }
+    }
+    val nextPrayer = prayerResult.times.firstOrNull { it.isNext } ?: prayerResult.times.first()
+    val schedule = DemoData.demoPrayerSchedule() // hijri label only until full hijri lib
     val scroll = rememberScrollState()
 
     Column(
@@ -83,17 +109,17 @@ fun HomeScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Next: ${schedule.nextPrayer.name}", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                        Text("Next: ${nextPrayer.name}", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                         Spacer(Modifier.width(8.dp))
-                        DemoStatusLabel("Demo times")
+                        DemoStatusLabel("Calculated · fallback location")
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        formatCountdown(schedule.countdownSeconds),
+                        formatCountdown(countdown),
                         style = SuhoodTypography.timerSmall,
                         color = colors.silverBright
                     )
-                    Text(schedule.nextPrayer.time, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
+                    Text(nextPrayer.time, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
                 }
             }
         }
@@ -104,7 +130,7 @@ fun HomeScreen(
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Text("صلوات اليوم · Today's Salah", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
             Spacer(Modifier.height(12.dp))
-            schedule.times.forEach { pt ->
+            prayerResult.times.forEach { pt ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
