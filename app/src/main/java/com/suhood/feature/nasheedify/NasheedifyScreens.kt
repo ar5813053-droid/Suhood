@@ -118,8 +118,9 @@ object NasheedifyScreens {
         val colors = suhoodColors
         // Prefer shared controller state over local nav-held copy
         val activeState = sharedState.currentTrack?.let { sharedState } ?: playbackState
-        val madeForYou = DemoData.audioTracks.take(6)
-        val popular = DemoData.audioTracks.reversed()
+        val allTracks = remember { vm.allTracks() }
+        val madeForYou = allTracks.take(6)
+        val popular = allTracks.reversed()
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -247,7 +248,7 @@ object NasheedifyScreens {
 
                 Spacer(Modifier.height(16.dp))
                 DemoStatusLabel(
-                    "Local sample tones · test audio only",
+                    "Your library · sample tones only if no local music",
                     modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
                 )
             }
@@ -372,7 +373,7 @@ object NasheedifyScreens {
         val vm = rememberNasheedifyVm()
         val favorites by vm.favorites.collectAsStateWithLifecycle()
         val cat = DemoData.audioCategories.find { it.id == categoryId }
-        val tracks = DemoData.audioTracks.filter { it.categoryId == categoryId }
+        val tracks = rememberNasheedifyVm().allTracks().filter { it.categoryId == categoryId }
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = cat?.name ?: "Category", onBack = onBack)
             LazyColumn(
@@ -458,7 +459,7 @@ object NasheedifyScreens {
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = SuhoodSpacing.screenHorizontal)
                     ) {
-                        val list = if (liked.isEmpty()) DemoData.audioTracks.take(8) else liked
+                        val list = if (liked.isEmpty()) rememberNasheedifyVm().allTracks().take(8) else liked
                         items(list, key = { it.id }) { track ->
                             TrackRow(
                                 track = track,
@@ -661,7 +662,7 @@ object NasheedifyScreens {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                DemoStatusLabel("Sample tone · replace with local or Archive audio when available")
+                DemoStatusLabel("Playing · Media3")
             }
         }
     }
@@ -674,7 +675,7 @@ object NasheedifyScreens {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Queue", onBack = onBack)
             LazyColumn(contentPadding = PaddingValues(horizontal = SuhoodSpacing.screenHorizontal)) {
-                items(state.queue.ifEmpty { DemoData.audioTracks }, key = { it.id }) { track ->
+                items(state.queue.ifEmpty { rememberNasheedifyVm().allTracks() }, key = { it.id }) { track ->
                     TrackRow(
                         track = track,
                         isFavorite = track.id in favorites,

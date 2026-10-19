@@ -122,7 +122,7 @@ object SettingsScreens {
             Spacer(Modifier.height(16.dp))
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text("Suhood", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
-                Text("Version 1.0.0-phase1", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Text("Version 1.0.0", style = SuhoodTypography.bodySmall, color = colors.textMuted)
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Help Muslims spend less time distracted and more time reconnecting with Allah.\n\nFree. Non-commercial. No ads. No subscriptions.",
@@ -437,19 +437,22 @@ object SettingsScreens {
             )
             Spacer(Modifier.height(16.dp))
             GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text("UPI", style = SuhoodTypography.labelMedium, color = colors.textMuted)
-                Spacer(Modifier.height(6.dp))
-                Text(upiId, style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
+                Text(
+                    "SYED FURQAN",
+                    style = SuhoodTypography.headlineMedium,
+                    color = colors.textPrimary
+                )
                 Spacer(Modifier.height(12.dp))
                 if (qrBitmap != null) {
                     androidx.compose.foundation.Image(
                         bitmap = qrBitmap.asImageBitmap(),
-                        contentDescription = "UPI QR for $upiId",
+                        contentDescription = "Payment QR for SYED FURQAN",
                         modifier = Modifier.fillMaxWidth().height(240.dp).padding(8.dp)
                     )
                 }
+                Spacer(Modifier.height(8.dp))
                 GlassButton(
-                    text = "Open UPI app",
+                    text = "Open payment app",
                     onClick = {
                         runCatching {
                             context.startActivity(

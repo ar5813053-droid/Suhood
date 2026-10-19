@@ -51,7 +51,7 @@ object FocusScreens {
             Spacer(Modifier.height(12.dp))
             GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_SELECT_APPS) }) {
                 Text("Distracting apps", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("Select apps to silence during focus (demo list)", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Text("Select installed apps to limit during focus", style = SuhoodTypography.bodySmall, color = colors.textMuted)
             }
             Spacer(Modifier.height(12.dp))
             GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_HISTORY) }) {
@@ -60,8 +60,8 @@ object FocusScreens {
             }
             Spacer(Modifier.height(12.dp))
             GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_TIME_FOR_SALAH) }) {
-                Text("Preview: Time for Salah", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("See the interruption screen", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Text("Interruption screen", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                Text("Preview the return-to-focus screen", style = SuhoodTypography.bodySmall, color = colors.textMuted)
             }
         }
     }
@@ -69,7 +69,18 @@ object FocusScreens {
     @Composable
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
-        var apps by remember { mutableStateOf(DemoData.distractingApps) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        var apps by remember {
+            mutableStateOf(
+                runCatching {
+                    com.suhood.feature.focus.InstalledAppsRepository
+                        .loadLauncherApps(context)
+                        .let { list ->
+                            com.suhood.feature.focus.InstalledAppsRepository.toDistracting(list, emptySet())
+                        }
+                }.getOrElse { DemoData.distractingApps }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()

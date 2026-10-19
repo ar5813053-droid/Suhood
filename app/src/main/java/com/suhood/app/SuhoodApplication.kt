@@ -4,12 +4,12 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.suhood.core.audio.AudioCatalogProvider
 import com.suhood.core.audio.LibraryRepository
-import com.suhood.core.audio.LocalSampleCatalogProvider
+import com.suhood.core.audio.LocalMediaStoreCatalog
 import com.suhood.core.audio.PlaybackController
 import com.suhood.core.database.SuhoodDatabase
 import com.suhood.core.datastore.PreferencesRepository
-import com.suhood.feature.focus.FocusSessionController
 
 class SuhoodApplication : Application() {
     lateinit var preferencesRepository: PreferencesRepository
@@ -20,16 +20,15 @@ class SuhoodApplication : Application() {
         private set
     lateinit var libraryRepository: LibraryRepository
         private set
-    lateinit var focusSessionController: FocusSessionController
+    lateinit var audioCatalog: AudioCatalogProvider
         private set
-    val audioCatalog = LocalSampleCatalogProvider()
 
     override fun onCreate() {
         super.onCreate()
         preferencesRepository = PreferencesRepository(this)
         database = SuhoodDatabase.get(this)
         libraryRepository = LibraryRepository(database.dao())
-        focusSessionController = FocusSessionController(this)
+        audioCatalog = LocalMediaStoreCatalog(this)
         playbackController = PlaybackController(this, audioCatalog)
         createChannels()
     }
