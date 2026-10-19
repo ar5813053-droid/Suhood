@@ -488,15 +488,4 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
             }
         }
     }
-
-    private fun Phase2Note(title: String, message: String, onBack: () -> Unit) {
-        val colors = suhoodColors
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
-            ScreenHeader(title = title, onBack = onBack)
-            Spacer(Modifier.height(16.dp))
-            DemoStatusLabel("On device")
-            Spacer(Modifier.height(12.dp))
-            Text(message, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-        }
-    }
 }
