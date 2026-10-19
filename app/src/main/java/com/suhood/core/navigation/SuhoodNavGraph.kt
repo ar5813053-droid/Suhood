@@ -19,6 +19,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.suhood.core.designsystem.components.FloatingBottomNavigation
+import com.suhood.core.designsystem.components.AppBackground
+import com.suhood.core.designsystem.components.SolidDarkBackground
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.feature.alarms.AlarmScreens
 import com.suhood.feature.focus.FocusScreens
@@ -60,7 +62,15 @@ fun SuhoodNavGraph(
         else -> TopLevelDestination.HOME
     }
 
+    val isNasheedifyRoute = currentRoute == Routes.AUDIO ||
+        (currentRoute?.startsWith("audio/") == true)
+
     Box(modifier = Modifier.fillMaxSize()) {
+        if (isNasheedifyRoute) {
+            SolidDarkBackground()
+        } else {
+            AppBackground()
+        }
         NavHost(
             navController = navController,
             startDestination = startDestination,
