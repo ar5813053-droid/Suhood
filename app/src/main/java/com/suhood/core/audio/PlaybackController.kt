@@ -9,6 +9,8 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.suhood.core.model.AudioTrack
 import com.suhood.core.model.PlaybackState
+import com.suhood.core.audio.filter.IslamicContentClassifier
+import androidx.media3.common.MediaMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -115,6 +117,94 @@ class PlaybackController(
         }
         val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
         play(q[i], q)
+    }
+
+
+    /**
+     * Play a direct stream/file URI (Archive, Quran CDN, etc.).
+     */
+    fun playUri(
+        mediaId: String,
+        title: String,
+        artist: String,
+        uriString: String,
+        categoryId: String = "nasheeds"
+    ) {
+        val track = AudioTrack(
+            id = mediaId,
+            title = title,
+            creator = artist,
+            collection = categoryId,
+            categoryId = categoryId,
+            language = "",
+            durationSeconds = 0,
+            isDemo = false
+        )
+        if (!IslamicContentClassifier.isPlayable(track) &&
+            IslamicContentClassifier.classify(track).state ==
+            com.suhood.core.audio.filter.ContentClass.BLOCKED
+        ) {
+            _error.value = "Content outside Islamic preferences"
+            return
+        }
+        _error.value = null
+        val meta = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setIsPlayable(true)
+            .build()
+        player.setMediaItem(
+            MediaItem.Builder()
+                .setUri(uriString)
+                .setMediaId(mediaId)
+                .setMediaMetadata(meta)
+                .build()
+        )
+        player.prepare()
+        player.playWhenReady = true
+        _state.value = PlaybackState(
+            currentTrack = track,
+            isPlaying = true,
+            positionMs = 0L,
+            queue = listOf(track),
+            isDemoPlayback = false
+        )
+        startPositionUpdates()
+        startService()
+    }
+
+    fun playQueueUris(
+        items: List<Triple<String, String, String>>,
+        artist: String,
+        startIndex: Int = 0
+    ) {
+        if (items.isEmpty()) return
+        val tracks = items.map { (id, title, _) ->
+            AudioTrack(
+                id = id, title = title, creator = artist, collection = "Quran",
+                categoryId = "tilawat", language = "Arabic", durationSeconds = 0, isDemo = false
+            )
+        }
+        val mediaItems = items.map { (id, title, uri) ->
+            MediaItem.Builder()
+                .setUri(uri)
+                .setMediaId(id)
+                .setMediaMetadata(
+                    MediaMetadata.Builder().setTitle(title).setArtist(artist).build()
+                )
+                .build()
+        }
+        player.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
+        player.prepare()
+        player.playWhenReady = true
+        _state.value = PlaybackState(
+            currentTrack = tracks.getOrNull(startIndex),
+            isPlaying = true,
+            queue = tracks,
+            isDemoPlayback = false
+        )
+        startPositionUpdates()
+        startService()
     }
 
     fun clearError() {

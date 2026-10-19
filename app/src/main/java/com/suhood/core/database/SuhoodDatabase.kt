@@ -43,6 +43,24 @@ data class RecentTrackEntity(
     val playedAt: Long = System.currentTimeMillis()
 )
 
+
+@Entity(tableName = "quran_bookmarks")
+data class QuranBookmarkEntity(
+    @PrimaryKey val id: String,
+    val surah: Int,
+    val ayah: Int,
+    val note: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "quran_last_read")
+data class QuranLastReadEntity(
+    @PrimaryKey val id: Int = 1,
+    val surah: Int,
+    val ayah: Int,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface SuhoodDao {
     @Query("SELECT trackId FROM favorite_tracks ORDER BY addedAt DESC")
@@ -77,6 +95,21 @@ interface SuhoodDao {
 
     @Query("SELECT trackId FROM recent_tracks ORDER BY playedAt DESC LIMIT 20")
     fun observeRecent(): Flow<List<String>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertBookmark(b: QuranBookmarkEntity)
+
+    @Query("DELETE FROM quran_bookmarks WHERE id = :id")
+    suspend fun deleteBookmark(id: String)
+
+    @Query("SELECT * FROM quran_bookmarks ORDER BY createdAt DESC")
+    fun observeBookmarks(): Flow<List<QuranBookmarkEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setLastRead(e: QuranLastReadEntity)
+
+    @Query("SELECT * FROM quran_last_read WHERE id = 1 LIMIT 1")
+    suspend fun getLastRead(): QuranLastReadEntity?
 }
 
 @Database(
@@ -84,9 +117,11 @@ interface SuhoodDao {
         FavoriteTrackEntity::class,
         FocusHistoryEntity::class,
         AlarmEntity::class,
-        RecentTrackEntity::class
+        RecentTrackEntity::class,
+        QuranBookmarkEntity::class,
+        QuranLastReadEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SuhoodDatabase : RoomDatabase() {
