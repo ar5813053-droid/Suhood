@@ -6,38 +6,55 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.suhood.app.MainActivity
 import com.suhood.app.SuhoodApplication
+import com.suhood.feature.alarms.AlarmRingActivity
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val label = intent.getStringExtra(EXTRA_LABEL) ?: "Suhood alarm"
-        val open = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, MainActivity::class.java),
+        val alarmId = intent.getStringExtra(EXTRA_ALARM_ID) ?: "alarm"
+        val soundUri = intent.getStringExtra(AlarmRingActivity.EXTRA_SOUND_URI).orEmpty()
+        val challenge = intent.getStringExtra(AlarmRingActivity.EXTRA_CHALLENGE) ?: "NONE"
+
+        val ringIntent = Intent(context, AlarmRingActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_LABEL, label)
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmRingActivity.EXTRA_SOUND_URI, soundUri)
+            putExtra(AlarmRingActivity.EXTRA_CHALLENGE, challenge)
+        }
+        val fullScreen = PendingIntent.getActivity(
+            context,
+            alarmId.hashCode(),
+            ringIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
         val notification = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_ALARM)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(label)
-            .setContentText("Suhood reminder")
-            .setContentIntent(open)
+            .setContentText("Alarm — tap to open")
+            .setContentIntent(fullScreen)
+            .setFullScreenIntent(fullScreen, true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(true)
             .build()
 
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             == PackageManager.PERMISSION_GRANTED
-            || android.os.Build.VERSION.SDK_INT < 33
+            || Build.VERSION.SDK_INT < 33
         ) {
-            NotificationManagerCompat.from(context).notify(
-                (System.currentTimeMillis() % Int.MAX_VALUE).toInt(),
-                notification
-            )
+            NotificationManagerCompat.from(context).notify(alarmId.hashCode(), notification)
         }
+
+        // Also try direct activity start (works when app is not restricted)
+        runCatching { context.startActivity(ringIntent) }
     }
 
     companion object {
@@ -48,14 +65,13 @@ class AlarmReceiver : BroadcastReceiver() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Alarms should be re-scheduled from persisted Room data on boot.
-        // Full re-hydration is triggered when the app next opens AlarmScheduler.rescheduleAll().
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
             intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
             intent.action == Intent.ACTION_TIME_CHANGED
         ) {
+            runCatching { AlarmScheduler.rescheduleAll(context) }
             runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context) }
-            // no-op placeholder — AlarmScheduler.rescheduleAll called from Application if needed
+            runCatching { com.suhood.core.prayer.FajrAutoScheduler.reschedule(context) }
         }
     }
 }

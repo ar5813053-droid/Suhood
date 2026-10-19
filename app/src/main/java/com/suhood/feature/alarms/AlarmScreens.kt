@@ -1,5 +1,11 @@
 package com.suhood.feature.alarms
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,28 +13,43 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.suhood.core.data.DemoData
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suhood.app.SuhoodApplication
+import com.suhood.core.database.AlarmEntity
 import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
-import com.suhood.core.model.AlarmConfig
 import com.suhood.core.model.ChallengeType
+import com.suhood.core.notifications.AlarmScheduler
+import com.suhood.core.prayer.FajrAutoScheduler
+import com.suhood.core.prayer.PrayerSettingsStore
+import java.util.UUID
+import kotlinx.coroutines.launch
 
 object AlarmScreens {
 
     @Composable
-    fun Dashboard(
+    fun List(
         onBack: () -> Unit,
         onCreate: () -> Unit,
         onEdit: (String) -> Unit,
         onSimulateRing: (String) -> Unit
     ) {
+        val context = LocalContext.current
+        val app = context.applicationContext as SuhoodApplication
+        val dao = app.database.dao()
+        val alarms by dao.observeAlarms().collectAsStateWithLifecycle(initialValue = emptyList())
+        val scope = rememberCoroutineScope()
         val colors = suhoodColors
-        var alarms by remember { mutableStateOf(DemoData.sampleAlarms) }
+        val prayerStore = remember { PrayerSettingsStore(context) }
+        val prayer by prayerStore.settings.collectAsStateWithLifecycle(
+            initialValue = com.suhood.core.prayer.PrayerSettings()
+        )
 
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(
                 title = "Alarms",
                 onBack = onBack,
@@ -36,26 +57,58 @@ object AlarmScreens {
                     GlassButton(text = "Add", onClick = onCreate)
                 }
             )
-            Text(
-                "Alarms use Android AlarmManager. Enable Notifications and Alarms & reminders in system settings.",
-                style = SuhoodTypography.bodySmall,
-                color = colors.textMuted,
-                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
-            )
-            Spacer(Modifier.height(12.dp))
             Column(
-                modifier = Modifier
+                Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 32.dp)
             ) {
-                alarms.forEach { alarm ->
+                Text(
+                    "Uses AlarmManager. Grant Notifications and Alarms & reminders for reliable delivery.",
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textMuted
+                )
+                Spacer(Modifier.height(16.dp))
+
+                // Automatic Fajr
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Text("Automatic Fajr alarm", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                    Text(
+                        "Rings ${prayer.fajrLeadMinutes} minutes before effective Fajr start (from Prayer settings).",
+                        style = SuhoodTypography.bodySmall,
+                        color = colors.textMuted
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GlassButton(
+                            text = if (prayer.autoFajrEnabled) "On" else "Off",
+                            onClick = {
+                                scope.launch {
+                                    FajrAutoScheduler.setEnabled(context, !prayer.autoFajrEnabled)
+                                }
+                            }
+                        )
+                        GlassButton(
+                            text = "Skip today",
+                            onClick = { scope.launch { FajrAutoScheduler.skipToday(context) } },
+                            primary = false
+                        )
+                    }
+                    if (prayer.fajrSkipDate.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("Skipped date: ${prayer.fajrSkipDate}", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+
+                val userAlarms = alarms.filter { !it.isFajrAuto }
+                userAlarms.forEach { alarm ->
                     GlassCard(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         onClick = { onEdit(alarm.id) }
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -67,7 +120,14 @@ object AlarmScreens {
                                 )
                                 Text(alarm.label, style = SuhoodTypography.bodySmall, color = colors.textSecondary)
                                 Text(
-                                    "Challenge: ${alarm.challengeType.name}",
+                                    buildString {
+                                        if (alarm.repeatDaysCsv.isBlank()) append("One-time")
+                                        else append("Repeats")
+                                        append(" · ")
+                                        append(alarm.challengeType)
+                                        if (alarm.soundUri.isNotBlank()) append(" · Custom sound")
+                                        else append(" · Default tone")
+                                    },
                                     style = SuhoodTypography.labelSmall,
                                     color = colors.textMuted
                                 )
@@ -76,8 +136,10 @@ object AlarmScreens {
                                 GlassPill(
                                     selected = alarm.enabled,
                                     onClick = {
-                                        alarms = alarms.map {
-                                            if (it.id == alarm.id) it.copy(enabled = !it.enabled) else it
+                                        scope.launch {
+                                            val updated = alarm.copy(enabled = !alarm.enabled)
+                                            dao.upsertAlarm(updated)
+                                            AlarmScheduler.schedule(context, updated)
                                         }
                                     }
                                 ) {
@@ -87,18 +149,13 @@ object AlarmScreens {
                                         color = colors.textPrimary
                                     )
                                 }
-                                Spacer(Modifier.height(8.dp))
-                                GlassButton(
-                                    text = "Test ring",
-                                    onClick = { onSimulateRing(alarm.id) },
-                                    primary = false
-                                )
                             }
                         }
                     }
                 }
-                if (alarms.isEmpty()) {
-                    EmptyState("No alarms", "Create a demo alarm to explore the flow.")
+                if (userAlarms.isEmpty()) {
+                    Spacer(Modifier.height(24.dp))
+                    EmptyState("No alarms", "Create an alarm with time, sound, and optional wake-up challenge.")
                 }
             }
         }
@@ -106,151 +163,191 @@ object AlarmScreens {
 
     @Composable
     fun CreateEdit(alarmId: String?, onBack: () -> Unit, onSaved: () -> Unit) {
+        val context = LocalContext.current
+        val app = context.applicationContext as SuhoodApplication
+        val dao = app.database.dao()
+        val scope = rememberCoroutineScope()
         val colors = suhoodColors
+
         var hour by remember { mutableIntStateOf(5) }
         var minute by remember { mutableIntStateOf(0) }
-        var label by remember { mutableStateOf("Fajr") }
-        var challenge by remember { mutableStateOf(ChallengeType.QUIZ) }
+        var label by remember { mutableStateOf("Alarm") }
+        var enabled by remember { mutableStateOf(true) }
+        var soundUri by remember { mutableStateOf("") }
+        var challenge by remember { mutableStateOf(ChallengeType.NONE) }
+        var days by remember { mutableStateOf(setOf<Int>()) } // Calendar DAY_OF_WEEK
+        var loaded by remember { mutableStateOf(false) }
+
+        LaunchedEffect(alarmId) {
+            if (alarmId != null) {
+                val existing = dao.getAlarm(alarmId)
+                if (existing != null) {
+                    hour = existing.hour
+                    minute = existing.minute
+                    label = existing.label
+                    enabled = existing.enabled
+                    soundUri = existing.soundUri
+                    challenge = runCatching { ChallengeType.valueOf(existing.challengeType) }
+                        .getOrDefault(ChallengeType.NONE)
+                    days = existing.repeatDaysCsv.split(',')
+                        .mapNotNull { it.trim().toIntOrNull() }.toSet()
+                }
+            }
+            loaded = true
+        }
+
+        val pickSound = rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            if (uri != null) {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+                soundUri = uri.toString()
+            }
+        }
+
+        if (!loaded) return
 
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 32.dp)
         ) {
             ScreenHeader(title = if (alarmId == null) "New alarm" else "Edit alarm", onBack = onBack)
+            Spacer(Modifier.height(12.dp))
+
+            Text("Time (24h)", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                GlassSearchField(
+                    query = hour.toString().padStart(2, '0'),
+                    onQueryChange = { hour = it.toIntOrNull()?.coerceIn(0, 23) ?: hour },
+                    placeholder = "HH",
+                    modifier = Modifier.weight(1f)
+                )
+                GlassSearchField(
+                    query = minute.toString().padStart(2, '0'),
+                    onQueryChange = { minute = it.toIntOrNull()?.coerceIn(0, 59) ?: minute },
+                    placeholder = "MM",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text("Label", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            GlassSearchField(query = label, onQueryChange = { label = it }, placeholder = "Label")
+
             Spacer(Modifier.height(16.dp))
-            Text("Time (demo)", style = SuhoodTypography.titleSmall, color = colors.textMuted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf(4, 5, 6).forEach { h ->
-                    GlassPill(selected = hour == h, onClick = { hour = h }) {
-                        Text("%02d".format(h), style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+            Text("Repeat (Sun=1 … Sat=7)", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                listOf(1 to "S", 2 to "M", 3 to "T", 4 to "W", 5 to "T", 6 to "F", 7 to "S").forEach { (d, letter) ->
+                    GlassPill(
+                        selected = d in days,
+                        onClick = {
+                            days = if (d in days) days - d else days + d
+                        }
+                    ) {
+                        Text(letter, style = SuhoodTypography.labelMedium, color = colors.textPrimary)
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf(0, 15, 30, 45).forEach { m ->
-                    GlassPill(selected = minute == m, onClick = { minute = m }) {
-                        Text("%02d".format(m), style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                    }
-                }
-            }
-            Spacer(Modifier.height(20.dp))
-            Text("Challenge", style = SuhoodTypography.titleSmall, color = colors.textMuted)
-            Spacer(Modifier.height(8.dp))
-            GlassSegmentedControl(
-                options = listOf("None", "Quiz", "Dhikr"),
-                selectedIndex = when (challenge) {
-                    ChallengeType.NONE -> 0
-                    ChallengeType.QUIZ -> 1
-                    ChallengeType.DHIKR -> 2
-                },
-                onSelect = {
-                    challenge = when (it) {
-                        1 -> ChallengeType.QUIZ
-                        2 -> ChallengeType.DHIKR
-                        else -> ChallengeType.NONE
-                    }
-                }
+            Text(
+                if (days.isEmpty()) "One-time (next occurrence)" else "Repeats on selected days",
+                style = SuhoodTypography.labelSmall,
+                color = colors.textMuted
             )
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "Save", onClick = onSaved, modifier = Modifier.fillMaxWidth())
-        }
-    }
 
-    @Composable
-    fun Ringing(onQuiz: () -> Unit, onDhikr: () -> Unit, onDismiss: () -> Unit) {
-        val colors = suhoodColors
-        Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            DemoStatusLabel("System alarm")
             Spacer(Modifier.height(16.dp))
-            Text("05:00", style = SuhoodTypography.timer, color = colors.silverBright)
-            Text("Fajr (Demo)", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-            Spacer(Modifier.height(40.dp))
-            GlassButton(text = "Dismiss with Quiz", onClick = onQuiz, modifier = Modifier.fillMaxWidth())
+            Text("Sound", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            Text(
+                if (soundUri.isBlank()) "System default alarm tone" else "Custom file selected",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textSecondary
+            )
             Spacer(Modifier.height(8.dp))
-            GlassButton(text = "Dismiss with Dhikr", onClick = onDhikr, modifier = Modifier.fillMaxWidth(), primary = false)
-            Spacer(Modifier.height(8.dp))
-            GlassButton(text = "Dismiss", onClick = onDismiss, primary = false, modifier = Modifier.fillMaxWidth())
-        }
-    }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GlassButton(
+                    text = "Pick audio",
+                    onClick = { pickSound.launch(arrayOf("audio/*")) }
+                )
+                GlassButton(
+                    text = "Default",
+                    onClick = { soundUri = "" },
+                    primary = false
+                )
+            }
 
-    @Composable
-    fun QuizChallenge(onComplete: () -> Unit) {
-        val colors = suhoodColors
-        val q = DemoData.quizQuestions.first()
-        var selected by remember { mutableStateOf<Int?>(null) }
-        Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl)
-        ) {
-            Text("Answer to dismiss", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
             Spacer(Modifier.height(16.dp))
-            Text(q.question, style = SuhoodTypography.bodyLarge, color = colors.textPrimary)
-            Spacer(Modifier.height(20.dp))
-            q.options.forEachIndexed { i, opt ->
+            Text("Wake-up challenge", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            val types = ChallengeType.entries
+            types.forEach { type ->
                 GlassCard(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    selected = selected == i,
-                    onClick = { selected = i }
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    selected = challenge == type,
+                    onClick = { challenge = type }
                 ) {
-                    Text(opt, style = SuhoodTypography.bodyMedium, color = colors.textPrimary)
+                    Text(type.name, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            GlassButton(
-                text = "Submit",
-                onClick = { if (selected == q.correctIndex) onComplete() },
-                enabled = selected != null,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
 
-    @Composable
-    fun DhikrChallenge(onComplete: () -> Unit) {
-        val colors = suhoodColors
-        var count by remember { mutableIntStateOf(0) }
-        val target = 33
-        Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("سُبْحَانَ اللَّهِ", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-            Text("SubhanAllah", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-            Spacer(Modifier.height(24.dp))
-            Text("$count / $target", style = SuhoodTypography.timerSmall, color = colors.silverBright)
             Spacer(Modifier.height(24.dp))
             GlassButton(
-                text = "Tap",
+                text = "Save",
                 onClick = {
-                    count++
-                    if (count >= target) onComplete()
+                    scope.launch {
+                        val id = alarmId ?: UUID.randomUUID().toString()
+                        val entity = AlarmEntity(
+                            id = id,
+                            hour = hour,
+                            minute = minute,
+                            label = label.ifBlank { "Alarm" },
+                            enabled = enabled,
+                            repeatDaysCsv = days.sorted().joinToString(","),
+                            soundUri = soundUri,
+                            challengeType = challenge.name,
+                            isFajrAuto = false
+                        )
+                        dao.upsertAlarm(entity)
+                        AlarmScheduler.schedule(context, entity)
+                        onSaved()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+            if (alarmId != null) {
+                Spacer(Modifier.height(8.dp))
+                GlassButton(
+                    text = "Delete",
+                    onClick = {
+                        scope.launch {
+                            AlarmScheduler.cancel(context, alarmId)
+                            dao.deleteAlarm(alarmId)
+                            onSaved()
+                        }
+                    },
+                    primary = false,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 
     @Composable
-    fun Dismissed(onDone: () -> Unit) {
+    fun Dismissed(onBack: () -> Unit) {
         val colors = suhoodColors
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("Alarm dismissed", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-            Spacer(Modifier.height(12.dp))
-            Text("Barakallahu feek. Start your day with intention.", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "Done", onClick = onDone, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(16.dp))
+            GlassButton(text = "Back", onClick = onBack)
         }
     }
 }

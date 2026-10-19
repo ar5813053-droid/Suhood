@@ -22,23 +22,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import com.suhood.core.designsystem.components.GlassButton
+import com.suhood.core.designsystem.components.GlassSearchField
 import com.suhood.core.designsystem.theme.SuhoodTheme
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.notifications.AlarmReceiver
 import com.suhood.core.notifications.AlarmScheduler
+import kotlin.random.Random
 
 /**
- * Full-screen alarm UI when Android allows full-screen intents.
- * Uses a dedicated MediaPlayer so Nasheedify's ExoPlayer is not corrupted.
+ * Full-screen alarm ring UI with optional math challenge before dismiss.
  */
 class AlarmRingActivity : ComponentActivity() {
-
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
 
@@ -61,6 +67,7 @@ class AlarmRingActivity : ComponentActivity() {
         val label = intent.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: "Alarm"
         val alarmId = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID) ?: "alarm"
         val soundUri = intent.getStringExtra(EXTRA_SOUND_URI)
+        val challenge = intent.getStringExtra(EXTRA_CHALLENGE) ?: "NONE"
 
         startSound(soundUri)
         startVibrate()
@@ -68,28 +75,103 @@ class AlarmRingActivity : ComponentActivity() {
         setContent {
             SuhoodTheme(themeMode = ThemeMode.DARK) {
                 val colors = suhoodColors
+                var solved by remember { mutableStateOf(challenge == "NONE") }
+                val a = remember { Random.nextInt(2, 12) }
+                val b = remember { Random.nextInt(2, 12) }
+                val answer = a + b
+                var input by remember { mutableStateOf("") }
+                var error by remember { mutableStateOf<String?>(null) }
+                var tapsNeeded by remember { mutableIntStateOf(5) }
+                var taps by remember { mutableIntStateOf(0) }
+
                 Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(label, style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+                    Text(label, style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
                     Spacer(Modifier.height(8.dp))
-                    Text("Suhood alarm", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-                    Spacer(Modifier.height(32.dp))
-                    GlassButton(
-                        text = "Dismiss",
-                        onClick = { stopAll(); finish() },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text("Suhood alarm", style = SuhoodTypography.bodyMedium, color = colors.textMuted)
+                    Spacer(Modifier.height(24.dp))
+
+                    when {
+                        challenge == "MATH" && !solved -> {
+                            Text("Solve to dismiss", style = SuhoodTypography.titleMedium, color = colors.textSecondary)
+                            Spacer(Modifier.height(8.dp))
+                            Text("$a + $b = ?", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+                            Spacer(Modifier.height(12.dp))
+                            GlassSearchField(query = input, onQueryChange = { input = it }, placeholder = "Answer")
+                            error?.let {
+                                Spacer(Modifier.height(8.dp))
+                                Text(it, color = colors.textMuted)
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            GlassButton(
+                                text = "Check",
+                                onClick = {
+                                    if (input.trim().toIntOrNull() == answer) {
+                                        solved = true
+                                        error = null
+                                    } else error = "Incorrect — try again"
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        challenge == "TAP" && !solved -> {
+                            Text("Tap $tapsNeeded times to dismiss", style = SuhoodTypography.titleMedium, color = colors.textSecondary)
+                            Spacer(Modifier.height(12.dp))
+                            GlassButton(
+                                text = "Tap (${taps}/$tapsNeeded)",
+                                onClick = {
+                                    taps++
+                                    if (taps >= tapsNeeded) solved = true
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        challenge == "MEMORY" && !solved -> {
+                            // Lightweight: same as math for reliability offline
+                            Text("Solve to dismiss", style = SuhoodTypography.titleMedium, color = colors.textSecondary)
+                            Spacer(Modifier.height(8.dp))
+                            Text("$a + $b = ?", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+                            Spacer(Modifier.height(12.dp))
+                            GlassSearchField(query = input, onQueryChange = { input = it }, placeholder = "Answer")
+                            Spacer(Modifier.height(12.dp))
+                            GlassButton(
+                                text = "Check",
+                                onClick = {
+                                    if (input.trim().toIntOrNull() == answer) solved = true
+                                    else error = "Incorrect"
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            error?.let { Text(it, color = colors.textMuted) }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                    if (solved || challenge == "NONE") {
+                        GlassButton(
+                            text = "Dismiss",
+                            onClick = {
+                                stopAll()
+                                NotificationManagerCompat.from(this@AlarmRingActivity)
+                                    .cancel(alarmId.hashCode())
+                                finish()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     GlassButton(
                         text = "Snooze 5 min",
                         onClick = {
                             stopAll()
-                            AlarmScheduler.scheduleSnooze(this@AlarmRingActivity, alarmId, label, 5)
+                            NotificationManagerCompat.from(this@AlarmRingActivity)
+                                .cancel(alarmId.hashCode())
+                            AlarmScheduler.scheduleSnooze(
+                                this@AlarmRingActivity, alarmId, label, 5, soundUri.orEmpty(), challenge
+                            )
                             finish()
                         },
                         primary = false,
@@ -115,6 +197,20 @@ class AlarmRingActivity : ComponentActivity() {
                 isLooping = true
                 prepare()
                 start()
+            }
+        }.onFailure {
+            // fallback default
+            runCatching {
+                val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                player = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
+                    )
+                    setDataSource(this@AlarmRingActivity, uri)
+                    isLooping = true
+                    prepare()
+                    start()
+                }
             }
         }
     }
@@ -149,5 +245,6 @@ class AlarmRingActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SOUND_URI = "sound_uri"
+        const val EXTRA_CHALLENGE = "challenge"
     }
 }

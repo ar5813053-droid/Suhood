@@ -34,7 +34,10 @@ data class AlarmEntity(
     val label: String,
     val enabled: Boolean,
     val repeatDaysCsv: String = "",
-    val soundId: String = "default"
+    val soundUri: String = "",
+    val challengeType: String = "NONE",
+    val challengeDifficulty: Int = 1,
+    val isFajrAuto: Boolean = false
 )
 
 @Entity(tableName = "recent_tracks")
@@ -90,6 +93,12 @@ interface SuhoodDao {
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun deleteAlarm(id: String)
 
+    @Query("SELECT * FROM alarms")
+    suspend fun getAllAlarms(): List<AlarmEntity>
+
+    @Query("SELECT * FROM alarms WHERE id = :id LIMIT 1")
+    suspend fun getAlarm(id: String): AlarmEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addRecent(entity: RecentTrackEntity)
 
@@ -121,7 +130,7 @@ interface SuhoodDao {
         QuranBookmarkEntity::class,
         QuranLastReadEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class SuhoodDatabase : RoomDatabase() {

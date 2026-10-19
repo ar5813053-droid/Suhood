@@ -51,13 +51,17 @@ data class AlarmConfig(
     val minute: Int,
     val label: String = "Alarm",
     val enabled: Boolean = true,
-    val repeatDays: Set<Int> = emptySet(), // 1=Mon … 7=Sun
-    val soundId: String = "default",
+    /** Calendar.DAY_OF_WEEK values (1=Sunday … 7=Saturday). Empty = one-shot. */
+    val repeatDays: Set<Int> = emptySet(),
+    /** Content URI for custom ringtone; blank = system default alarm tone. */
+    val soundUri: String = "",
     val challengeType: ChallengeType = ChallengeType.NONE,
-    val preFajrMinutes: Int = 0
+    val challengeDifficulty: Int = 1,
+    /** System-managed automatic Fajr alarm (not user-created list item style). */
+    val isFajrAuto: Boolean = false
 )
 
-enum class ChallengeType { NONE, QUIZ, DHIKR }
+enum class ChallengeType { NONE, MATH, MEMORY, TAP }
 
 // ── Quran (placeholder-aware) ───────────────────────────────────────────────
 data class SurahInfo(

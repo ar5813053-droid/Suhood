@@ -175,7 +175,7 @@ object DemoData {
     )
 
     val sampleAlarms = listOf(
-        AlarmConfig(id = "a1", hour = 5, minute = 0, label = "Fajr (Demo)", enabled = true, repeatDays = setOf(1, 2, 3, 4, 5, 6, 7), challengeType = ChallengeType.QUIZ),
-        AlarmConfig(id = "a2", hour = 6, minute = 30, label = "Morning Adhkar", enabled = false, repeatDays = setOf(1, 2, 3, 4, 5), challengeType = ChallengeType.DHIKR)
+        AlarmConfig(id = "a1", hour = 5, minute = 0, label = "Fajr (Demo)", enabled = true, repeatDays = setOf(1, 2, 3, 4, 5, 6, 7), challengeType = ChallengeType.MATH),
+        AlarmConfig(id = "a2", hour = 6, minute = 30, label = "Morning Adhkar", enabled = false, repeatDays = setOf(1, 2, 3, 4, 5), challengeType = ChallengeType.NONE)
     )
 }
