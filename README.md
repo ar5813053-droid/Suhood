@@ -1,139 +1,59 @@
 # Suhood
 
-**Help Muslims spend less time distracted and more time reconnecting with Allah.**
+**Less distraction. More Salah, Quran, Dhikr, and mindful focus.**
 
-Suhood is a free, non-commercial native Android application focused on reducing social-media and gaming distractions, returning to Salah, remembering Allah through Dhikr, reading the Quran, and accessing Islamic audio (Nasheedify).
+Suhood is a free, non-commercial native Android app designed to help Muslims reduce distractions and reconnect with worship through prayer reminders, focus tools, alarms, Quran resources, Dhikr, and Islamic audio.
 
-This repository contains **Phase 1 — Complete Frontend**: every major screen, Hybrid Glass UI, navigation, demo interactions, local preference persistence, and a GitHub Actions debug APK workflow.
+## Features
 
-## Features (Phase 1)
-
-- **Hybrid Glass UI** — Apple-inspired liquid-glass aesthetics on a monochrome black / graphite / silver palette (Compose)
-- **Floating top navigation** capsule (Home · Worship · Focus · Audio)
-- **Onboarding** with theme and language selection (persisted)
-- **Home dashboard** with demo Salah times and countdown (clearly labelled as demo)
-- **Focus sessions** — simulated countdown, app selection, history placeholders
-- **Alarms** — local CRUD UI, simulated ringing, Quiz and Dhikr dismissal challenges
-- **Quran** — surah list/search UI; **no fabricated verses** (placeholder reader ready for verified content)
-- **Worship** — functional Tasbeeh counter, Adhkar, Dua library, Islamic quiz with scoring, daily checklist
-- **Nasheedify** — full audio UI: categories, search, favorites, queue, mini-player, full player (demo playback state)
-- **Settings** — appearance (Dark / Light / System), language, privacy, about; Phase 2 notes for real integrations
-- **Local persistence** via DataStore for theme and onboarding
-- **Offline demo data** — no network required
+- **Hybrid Glass UI:** Apple-inspired black, graphite, translucent surfaces, and silver highlights.
+- **Home:** Salah dashboard and prayer information.
+- **Worship:** Tasbeeh, Adhkar, Dua, and Islamic quiz features.
+- **Focus:** Focus sessions, installed-app selection, and accessibility-based focus support where configured.
+- **Alarms:** Alarm management and reminder-related settings.
+- **Prayer reminders:** Rescheduling support and device boot/timezone handling.
+- **Quran:** Surah browsing and search without fabricated Quran verses.
+- **Nasheedify:** Islamic audio catalogue and playback interface.
+- **Permissions:** Guidance for notifications, alarms, Usage Access, and Accessibility.
+- **Tip the developer:** Optional UPI contribution screen with QR support.
+- **Settings:** Appearance, notification controls, focus permissions, and app information.
 
 ## Technology
 
-| Layer | Choice |
-|-------|--------|
-| Language | Kotlin |
-| UI | Jetpack Compose + Material 3 foundation |
-| Navigation | Navigation Compose |
-| Architecture | MVVM-style with repositories |
-| Preferences | DataStore |
-| Build | Gradle Kotlin DSL + version catalog |
-| Min SDK | 26 |
-| Target / Compile SDK | 35 |
+- Kotlin
+- Jetpack Compose
+- Android SDK
+- Gradle Kotlin DSL
+- Android accessibility and notification APIs
+- GitHub Actions for automated APK builds
 
-## Project structure
+## Build
 
-```
-app/src/main/java/com/suhood/
-├── app/                 # Application, MainActivity
-├── core/
-│   ├── designsystem/    # Theme tokens, glass components, floating nav
-│   ├── navigation/      # Routes, NavGraph
-│   ├── model/           # Domain models
-│   ├── data/            # Demo data
-│   └── datastore/       # PreferencesRepository
-└── feature/
-    ├── onboarding/
-    ├── home/
-    ├── focus/
-    ├── alarms/
-    ├── quran/
-    ├── worship/
-    ├── nasheedify/
-    └── settings/
-```
-
-## Local setup
-
-### Requirements
-
-- Android Studio Ladybug (or newer) / JDK 17
-- Android SDK 35
-- Optional: physical device or emulator API 26+
-
-### Build & run
+Requirements: JDK and Android SDK versions compatible with the project Gradle configuration.
 
 ```bash
-# Clone
-git clone <your-repo-url> suhood
-cd suhood
-
-# Assemble debug APK
-./gradlew assembleDebug
-
-# Install on connected device
-./gradlew installDebug
-
-# Unit tests
-./gradlew test
+git clone https://github.com/ar5813053-droid/Suhood.git
+cd Suhood
+chmod +x gradlew
+./gradlew testDebugUnitTest assembleDebug
 ```
 
-Open the project in Android Studio and run the `app` configuration.
+The debug APK is generated at:
 
-### First launch
+`app/build/outputs/apk/debug/app-debug.apk`
 
-Onboarding appears once. Theme preference is saved immediately. Skip any optional intro step.
+## Setup and permissions
 
-## GitHub Actions — debug APK
+Some features require optional Android system permissions. Follow the in-app instructions for notifications, alarms and reminders, Usage Access, and Accessibility.
 
-Workflow: `.github/workflows/android-apk.yml`
+Accessibility-based focus features depend on Android settings and device behaviour. Prayer calculations and reminder delivery should be verified on the target device before relying on them.
 
-**Triggers:** push / PR to `main` or `master`, and manual `workflow_dispatch`.
+## Privacy and mission
 
-**Steps:** checkout → JDK 17 → Android SDK → unit tests → `assembleDebug` → upload artifact `suhood-debug-apk`.
+Suhood is intended to remain free and non-commercial, with no advertisements, subscriptions, or in-app purchases. Optional developer tips are voluntary.
 
-### Download the APK
+## Project status
 
-1. Open the repository on GitHub → **Actions**
-2. Select the latest successful **Build Suhood Debug APK** run
-3. Download the **suhood-debug-apk** artifact
-4. Unzip and install `app-debug.apk` on a device (enable “Install from unknown sources” if needed)
-
-Artifacts expire according to GitHub retention (default ~14 days in this workflow).
-
-**Do not treat the debug APK as a production release.** It is unsigned for store distribution.
-
-## Phase 1 limitations (honest)
-
-| Feature | Phase 1 status |
-|---------|----------------|
-| Prayer times | Demo values only — not location-based |
-| Alarms | UI + simulated ring; no OS AlarmManager |
-| App blocking | Demo list; no Usage Access / Accessibility |
-| Quran text | Interface only — no fabricated verses |
-| Audio | Demo metadata + playback *state*; no real Media3 stream |
-| Notifications | Not scheduled |
-| Monetization | None (by design) |
-
-## Phase 2 (planned)
-
-- Real Salah calculation and local notifications
-- Fajr alarms with OS scheduling
-- Quiz / Dhikr alarm dismissal
-- Device-level focus blocking
-- Verified Quran content + recitation
-- Media3 foreground playback service
-- Authorized Nasheedify catalog sources
-
-## Design
-
-**Hybrid Glass** — deep black backgrounds, graphite translucent surfaces, thin silver borders, restrained highlights. No green-and-gold stereotype theme. Dark theme is the default.
-
-## License & intent
-
-Suhood is a free, non-commercial project. No advertisements, subscriptions, or in-app purchases.
+This repository contains the current production-feature implementation. Successful compilation, automated tests, and real-device verification are separate requirements; features should not be considered fully production-verified until those checks pass.
 
 May Allah accept the intention and make it beneficial.
