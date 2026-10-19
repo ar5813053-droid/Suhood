@@ -50,8 +50,7 @@ class FocusBlockActivity : ComponentActivity() {
                     GlassButton(
                         text = "End session",
                         onClick = {
-                            (application as? com.suhood.app.SuhoodApplication)
-                                ?.focusSessionController?.cancel()
+                            com.suhood.feature.focus.FocusSessionController.get(this@FocusBlockActivity).cancel()
                             finish()
                         },
                         primary = false

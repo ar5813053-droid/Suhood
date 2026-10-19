@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import com.suhood.R
+import com.suhood.app.R
 
 /**
  * Mosque interior background for all main app screens except Nasheedify.
