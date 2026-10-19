@@ -202,10 +202,22 @@ fun SuhoodNavGraph(
 
             // Quran
             composable(Routes.QURAN) {
-                QuranScreens.Home(
+                QuranScreens.ParahList(
                     onBack = { navController.popBackStack() },
-                    onSurahList = { navController.navigate(Routes.QURAN_SURAH_LIST) },
-                    onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) }
+                    onParah = { id -> navController.navigate("quran/parah/$id") },
+                    onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
+                    onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) }
+                )
+            }
+            composable(
+                "quran/parah/{parahId}",
+                arguments = listOf(navArgument("parahId") { type = NavType.IntType })
+            ) { entry ->
+                val id = entry.arguments?.getInt("parahId") ?: 1
+                QuranScreens.ParahDetail(
+                    parahId = id,
+                    onBack = { navController.popBackStack() },
+                    onSurah = { sid -> navController.navigate("quran/reader/$sid") }
                 )
             }
             composable(Routes.QURAN_SURAH_LIST) {
@@ -383,6 +395,9 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_PRAYER) {
                 SettingsScreens.PrayerPrefs(settingsViewModel = settingsViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_SALAH_TIMES) {
+                SettingsScreens.SalahTimes(onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS_NOTIFICATIONS) {
                 SettingsScreens.NotificationPrefs(onBack = { navController.popBackStack() })

@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
@@ -30,6 +31,7 @@ object SettingsScreens {
             "Appearance" to Routes.SETTINGS_APPEARANCE,
             "Language" to Routes.SETTINGS_LANGUAGE,
             "Prayer preferences" to Routes.SETTINGS_PRAYER,
+            "Customize Salah times" to Routes.SETTINGS_SALAH_TIMES,
             "Notifications" to Routes.SETTINGS_NOTIFICATIONS,
             "Focus" to Routes.SETTINGS_FOCUS,
             "Audio" to Routes.SETTINGS_AUDIO,
@@ -488,6 +490,122 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
                     style = SuhoodTypography.bodyMedium,
                     color = colors.textSecondary
                 )
+            }
+        }
+    }
+
+
+    @Composable
+    fun SalahTimes(onBack: () -> Unit) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val store = remember { com.suhood.core.prayer.PrayerSettingsStore(context) }
+        val settings by store.settings.collectAsStateWithLifecycle(
+            initialValue = com.suhood.core.prayer.PrayerSettings()
+        )
+        val scope = rememberCoroutineScope()
+        val colors = suhoodColors
+        val prayers = listOf(
+            "Fajr" to settings.masjidFajr,
+            "Dhuhr" to settings.masjidDhuhr,
+            "Asr" to settings.masjidAsr,
+            "Maghrib" to settings.masjidMaghrib,
+            "Isha" to settings.masjidIsha
+        )
+        var editing by remember { mutableStateOf<String?>(null) }
+        var hourText by remember { mutableStateOf("05") }
+        var minuteText by remember { mutableStateOf("00") }
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 32.dp)
+        ) {
+            ScreenHeader(title = "Customize Salah times", onBack = onBack)
+            Text(
+                "Masjid timetable mode. These times are used when Prayer mode is Masjid, and Fajr auto uses Fajr start − lead minutes.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted
+            )
+            Spacer(Modifier.height(12.dp))
+            GlassButton(
+                text = "Use masjid timetable",
+                onClick = {
+                    scope.launch {
+                        store.update {
+                            it.copy(mode = com.suhood.core.prayer.PrayerTimeMode.MASJID)
+                        }
+                        com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
+            prayers.forEach { (name, time) ->
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    onClick = {
+                        editing = name
+                        val parts = time.split(":")
+                        hourText = parts.getOrNull(0) ?: "05"
+                        minuteText = parts.getOrNull(1) ?: "00"
+                    }
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(name, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                        Text(time, style = SuhoodTypography.headlineSmall, color = colors.silverBright)
+                    }
+                }
+            }
+            if (editing != null) {
+                Spacer(Modifier.height(16.dp))
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Text("Edit $editing", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GlassSearchField(
+                            query = hourText,
+                            onQueryChange = { hourText = it.filter { c -> c.isDigit() }.take(2) },
+                            placeholder = "HH",
+                            modifier = Modifier.weight(1f)
+                        )
+                        GlassSearchField(
+                            query = minuteText,
+                            onQueryChange = { minuteText = it.filter { c -> c.isDigit() }.take(2) },
+                            placeholder = "MM",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    GlassButton(
+                        text = "Save",
+                        onClick = {
+                            val h = hourText.toIntOrNull()?.coerceIn(0, 23) ?: return@GlassButton
+                            val m = minuteText.toIntOrNull()?.coerceIn(0, 59) ?: return@GlassButton
+                            val hhmm = "%02d:%02d".format(h, m)
+                            scope.launch {
+                                store.update { s ->
+                                    when (editing) {
+                                        "Fajr" -> s.copy(masjidFajr = hhmm)
+                                        "Dhuhr" -> s.copy(masjidDhuhr = hhmm)
+                                        "Asr" -> s.copy(masjidAsr = hhmm)
+                                        "Maghrib" -> s.copy(masjidMaghrib = hhmm)
+                                        "Isha" -> s.copy(masjidIsha = hhmm)
+                                        else -> s
+                                    }
+                                }
+                                com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                                editing = null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }

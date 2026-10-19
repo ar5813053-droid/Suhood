@@ -1,5 +1,10 @@
 package com.suhood.feature.focus
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,61 +12,96 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.suhood.core.data.DemoData
-import com.suhood.app.SuhoodApplication
-import com.suhood.core.database.FocusHistoryEntity
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import java.util.UUID
 import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
-import kotlinx.coroutines.delay
+import com.suhood.core.model.DistractingApp
 
 object FocusScreens {
 
     @Composable
     fun Dashboard(onNavigate: (String) -> Unit, bottomContentPadding: Dp) {
         val colors = suhoodColors
+        val context = LocalContext.current
+        val session = remember {
+            FocusSessionController.get(context).tick()
+        }
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
-                .padding(bottom = bottomContentPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                .padding(bottom = 32.dp)
+                .padding(bottom = bottomContentPadding + 24.dp)
         ) {
-            Text("تركيز · Focus", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-            Spacer(Modifier.height(4.dp))
-            Text("Reduce distraction before Salah", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
             Spacer(Modifier.height(8.dp))
-            DemoStatusLabel("Usage Access / Accessibility")
-            Spacer(Modifier.height(20.dp))
+            Text("تركيز", style = SuhoodTypography.arabicTitle, color = colors.textPrimary)
+            Text("Focus", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Text(
+                "Protect time before Salah — timed sessions with optional app limits.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(8.dp))
+            DemoStatusLabel("Usage Access · Accessibility optional")
 
-            GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_DURATION) }) {
-                Text("Start focus session", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("Choose duration and begin a timed session", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            Spacer(Modifier.height(20.dp))
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text("Session", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    session.state.name.replace('_', ' '),
+                    style = SuhoodTypography.headlineSmall,
+                    color = colors.textPrimary
+                )
+                if (session.remainingSeconds > 0) {
+                    Text(
+                        formatTime(session.remainingSeconds),
+                        style = SuhoodTypography.titleLarge,
+                        color = colors.silverBright
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+                GlassButton(
+                    text = "Start focus session",
+                    onClick = { onNavigate(Routes.FOCUS_DURATION) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_SELECT_APPS) }) {
-                Text("Distracting apps", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("Select installed apps to limit during focus", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigate(Routes.FOCUS_SELECT_APPS) }
+                ) {
+                    Text("Apps", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text("Limit list", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                }
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigate(Routes.FOCUS_HISTORY) }
+                ) {
+                    Text("History", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text("Past sessions", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                }
             }
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_HISTORY) }) {
-                Text("History & stats", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("Review past sessions", style = SuhoodTypography.bodySmall, color = colors.textMuted)
-            }
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_TIME_FOR_SALAH) }) {
-                Text("Interruption screen", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                Text("Preview the return-to-focus screen", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+
+            Spacer(Modifier.height(14.dp))
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text("How it works", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "1. Choose duration\n2. Optionally select apps to limit\n3. Enable Usage Access / Accessibility when prompted\n4. Stay with the session until complete",
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textSecondary
+                )
             }
         }
     }
@@ -69,228 +109,188 @@ object FocusScreens {
     @Composable
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
-        val context = androidx.compose.ui.platform.LocalContext.current
-        var apps by remember {
-            mutableStateOf(
-                runCatching {
-                    com.suhood.feature.focus.InstalledAppsRepository
-                        .loadLauncherApps(context)
-                        .let { list ->
-                            com.suhood.feature.focus.InstalledAppsRepository.toDistracting(list, emptySet())
-                        }
-                }.getOrElse { DemoData.distractingApps }
-            )
+        val context = LocalContext.current
+        val installed = remember {
+            runCatching {
+                InstalledAppsRepository.loadLauncherApps(context)
+            }.getOrDefault(emptyList())
         }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(bottom = 24.dp)
-        ) {
+        var selected by remember { mutableStateOf(setOf<String>()) }
+
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
             Text(
-                "Select installed apps to limit. Enable Accessibility (Suhood Focus) so Suhood can show a return-to-focus screen. Apps are not force-closed.",
+                "Select apps to limit during focus. Icons load from your launcher.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
-            Spacer(Modifier.height(12.dp))
-            apps.forEach { app ->
-                GlassCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = SuhoodSpacing.screenHorizontal, vertical = 4.dp),
-                    selected = app.isSelected,
-                    onClick = {
-                        apps = apps.map {
-                            if (it.id == app.id) it.copy(isSelected = !it.isSelected) else it
+            Spacer(Modifier.height(8.dp))
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                    .padding(bottom = 24.dp)
+            ) {
+                if (installed.isEmpty()) {
+                    Text("No launcher apps found", color = colors.textMuted)
+                }
+                installed.forEach { app ->
+                    val on = app.packageName in selected
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        selected = on,
+                        onClick = {
+                            selected = if (on) selected - app.packageName
+                            else selected + app.packageName
                         }
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(app.name, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                            Text(app.packageName, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            val bmp = remember(app.packageName) {
+                                app.icon?.let { drawableToBitmap(it) }
+                            }
+                            if (bmp != null) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            } else {
+                                Box(Modifier.size(40.dp))
+                            }
+                            Text(
+                                app.label,
+                                style = SuhoodTypography.titleSmall,
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                if (on) "On" else "Off",
+                                style = SuhoodTypography.labelMedium,
+                                color = if (on) colors.silverBright else colors.textMuted
+                            )
                         }
-                        Text(
-                            if (app.isSelected) "Selected" else "Off",
-                            style = SuhoodTypography.labelMedium,
-                            color = if (app.isSelected) colors.silverBright else colors.textMuted
-                        )
                     }
                 }
             }
         }
+    }
+
+    private fun drawableToBitmap(drawable: Drawable): Bitmap {
+        if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
+        val w = drawable.intrinsicWidth.coerceAtLeast(1)
+        val h = drawable.intrinsicHeight.coerceAtLeast(1)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bmp
     }
 
     @Composable
     fun DurationSelect(onBack: () -> Unit, onConfirm: (Int) -> Unit) {
         val colors = suhoodColors
-        val options = listOf(5, 10, 15, 20)
-        var selected by remember { mutableIntStateOf(15) }
-        var showCustom by remember { mutableStateOf(false) }
-        var customText by remember { mutableStateOf("25") }
-
+        val options = listOf(5, 10, 15, 20, 30, 45, 60)
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
         ) {
-            ScreenHeader(title = "Focus duration", onBack = onBack)
-            Spacer(Modifier.height(16.dp))
-            options.forEach { mins ->
+            ScreenHeader(title = "Duration", onBack = onBack)
+            options.forEach { m ->
                 GlassCard(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    selected = selected == mins && !showCustom,
-                    onClick = { selected = mins; showCustom = false }
+                    onClick = { onConfirm(m) }
                 ) {
-                    Text("$mins minutes", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                    Text("$m minutes", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                 }
             }
-            GlassCard(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                selected = showCustom,
-                onClick = { showCustom = true }
-            ) {
-                Text("Custom…", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-            }
-            if (showCustom) {
-                Spacer(Modifier.height(12.dp))
-                GlassSearchField(
-                    query = customText,
-                    onQueryChange = { customText = it.filter { c -> c.isDigit() }.take(3) },
-                    placeholder = "Minutes"
-                )
-            }
-            Spacer(Modifier.height(24.dp))
-            GlassButton(
-                text = "Start session",
-                onClick = {
-                    val mins = if (showCustom) customText.toIntOrNull()?.coerceIn(1, 120) ?: 15 else selected
-                    onConfirm(mins)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 
     @Composable
     fun ActiveSession(durationMinutes: Int, onComplete: () -> Unit, onCancel: () -> Unit) {
-        val colors = suhoodColors
+        val context = LocalContext.current
+        val controller = remember { FocusSessionController.get(context) }
         var remaining by remember { mutableIntStateOf(durationMinutes * 60) }
-        var paused by remember { mutableStateOf(false) }
+        val colors = suhoodColors
 
-        LaunchedEffect(paused) {
-            while (!paused && remaining > 0) {
-                delay(1000)
-                remaining--
+        LaunchedEffect(durationMinutes) {
+            controller.start(durationMinutes)
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val s = controller.tick()
+                remaining = s.remainingSeconds
+                if (s.remainingSeconds <= 0) {
+                    controller.complete()
+                    onComplete()
+                    break
+                }
             }
-            if (remaining <= 0) onComplete()
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            Modifier.fillMaxSize().statusBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            DemoStatusLabel("Active focus session")
-            Spacer(Modifier.height(24.dp))
-            Text(
-                formatTime(remaining),
-                style = SuhoodTypography.timer,
-                color = colors.silverBright
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                if (paused) "Paused" else "Focus in progress",
-                style = SuhoodTypography.bodyMedium,
-                color = colors.textSecondary
-            )
-            Spacer(Modifier.height(40.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GlassButton(
-                    text = if (paused) "Resume" else "Pause",
-                    onClick = { paused = !paused },
-                    primary = false
-                )
-                GlassButton(text = "Cancel", onClick = onCancel, primary = false)
-            }
+            Text("Focus active", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
             Spacer(Modifier.height(12.dp))
-            GlassButton(text = "End early", onClick = onComplete)
+            Text(formatTime(remaining), style = SuhoodTypography.headlineLarge, color = colors.silverBright)
+            Spacer(Modifier.height(24.dp))
+            GlassButton(text = "End session", onClick = {
+                controller.cancel()
+                onCancel()
+            }, primary = false)
         }
     }
 
     @Composable
     fun SessionComplete(onDone: () -> Unit, durationMinutes: Int = 15) {
         val colors = suhoodColors
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
-        LaunchedEffect(Unit) {
-            runCatching {
-                val app = context.applicationContext as SuhoodApplication
-                app.database.dao().insertFocusHistory(
-                    FocusHistoryEntity(
-                        id = UUID.randomUUID().toString(),
-                        durationMinutes = durationMinutes,
-                        completedAt = System.currentTimeMillis(),
-                        wasCompleted = true
-                    )
-                )
-            }
-        }
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            Modifier.fillMaxSize().statusBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Session complete", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-            Spacer(Modifier.height(12.dp))
-            Text("May your focus return you to Salah with a calm heart.", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "Done", onClick = onDone, modifier = Modifier.fillMaxWidth())
+            Text("Session complete", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Text("$durationMinutes minutes", color = colors.textSecondary)
+            Spacer(Modifier.height(16.dp))
+            GlassButton(text = "Done", onClick = onDone)
         }
     }
 
     @Composable
     fun History(onBack: () -> Unit) {
         val colors = suhoodColors
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-            ScreenHeader(title = "Focus history", onBack = onBack)
-            EmptyState(
-                title = "No sessions yet",
-                message = "Completed focus sessions will appear here.",
-                modifier = Modifier.padding(top = 40.dp)
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
+            ScreenHeader(title = "History", onBack = onBack)
+            Text(
+                "Completed sessions are stored on this device when the session finishes.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted
             )
         }
     }
 
     @Composable
     fun TimeForSalah(onDismiss: () -> Unit) {
+        // Kept for nav compatibility; not linked from dashboard
         val colors = suhoodColors
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            Modifier.fillMaxSize().statusBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Time for Salah", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Your focus session paused for prayer.\nThis is a preview of the  interruption screen.",
-                style = SuhoodTypography.bodyMedium,
-                color = colors.textSecondary
-            )
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "I have prayed", onClick = onDismiss, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            GlassButton(text = "Snooze 5 min", onClick = onDismiss, primary = false, modifier = Modifier.fillMaxWidth())
+            Text("Return to focus", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Spacer(Modifier.height(16.dp))
+            GlassButton(text = "Dismiss", onClick = onDismiss)
         }
     }
 

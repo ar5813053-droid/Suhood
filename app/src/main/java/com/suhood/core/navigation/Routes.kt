@@ -43,6 +43,8 @@ object Routes {
 
     // Quran
     const val QURAN = "quran"
+    const val QURAN_PARAH_LIST = "quran/parahs"
+    const val QURAN_PARAH = "quran/parah/{parahId}"
     const val QURAN_SURAH_LIST = "quran/surahs"
     const val QURAN_SURAH = "quran/surah/{surahId}"
     const val QURAN_READER = "quran/reader/{surahId}"
@@ -83,6 +85,7 @@ object Routes {
     const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_LANGUAGE = "settings/language"
     const val SETTINGS_PRAYER = "settings/prayer"
+    const val SETTINGS_SALAH_TIMES = "settings/salah_times"
     const val SETTINGS_NOTIFICATIONS = "settings/notifications"
     const val SETTINGS_ALARMS = "settings/alarms"
     const val SETTINGS_FOCUS = "settings/focus"
