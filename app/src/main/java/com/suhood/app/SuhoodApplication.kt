@@ -9,6 +9,7 @@ import com.suhood.core.audio.LocalSampleCatalogProvider
 import com.suhood.core.audio.PlaybackController
 import com.suhood.core.database.SuhoodDatabase
 import com.suhood.core.datastore.PreferencesRepository
+import com.suhood.feature.focus.FocusSessionController
 
 class SuhoodApplication : Application() {
     lateinit var preferencesRepository: PreferencesRepository
@@ -19,6 +20,8 @@ class SuhoodApplication : Application() {
         private set
     lateinit var libraryRepository: LibraryRepository
         private set
+    lateinit var focusSessionController: FocusSessionController
+        private set
     val audioCatalog = LocalSampleCatalogProvider()
 
     override fun onCreate() {
@@ -26,6 +29,7 @@ class SuhoodApplication : Application() {
         preferencesRepository = PreferencesRepository(this)
         database = SuhoodDatabase.get(this)
         libraryRepository = LibraryRepository(database.dao())
+        focusSessionController = FocusSessionController(this)
         playbackController = PlaybackController(this, audioCatalog)
         createChannels()
     }
