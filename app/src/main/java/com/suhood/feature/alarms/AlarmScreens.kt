@@ -1,8 +1,6 @@
 package com.suhood.feature.alarms
 
-import android.app.Activity
 import android.content.Intent
-import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,7 +30,7 @@ import kotlinx.coroutines.launch
 object AlarmScreens {
 
     @Composable
-    fun List(
+    fun Dashboard(
         onBack: () -> Unit,
         onCreate: () -> Unit,
         onEdit: (String) -> Unit,
@@ -338,7 +336,7 @@ object AlarmScreens {
     }
 
     @Composable
-    fun Dismissed(onBack: () -> Unit) {
+    fun Dismissed(onDone: () -> Unit) {
         val colors = suhoodColors
         Column(
             Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.screenHorizontal),
@@ -347,7 +345,88 @@ object AlarmScreens {
         ) {
             Text("Alarm dismissed", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
             Spacer(Modifier.height(16.dp))
-            GlassButton(text = "Back", onClick = onBack)
+            GlassButton(text = "Back", onClick = onDone)
+        }
+    }
+
+    /** In-app preview of ring flow (real ring uses AlarmRingActivity). */
+    @Composable
+    fun Ringing(
+        onQuiz: () -> Unit,
+        onDhikr: () -> Unit,
+        onDismiss: () -> Unit
+    ) {
+        val colors = suhoodColors
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Alarm ringing", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Text(
+                "Real alarms open AlarmRingActivity. This is an in-app preview.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted
+            )
+            Spacer(Modifier.height(16.dp))
+            GlassButton(text = "Math challenge", onClick = onQuiz, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            GlassButton(text = "Tap challenge", onClick = onDhikr, primary = false, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            GlassButton(text = "Dismiss", onClick = onDismiss, primary = false, modifier = Modifier.fillMaxWidth())
+        }
+    }
+
+    @Composable
+    fun QuizChallenge(onComplete: () -> Unit) {
+        val colors = suhoodColors
+        var a by remember { mutableIntStateOf(3) }
+        var b by remember { mutableIntStateOf(5) }
+        var input by remember { mutableStateOf("") }
+        var err by remember { mutableStateOf<String?>(null) }
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Math challenge", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Spacer(Modifier.height(12.dp))
+            Text("$a + $b = ?", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
+            Spacer(Modifier.height(12.dp))
+            GlassSearchField(query = input, onQueryChange = { input = it }, placeholder = "Answer")
+            err?.let { Text(it, color = colors.textMuted) }
+            Spacer(Modifier.height(12.dp))
+            GlassButton(
+                text = "Submit",
+                onClick = {
+                    if (input.trim().toIntOrNull() == a + b) onComplete()
+                    else err = "Incorrect"
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    @Composable
+    fun DhikrChallenge(onComplete: () -> Unit) {
+        val colors = suhoodColors
+        var taps by remember { mutableIntStateOf(0) }
+        val need = 5
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().padding(SuhoodSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Tap challenge", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Spacer(Modifier.height(12.dp))
+            GlassButton(
+                text = "Tap ($taps/$need)",
+                onClick = {
+                    taps++
+                    if (taps >= need) onComplete()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
