@@ -322,9 +322,6 @@ object SettingsScreens {
     }
 
     @Composable
-
-
-    @Composable
     fun PermissionsGuide(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = androidx.compose.ui.platform.LocalContext.current
@@ -439,7 +436,7 @@ object SettingsScreens {
                 color = colors.textSecondary
             )
             Spacer(Modifier.height(16.dp))
-            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text("UPI", style = SuhoodTypography.labelMedium, color = colors.textMuted)
                 Spacer(Modifier.height(6.dp))
                 Text(upiId, style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
@@ -469,7 +466,7 @@ object SettingsScreens {
             Spacer(Modifier.height(24.dp))
             Text("Purpose of Suhood", style = SuhoodTypography.titleLarge, color = colors.textPrimary)
             Spacer(Modifier.height(8.dp))
-            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     """Suhood helps Muslims reduce distractions and return to Salah, Quran, Dhikr, and calm focus.
 
