@@ -3,7 +3,7 @@ package com.suhood.core.data
 import com.suhood.core.model.*
 
 /**
- * Bundled offline demo data for Phase 1.
+ * Bundled offline catalog used only when MediaStore has no audio.
  * All religious content is either verified sample or clearly labelled illustrative.
  */
 object DemoData {

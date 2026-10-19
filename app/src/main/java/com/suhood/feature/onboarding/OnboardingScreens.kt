@@ -136,7 +136,7 @@ fun OnboardingFlow(
                     else -> OnboardingPage(
                         illustration = { CheckIllustration() },
                         title = "You're ready",
-                        body = "Explore Focus, Worship, Quran, and Nasheedify. Phase 1 is a polished demo — real app blocking comes later."
+                        body = "Explore Focus, Worship, Quran, and Nasheedify. Grant permissions when a feature needs them so reminders and focus can work on your device."
                     )
                 }
             }

@@ -90,6 +90,8 @@ object Routes {
     const val SETTINGS_ACCESSIBILITY = "settings/accessibility"
     const val SETTINGS_PRIVACY = "settings/privacy"
     const val SETTINGS_ABOUT = "settings/about"
+    const val SETTINGS_TIP = "settings/tip"
+    const val SETTINGS_PERMISSIONS = "settings/permissions"
 }
 
 enum class TopLevelDestination(val route: String) {

@@ -111,7 +111,7 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Next: ${nextPrayer.name}", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                         Spacer(Modifier.width(8.dp))
-                        DemoStatusLabel("Calculated · fallback location")
+                        DemoStatusLabel("Calculated times · not a mosque timetable")
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -199,8 +199,8 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(Routes.AUDIO) }
         ) {
-            Text("Morning Light · Demo Ensemble", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-            Text("Nasheeds · Demo playback", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            Text("Islamic audio", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+            Text("Local library and online search", style = SuhoodTypography.bodySmall, color = colors.textMuted)
         }
 
 

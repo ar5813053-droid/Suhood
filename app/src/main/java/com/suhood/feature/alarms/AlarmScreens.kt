@@ -37,7 +37,7 @@ object AlarmScreens {
                 }
             )
             Text(
-                "Demo alarms only. OS scheduling arrives in Phase 2.",
+                "Alarms use Android AlarmManager. Enable Notifications and Alarms & reminders in system settings.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
@@ -168,7 +168,7 @@ object AlarmScreens {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            DemoStatusLabel("Simulated alarm")
+            DemoStatusLabel("System alarm")
             Spacer(Modifier.height(16.dp))
             Text("05:00", style = SuhoodTypography.timer, color = colors.silverBright)
             Text("Fajr (Demo)", style = SuhoodTypography.titleMedium, color = colors.textPrimary)

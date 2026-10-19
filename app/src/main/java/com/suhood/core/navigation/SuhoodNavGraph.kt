@@ -362,6 +362,12 @@ fun SuhoodNavGraph(
             composable(Routes.SETTINGS_ABOUT) {
                 SettingsScreens.About(onBack = { navController.popBackStack() })
             }
+            composable(Routes.SETTINGS_TIP) {
+                SettingsScreens.TipSupport(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_PERMISSIONS) {
+                SettingsScreens.PermissionsGuide(onBack = { navController.popBackStack() })
+            }
             composable(Routes.SETTINGS_PRIVACY) {
                 SettingsScreens.Privacy(onBack = { navController.popBackStack() })
             }

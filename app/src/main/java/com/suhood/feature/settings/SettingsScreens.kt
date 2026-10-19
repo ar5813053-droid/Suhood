@@ -1,3 +1,4 @@
+import androidx.compose.foundation.Image
 package com.suhood.feature.settings
 
 import androidx.compose.foundation.layout.*
@@ -32,6 +33,8 @@ object SettingsScreens {
             "Audio" to Routes.SETTINGS_AUDIO,
             "Accessibility" to Routes.SETTINGS_ACCESSIBILITY,
             "Privacy" to Routes.SETTINGS_PRIVACY,
+            "Permissions" to Routes.SETTINGS_PERMISSIONS,
+            "Tip the developer" to Routes.SETTINGS_TIP,
             "About Suhood" to Routes.SETTINGS_ABOUT
         )
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -136,7 +139,7 @@ object SettingsScreens {
             Spacer(Modifier.height(16.dp))
             GlassCard {
                 Text(
-                    "Suhood Phase 1 stores preferences and demo data only on your device. No account is required. No analytics or cloud sync is enabled in this phase.",
+                    "Suhood stores preferences, alarms, bookmarks, and focus history only on this device. No account is required. No ads, analytics SDKs, or cloud sync are included.",
                     style = SuhoodTypography.bodyMedium,
                     color = colors.textSecondary
                 )
@@ -227,12 +230,65 @@ object SettingsScreens {
 
     @Composable
     fun NotificationPrefs(onBack: () -> Unit) {
-        Phase2Note(title = "Notifications", message = "Prayer notifications and Fajr alarms will be available in Phase 2. No permissions are requested in this demo.", onBack = onBack)
+        val colors = suhoodColors
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
+            ScreenHeader(title = "Notifications", onBack = onBack)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Prayer reminders use calculated local times and Android alarms. Grant notification permission so reminders can appear.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(16.dp))
+            GlassButton(
+                text = "Open notification settings",
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            GlassButton(
+                text = "Reschedule prayer reminders",
+                onClick = { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context) },
+                primary = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     @Composable
     fun FocusPrefs(onBack: () -> Unit) {
-        Phase2Note(title = "Focus preferences", message = "Real app blocking via Usage Access / Accessibility will be added in Phase 2. Current focus sessions are simulated.", onBack = onBack)
+        val colors = suhoodColors
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
+            ScreenHeader(title = "Focus preferences", onBack = onBack)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Focus uses a timer plus optional Usage Access and Accessibility (same family of APIs as AppBlock) to detect apps you selected. Android does not allow force-closing other apps without special privileges.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(16.dp))
+            GlassButton(
+                text = "Open Usage Access",
+                onClick = { com.suhood.feature.focus.AppBlockHelper.openUsageAccessSettings(context) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            GlassButton(
+                text = "Open Accessibility (Suhood Focus)",
+                onClick = { com.suhood.feature.focus.AppBlockHelper.openAccessibilitySettings(context) },
+                primary = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     @Composable
@@ -256,7 +312,7 @@ object SettingsScreens {
             ScreenHeader(title = "Accessibility", onBack = onBack)
             Spacer(Modifier.height(16.dp))
             Text(
-                "Content descriptions, minimum touch targets (~48 dp), and contrast are considered throughout. Reduce motion preference is prepared for Phase 2 polish.",
+                "Content descriptions, minimum touch targets (~48 dp), and contrast are considered throughout. Reduce motion preference is supported where the platform allows.",
                 style = SuhoodTypography.bodyMedium,
                 color = colors.textSecondary
             )
@@ -264,12 +320,182 @@ object SettingsScreens {
     }
 
     @Composable
+
+
+    @Composable
+    fun PermissionsGuide(onBack: () -> Unit) {
+        val colors = suhoodColors
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 32.dp)
+        ) {
+            ScreenHeader(title = "Permissions", onBack = onBack)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Suhood only asks for access when a feature needs it. You can change these anytime in system settings.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(16.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Notifications", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Prayer reminders and alarms", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                GlassButton(text = "Open", onClick = {
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    }
+                }, primary = false, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Alarms & reminders", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Exact prayer and custom alarm times", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                GlassButton(text = "Open", onClick = {
+                    runCatching {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
+                                )
+                            )
+                        }
+                    }
+                }, primary = false, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Usage Access", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Detect which app is open during Focus", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                GlassButton(text = "Open", onClick = {
+                    com.suhood.feature.focus.AppBlockHelper.openUsageAccessSettings(context)
+                }, primary = false, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Accessibility (Suhood Focus)", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Show return-to-focus when a limited app opens. No password reading.", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                GlassButton(text = "Open", onClick = {
+                    com.suhood.feature.focus.AppBlockHelper.openAccessibilitySettings(context)
+                }, primary = false, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Music and audio", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Play nasheeds from your library", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            }
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("Internet", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text("Quran text/audio and Archive search", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            }
+        }
+    }
+
+    @Composable
+    fun TipSupport(onBack: () -> Unit) {
+        val colors = suhoodColors
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val upiId = "syedfurqan95@fam"
+        val upiUri = "upi://pay?pa=$upiId&pn=Suhood%20Developer&cu=INR&tn=Tip%20for%20Suhood"
+        val qrBitmap = remember {
+            runCatching {
+                val matrix = com.google.zxing.qrcode.QRCodeWriter().encode(
+                    upiUri,
+                    com.google.zxing.BarcodeFormat.QR_CODE,
+                    512,
+                    512,
+                    mapOf(com.google.zxing.EncodeHintType.MARGIN to 1)
+                )
+                val bmp = android.graphics.Bitmap.createBitmap(512, 512, android.graphics.Bitmap.Config.ARGB_8888)
+                for (x in 0 until 512) for (y in 0 until 512) {
+                    bmp.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+                }
+                bmp
+            }.getOrNull()
+        }
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 32.dp)
+        ) {
+            ScreenHeader(title = "Tip the developer", onBack = onBack)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Suhood is free and non-commercial. Tipping is optional and never unlocks paid features.",
+                style = SuhoodTypography.bodyMedium,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(16.dp))
+            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+                Text("UPI", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+                Spacer(Modifier.height(6.dp))
+                Text(upiId, style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
+                Spacer(Modifier.height(12.dp))
+                if (qrBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = qrBitmap.asImageBitmap(),
+                        contentDescription = "UPI QR for $upiId",
+                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(8.dp)
+                    )
+                }
+                GlassButton(
+                    text = "Open UPI app",
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(upiUri)
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Purpose of Suhood", style = SuhoodTypography.titleLarge, color = colors.textPrimary)
+            Spacer(Modifier.height(8.dp))
+            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    """Suhood helps Muslims reduce distractions and return to Salah, Quran, Dhikr, and calm focus.
+
+It is a personal tool—not a product for sale:
+
+• Calculated prayer times and local reminders on your device
+• Focus sessions that can gently interrupt apps you choose to limit
+• Quran reading and beneficial Islamic audio
+• Alarms that respect your schedule
+
+No ads. No subscriptions. No account. Your data stays on your phone.
+
+If this project helps you, a tip via UPI is optional gratitude. May Allah accept our efforts.
+
+— Suhood developer""",
+                    style = SuhoodTypography.bodyMedium,
+                    color = colors.textSecondary
+                )
+            }
+        }
+    }
+
     private fun Phase2Note(title: String, message: String, onBack: () -> Unit) {
         val colors = suhoodColors
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SuhoodSpacing.screenHorizontal)) {
             ScreenHeader(title = title, onBack = onBack)
             Spacer(Modifier.height(16.dp))
-            DemoStatusLabel("Phase 2")
+            DemoStatusLabel("On device")
             Spacer(Modifier.height(12.dp))
             Text(message, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
         }

@@ -50,7 +50,11 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         // Alarms should be re-scheduled from persisted Room data on boot.
         // Full re-hydration is triggered when the app next opens AlarmScheduler.rescheduleAll().
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
+            intent.action == Intent.ACTION_TIME_CHANGED
+        ) {
+            runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context) }
             // no-op placeholder — AlarmScheduler.rescheduleAll called from Application if needed
         }
     }

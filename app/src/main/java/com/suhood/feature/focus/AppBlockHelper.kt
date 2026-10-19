@@ -8,13 +8,6 @@ import android.content.Intent
 import android.os.Process
 import android.provider.Settings
 
-/**
- * Detects whether a blocked package is in the foreground via UsageStats.
- *
- * This does **not** force-close other apps (Android does not allow that without
- * device-owner privileges). It detects restricted-app usage so Suhood can show
- * [FocusBlockActivity] and remind the user to return to focus.
- */
 object AppBlockHelper {
 
     fun hasUsageAccess(context: Context): Boolean {
@@ -33,12 +26,17 @@ object AppBlockHelper {
         )
     }
 
+    fun hasAccessibility(context: Context): Boolean =
+        FocusAccessibilityService.isEnabled(context)
+
+    fun openAccessibilitySettings(context: Context) =
+        FocusAccessibilityService.openSettings(context)
+
     fun foregroundPackage(context: Context): String? {
         if (!hasUsageAccess(context)) return null
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val end = System.currentTimeMillis()
-        val begin = end - 10_000
-        val events = usm.queryEvents(begin, end)
+        val events = usm.queryEvents(end - 15_000, end)
         val event = UsageEvents.Event()
         var last: String? = null
         while (events.hasNextEvent()) {

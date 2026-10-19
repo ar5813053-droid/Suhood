@@ -41,7 +41,7 @@ object FocusScreens {
             Spacer(Modifier.height(4.dp))
             Text("Reduce distraction before Salah", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
             Spacer(Modifier.height(8.dp))
-            DemoStatusLabel("Simulated blocking — Phase 1")
+            DemoStatusLabel("Usage Access / Accessibility")
             Spacer(Modifier.height(20.dp))
 
             GlassCard(modifier = Modifier.fillMaxWidth(), onClick = { onNavigate(Routes.FOCUS_DURATION) }) {
@@ -78,7 +78,7 @@ object FocusScreens {
         ) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
             Text(
-                "Demo list only. Real app blocking requires Usage Access in Phase 2.",
+                "Select installed apps to limit. Enable Accessibility (Suhood Focus) so Suhood can show a return-to-focus screen. Apps are not force-closed.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
@@ -190,7 +190,7 @@ object FocusScreens {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            DemoStatusLabel("Simulated session")
+            DemoStatusLabel("Active focus session")
             Spacer(Modifier.height(24.dp))
             Text(
                 formatTime(remaining),
@@ -272,7 +272,7 @@ object FocusScreens {
             Text("Time for Salah", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
             Spacer(Modifier.height(12.dp))
             Text(
-                "Your focus session paused for prayer.\nThis is a preview of the Phase 2 interruption screen.",
+                "Your focus session paused for prayer.\nThis is a preview of the  interruption screen.",
                 style = SuhoodTypography.bodyMedium,
                 color = colors.textSecondary
             )

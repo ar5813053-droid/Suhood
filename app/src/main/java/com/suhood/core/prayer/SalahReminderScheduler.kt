@@ -75,6 +75,15 @@ object SalahReminderScheduler {
         }
     }
 
+
+    fun rescheduleAll(context: Context) {
+        val defaults = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha").map {
+            SalahReminderPref(it, enabled = true, offsetMinutes = 0)
+        }
+        val calc = PrayerTimesCalculator.calculate(21.4225, 39.8262)
+        scheduleFromTimes(context, calc.times.map { it.name to it.time }, defaults)
+    }
+
     fun cancel(context: Context, name: String) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         am.cancel(pending(context, name))

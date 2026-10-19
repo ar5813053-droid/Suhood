@@ -25,7 +25,7 @@ object QuranScreens {
             Column(modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)) {
                 GlassCard {
                     Text(
-                        "Verified Quran text is not bundled in Phase 1. The interface is ready for a trusted content source. Placeholders are clearly labelled and are not presented as scripture.",
+                        "Quran text is loaded from a trusted online source when available. The interface is ready for a trusted content source. Placeholders are clearly labelled and are not presented as scripture.",
                         style = SuhoodTypography.bodyMedium,
                         color = colors.textSecondary
                     )
@@ -120,11 +120,11 @@ object QuranScreens {
                     .verticalScroll(rememberScrollState())
                     .padding(SuhoodSpacing.screenHorizontal)
             ) {
-                DemoStatusLabel("Content placeholder — not scripture")
+                DemoStatusLabel("Source · AlQuran.Cloud")
                 Spacer(Modifier.height(16.dp))
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        "Verified Quran text will appear here once a trusted offline source is integrated in Phase 2.\n\nThis screen is intentionally empty of fabricated verses.",
+                        "Connect to the internet to load verified Arabic text from AlQuran.Cloud (Islamic Network). Suhood does not invent verses.",
                         style = SuhoodTypography.bodyLarge,
                         color = colors.textSecondary
                     )

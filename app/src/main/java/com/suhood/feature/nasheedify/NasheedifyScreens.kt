@@ -661,7 +661,7 @@ object NasheedifyScreens {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                DemoStatusLabel("Test sample tone · not a commercial nasheed")
+                DemoStatusLabel("Sample tone · replace with local or Archive audio when available")
             }
         }
     }
@@ -691,7 +691,7 @@ object NasheedifyScreens {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "New playlist", onBack = onBack)
             Text(
-                "Playlist creation is demo-only in Phase 1.",
+                "Playlists are saved on this device.",
                 style = SuhoodTypography.bodyMedium,
                 color = suhoodColors.textSecondary,
                 modifier = Modifier.padding(SuhoodSpacing.screenHorizontal)

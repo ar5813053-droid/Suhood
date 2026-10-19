@@ -108,5 +108,11 @@ class FocusSessionController(context: Context) {
         private const val KEY_STATE = "state"
         private const val KEY_APPS = "apps"
         private const val KEY_PAUSED_REMAINING = "paused_remaining"
+
+        @Volatile private var instance: FocusSessionController? = null
+        fun get(context: Context): FocusSessionController =
+            instance ?: synchronized(this) {
+                instance ?: FocusSessionController(context.applicationContext).also { instance = it }
+            }
     }
 }
