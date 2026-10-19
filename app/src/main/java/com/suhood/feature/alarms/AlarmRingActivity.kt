@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier.Modifier
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.suhood.core.designsystem.components.GlassButton
 import com.suhood.core.designsystem.theme.SuhoodTheme
@@ -69,7 +69,9 @@ class AlarmRingActivity : ComponentActivity() {
             SuhoodTheme(themeMode = ThemeMode.DARK) {
                 val colors = suhoodColors
                 Column(
-                    Modifier.fillMaxSize().padding(24.dp),
+                    Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -100,7 +102,7 @@ class AlarmRingActivity : ComponentActivity() {
 
     private fun startSound(uriString: String?) {
         runCatching {
-            val uri = uriString?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
+            val uri = uriString?.takeIf { it.isNotBlank() && it.contains("://") }?.let { Uri.parse(it) }
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             player = MediaPlayer().apply {
                 setAudioAttributes(
