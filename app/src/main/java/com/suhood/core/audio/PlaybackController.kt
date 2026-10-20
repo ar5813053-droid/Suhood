@@ -113,7 +113,19 @@ class PlaybackController(
                 _error.value = "Track unavailable"
                 return@onMain
             }
-            player.setMediaItem(MediaItem.fromUri(uri))
+            val meta = MediaMetadata.Builder()
+                .setTitle(track.title.ifBlank { "Islamic audio" })
+                .setArtist(track.creator.ifBlank { "Suhood" })
+                .setAlbumTitle(track.collection)
+                .setIsPlayable(true)
+                .build()
+            player.setMediaItem(
+                MediaItem.Builder()
+                    .setUri(uri)
+                    .setMediaId(track.id)
+                    .setMediaMetadata(meta)
+                    .build()
+            )
             player.prepare()
             player.playWhenReady = true
             _state.value = PlaybackState(

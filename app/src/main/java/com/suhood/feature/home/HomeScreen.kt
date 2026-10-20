@@ -1,5 +1,6 @@
 package com.suhood.feature.home
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,9 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
@@ -26,9 +27,11 @@ import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -36,29 +39,58 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.suhood.core.data.DemoData
-import com.suhood.core.designsystem.components.DemoStatusLabel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.suhood.app.SuhoodApplication
+import com.suhood.core.database.SalahLogEntity
+import com.suhood.core.database.TasbeehStateEntity
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassIconButton
-import com.suhood.core.designsystem.theme.SuhoodShapes
-import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
-import java.util.Calendar
+import com.suhood.feature.salah.SalahStatus
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
+
+class HomeViewModel(app: Application) : AndroidViewModel(app) {
+    private val dao = (app as SuhoodApplication).database.dao()
+    private val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+    val salahToday = dao.observeSalahForDate(today)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val tasbeeh = dao.observeTasbeeh()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+}
 
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit,
-    bottomContentPadding: Dp
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val colors = suhoodColors
+    val context = LocalContext.current
+    val vm: HomeViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return HomeViewModel(context.applicationContext as Application) as T
+            }
+        }
+    )
+    val salahLogs by vm.salahToday.collectAsState()
+    val tasbeeh by vm.tasbeeh.collectAsState()
+
     val prayerResult = remember {
         PrayerTimesCalculator.calculate(
             latitude = 21.4225,
@@ -66,7 +98,9 @@ fun HomeScreen(
             calendar = Calendar.getInstance()
         )
     }
-    var countdown by remember { mutableIntStateOf(PrayerTimesCalculator.countdownSecondsToNext(prayerResult)) }
+    var countdown by remember {
+        mutableIntStateOf(PrayerTimesCalculator.countdownSecondsToNext(prayerResult))
+    }
     LaunchedEffect(Unit) {
         while (true) {
             countdown = PrayerTimesCalculator.countdownSecondsToNext(prayerResult)
@@ -74,122 +108,64 @@ fun HomeScreen(
         }
     }
     val nextPrayer = prayerResult.times.firstOrNull { it.isNext } ?: prayerResult.times.first()
-    val schedule = DemoData.demoPrayerSchedule()
-    val scroll = rememberScrollState()
+
+    val prayerDone = salahLogs.count { it.status != SalahStatus.NOT_PRAYED.key }
+    val prayerPct = ((prayerDone * 100) / 5)
+    val goal = (tasbeeh?.goal ?: 33).coerceAtLeast(1)
+    val tCount = tasbeeh?.count ?: 0
+    val tasbeehPct = ((tCount * 100) / goal).coerceAtMost(100)
+
+    val dayLabel = remember {
+        val c = Calendar.getInstance()
+        val days = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        "${days[c.get(Calendar.DAY_OF_WEEK) - 1]}, ${c.get(Calendar.DAY_OF_MONTH)} ${months[c.get(Calendar.MONTH)]} ${c.get(Calendar.YEAR)}"
+    }
 
     Column(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
-            .verticalScroll(scroll)
             .statusBarsPadding()
-            .padding(bottom = bottomContentPadding)
-            .padding(horizontal = SuhoodSpacing.screenHorizontal)
-            .padding(bottom = 32.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(bottom = bottomContentPadding + 16.dp)
     ) {
-        // Brand + greeting
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Suhood",
-                    style = SuhoodTypography.labelLarge,
-                    color = colors.accentLavender
-                )
-                Spacer(Modifier.height(4.dp))
-                Text("السلام عليكم", style = SuhoodTypography.arabicTitle, color = colors.textPrimary)
-                Spacer(Modifier.height(2.dp))
-                Text("Assalamu alaikum", style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-                Spacer(Modifier.height(4.dp))
-                Text(schedule.dateLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
-                Text(schedule.hijriLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            Column {
+                Text("Salam", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
+                Text(dayLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
             }
             GlassIconButton(
                 icon = Icons.Filled.Settings,
                 contentDescription = "Settings",
-                onClick = { onNavigate(Routes.SETTINGS) },
-                size = 44.dp,
-                iconSize = 22.dp
+                onClick = { onNavigate(Routes.SETTINGS) }
             )
         }
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // Hero: Next Salah
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(SuhoodShapes.card)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colors.accentLavender.copy(alpha = 0.22f),
-                            colors.surfaceElevated,
-                            colors.surface
-                        )
-                    )
-                )
-                .border(1.dp, colors.accentLavender.copy(alpha = 0.35f), SuhoodShapes.card)
-                .padding(20.dp)
+        // Next prayer hero
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(20.dp)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Next · ${nextPrayer.name}",
-                        style = SuhoodTypography.titleMedium,
-                        color = colors.textPrimary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    DemoStatusLabel("Calculated · not a mosque timetable")
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    formatCountdown(countdown),
-                    style = SuhoodTypography.timerSmall,
-                    color = colors.accentLavender
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    nextPrayer.time,
-                    style = SuhoodTypography.bodyMedium,
-                    color = colors.textSecondary
-                )
-                Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    prayerResult.times.take(5).forEach { p ->
-                        val active = p.isNext
-                        Box(
-                            Modifier
-                                .clip(SuhoodShapes.pill)
-                                .background(
-                                    if (active) colors.accentLavender.copy(alpha = 0.25f)
-                                    else colors.surfaceGlass
-                                )
-                                .border(
-                                    1.dp,
-                                    if (active) colors.accentLavender.copy(alpha = 0.5f)
-                                    else colors.borderSubtle,
-                                    SuhoodShapes.pill
-                                )
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                p.name.take(3),
-                                style = SuhoodTypography.labelSmall,
-                                color = if (active) colors.accentLavender else colors.textMuted
-                            )
-                        }
-                    }
-                }
-            }
+            Text("Next prayer", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            Spacer(Modifier.height(4.dp))
+            Text(nextPrayer.name, style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
+            Text(
+                "in ${formatCountdown(countdown)}",
+                style = SuhoodTypography.titleMedium,
+                color = colors.accentLavender
+            )
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // Quick actions
-        Text("Quick access", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-        Spacer(Modifier.height(10.dp))
+        // Quick actions: Focus, Worship, Tasbeeh, Alarm
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -197,65 +173,69 @@ fun HomeScreen(
             QuickAction("Focus", Icons.Filled.Timelapse, colors.accentLavender) {
                 onNavigate(Routes.FOCUS)
             }
-            QuickAction("Quran", Icons.Filled.MenuBook, colors.accentMint) {
-                onNavigate(Routes.QURAN)
+            QuickAction("Worship", Icons.Filled.SelfImprovement, colors.silver) {
+                onNavigate(Routes.WORSHIP)
             }
             QuickAction("Tasbeeh", Icons.Filled.SelfImprovement, colors.accentYellow) {
                 onNavigate(Routes.TASBEEH)
             }
-            QuickAction("Alarms", Icons.Filled.Alarm, colors.accentCoral) {
+            QuickAction("Alarm", Icons.Filled.Alarm, colors.accentCoral) {
                 onNavigate(Routes.ALARMS)
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(20.dp))
+        Text("Today's Progress", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Spacer(Modifier.height(10.dp))
 
-        // Worship entry
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(Routes.WORSHIP) }
-        ) {
-            Text("عبادة · Worship", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Salah checklist · Dhikr · Adhkar · Quiz",
-                style = SuhoodTypography.bodySmall,
-                color = colors.textMuted
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ProgressCard(
+                title = "Prayer",
+                percent = prayerPct,
+                subtitle = "$prayerDone/5 today",
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate(Routes.SALAH) }
+            )
+            ProgressCard(
+                title = "Tasbeeh",
+                percent = tasbeehPct,
+                subtitle = "$tCount/$goal today",
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate(Routes.TASBEEH) }
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(20.dp))
+        Text("Continue", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Spacer(Modifier.height(8.dp))
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onNavigate(Routes.QURAN_MUSHAF) }
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.MenuBook, null, tint = colors.accentLavender, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.size(12.dp))
+                Column {
+                    Text("Continue Quran", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text("Open Mushaf pages", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                }
+            }
+        }
 
-        // Daily reminder (existing verified verse 13:28)
+        Spacer(Modifier.height(12.dp))
         GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Text("تذكير يومي · Daily reminder", style = SuhoodTypography.titleSmall, color = colors.textMuted)
-            Spacer(Modifier.height(8.dp))
+            Text("Daily reminder", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+            Spacer(Modifier.height(6.dp))
             Text(
                 "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
                 style = SuhoodTypography.arabicBody,
                 color = colors.textPrimary
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 "Indeed, in the remembrance of Allah do hearts find rest. — Quran 13:28",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textSecondary
-            )
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        Text("Audio · Nasheedify", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-        Spacer(Modifier.height(8.dp))
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(Routes.AUDIO) }
-        ) {
-            Text("Islamic audio", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-            Text(
-                "Nasheed · naat · nazam · tilawat — Islamic only",
-                style = SuhoodTypography.bodySmall,
-                color = colors.textMuted
             )
         }
     }
@@ -272,25 +252,49 @@ private fun RowScope.QuickAction(
     GlassCard(
         modifier = Modifier.weight(1f),
         onClick = onClick,
-        contentPadding = PaddingValues(12.dp)
+        contentPadding = PaddingValues(10.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Box(
                 Modifier
-                    .size(40.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(accent.copy(alpha = 0.18f))
-                    .border(1.dp, accent.copy(alpha = 0.4f), CircleShape),
+                    .border(1.dp, accent.copy(alpha = 0.35f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = label, tint = accent, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = label, tint = accent, modifier = Modifier.size(18.dp))
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(label, style = SuhoodTypography.labelSmall, color = colors.textSecondary)
         }
+    }
+}
+
+@Composable
+private fun ProgressCard(
+    title: String,
+    percent: Int,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val colors = suhoodColors
+    GlassCard(modifier = modifier, onClick = onClick, contentPadding = PaddingValues(16.dp)) {
+        Text(title, style = SuhoodTypography.labelMedium, color = colors.textMuted)
+        Spacer(Modifier.height(6.dp))
+        Text("$percent%", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
+        Text(subtitle, style = SuhoodTypography.bodySmall, color = colors.textSecondary)
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { percent / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            color = colors.accentLavender,
+            trackColor = colors.borderSubtle
+        )
     }
 }
 

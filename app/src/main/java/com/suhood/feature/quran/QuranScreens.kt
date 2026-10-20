@@ -547,9 +547,9 @@ object QuranScreens {
                     onClick = onBack
                 )
                 Column(Modifier.weight(1f)) {
-                    Text("Mushaf", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                    Text("Mushaf · Madinah pages", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                     Text(
-                        "Page $pageNumber / 604",
+                        "Page $pageNumber / 604 · Uthmani (AlQuran.Cloud)",
                         style = SuhoodTypography.labelSmall,
                         color = colors.textMuted
                     )

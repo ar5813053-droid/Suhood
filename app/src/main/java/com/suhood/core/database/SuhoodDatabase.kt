@@ -10,6 +10,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "favorite_tracks")
@@ -46,7 +48,6 @@ data class RecentTrackEntity(
     val playedAt: Long = System.currentTimeMillis()
 )
 
-
 @Entity(tableName = "quran_bookmarks")
 data class QuranBookmarkEntity(
     @PrimaryKey val id: String,
@@ -61,6 +62,25 @@ data class QuranLastReadEntity(
     @PrimaryKey val id: Int = 1,
     val surah: Int,
     val ayah: Int,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+/** Per-prayer daily log. Status: JAMA AH, ON_TIME, LATE, NOT_PRAYED */
+@Entity(tableName = "salah_logs")
+data class SalahLogEntity(
+    @PrimaryKey val id: String,
+    val dateIso: String, // yyyy-MM-dd
+    val prayerName: String, // Fajr, Dhuhr, Asr, Maghrib, Isha
+    val status: String,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "tasbeeh_state")
+data class TasbeehStateEntity(
+    @PrimaryKey val id: Int = 1,
+    val count: Int = 0,
+    val goal: Int = 33,
+    val dhikrIndex: Int = 0,
     val updatedAt: Long = System.currentTimeMillis()
 )
 
@@ -119,6 +139,55 @@ interface SuhoodDao {
 
     @Query("SELECT * FROM quran_last_read WHERE id = 1 LIMIT 1")
     suspend fun getLastRead(): QuranLastReadEntity?
+
+    // Salah
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSalahLog(log: SalahLogEntity)
+
+    @Query("SELECT * FROM salah_logs WHERE dateIso = :dateIso")
+    fun observeSalahForDate(dateIso: String): Flow<List<SalahLogEntity>>
+
+    @Query("SELECT * FROM salah_logs WHERE dateIso = :dateIso")
+    suspend fun getSalahForDate(dateIso: String): List<SalahLogEntity>
+
+    @Query("SELECT * FROM salah_logs WHERE dateIso BETWEEN :fromIso AND :toIso")
+    suspend fun getSalahBetween(fromIso: String, toIso: String): List<SalahLogEntity>
+
+    @Query("SELECT * FROM salah_logs ORDER BY dateIso DESC")
+    fun observeAllSalahLogs(): Flow<List<SalahLogEntity>>
+
+    // Tasbeeh
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTasbeeh(state: TasbeehStateEntity)
+
+    @Query("SELECT * FROM tasbeeh_state WHERE id = 1 LIMIT 1")
+    fun observeTasbeeh(): Flow<TasbeehStateEntity?>
+
+    @Query("SELECT * FROM tasbeeh_state WHERE id = 1 LIMIT 1")
+    suspend fun getTasbeeh(): TasbeehStateEntity?
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS salah_logs (
+                id TEXT NOT NULL PRIMARY KEY,
+                dateIso TEXT NOT NULL,
+                prayerName TEXT NOT NULL,
+                status TEXT NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS tasbeeh_state (
+                id INTEGER NOT NULL PRIMARY KEY,
+                count INTEGER NOT NULL,
+                goal INTEGER NOT NULL,
+                dhikrIndex INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )"""
+        )
+    }
 }
 
 @Database(
@@ -128,9 +197,11 @@ interface SuhoodDao {
         AlarmEntity::class,
         RecentTrackEntity::class,
         QuranBookmarkEntity::class,
-        QuranLastReadEntity::class
+        QuranLastReadEntity::class,
+        SalahLogEntity::class,
+        TasbeehStateEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class SuhoodDatabase : RoomDatabase() {
@@ -145,7 +216,11 @@ abstract class SuhoodDatabase : RoomDatabase() {
                     context.applicationContext,
                     SuhoodDatabase::class.java,
                     "suhood.db"
-                ).fallbackToDestructiveMigration().build().also { instance = it }
+                )
+                    .addMigrations(MIGRATION_3_4)
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { instance = it }
             }
     }
 }

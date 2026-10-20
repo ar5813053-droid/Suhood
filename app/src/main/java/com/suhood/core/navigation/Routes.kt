@@ -2,13 +2,18 @@ package com.suhood.core.navigation
 
 /**
  * Central navigation routes for Suhood.
+ * Top-level destinations: Home, Quran, Nasheedify (Audio).
+ * Focus, Worship, Tasbeeh, Alarms are nested from Home quick actions.
  */
 object Routes {
-    // Top-level
+    // Top-level (bottom nav)
     const val HOME = "home"
+    const val QURAN = "quran"
+    const val AUDIO = "audio"
+
+    // Nested (reachable from Home / deep links)
     const val WORSHIP = "worship"
     const val FOCUS = "focus"
-    const val AUDIO = "audio"
 
     // Onboarding
     const val ONBOARDING = "onboarding"
@@ -42,7 +47,6 @@ object Routes {
     const val ALARM_DISMISSED = "alarms/dismissed"
 
     // Quran
-    const val QURAN = "quran"
     const val QURAN_PARAH_LIST = "quran/parahs"
     const val QURAN_PARAH = "quran/parah/{parahId}"
     const val QURAN_SURAH_LIST = "quran/surahs"
@@ -65,6 +69,10 @@ object Routes {
     const val QUIZ_DIFFICULTY = "worship/quiz/difficulty"
     const val QUIZ_PLAY = "worship/quiz/play"
     const val QUIZ_RESULTS = "worship/quiz/results"
+
+    // Salah tracking
+    const val SALAH = "salah"
+    const val SALAH_HISTORY = "salah/history"
 
     // Nasheedify
     const val NASHEEDIFY_HOME = "audio/home"
@@ -98,9 +106,9 @@ object Routes {
     const val SETTINGS_PERMISSIONS = "settings/permissions"
 }
 
+/** Bottom navigation destinations only. */
 enum class TopLevelDestination(val route: String) {
     HOME(Routes.HOME),
-    WORSHIP(Routes.WORSHIP),
-    FOCUS(Routes.FOCUS),
+    QURAN(Routes.QURAN),
     AUDIO(Routes.AUDIO)
 }

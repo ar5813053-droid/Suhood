@@ -29,6 +29,7 @@ import com.suhood.feature.nasheedify.NasheedifyScreens
 import com.suhood.feature.onboarding.OnboardingFlow
 import com.suhood.feature.quran.QuranScreens
 import com.suhood.feature.settings.SettingsScreens
+import com.suhood.feature.salah.SalahScreens
 import com.suhood.feature.settings.SettingsViewModel
 import com.suhood.feature.worship.WorshipScreens
 import com.suhood.app.SuhoodApplication
@@ -51,13 +52,12 @@ fun SuhoodNavGraph(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomNav = currentRoute in listOf(
-        Routes.HOME, Routes.WORSHIP, Routes.FOCUS, Routes.AUDIO
-    ) || currentRoute?.startsWith("audio/") == true && currentRoute != Routes.NASHEEDIFY_PLAYER
+        Routes.HOME, Routes.QURAN, Routes.AUDIO
+    )
 
     val selectedTop = when {
         currentRoute == Routes.HOME -> TopLevelDestination.HOME
-        currentRoute == Routes.WORSHIP || currentRoute?.startsWith("worship") == true -> TopLevelDestination.WORSHIP
-        currentRoute == Routes.FOCUS || currentRoute?.startsWith("focus") == true -> TopLevelDestination.FOCUS
+        currentRoute == Routes.QURAN || currentRoute?.startsWith("quran") == true -> TopLevelDestination.QURAN
         currentRoute == Routes.AUDIO || currentRoute?.startsWith("audio") == true -> TopLevelDestination.AUDIO
         else -> TopLevelDestination.HOME
     }
@@ -408,6 +408,15 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_FOCUS) {
                 SettingsScreens.FocusPrefs(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SALAH) {
+                SalahScreens.Today(
+                    onBack = { navController.popBackStack() },
+                    onHistory = { navController.navigate(Routes.SALAH_HISTORY) }
+                )
+            }
+            composable(Routes.SALAH_HISTORY) {
+                SalahScreens.History(onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS_AUDIO) {
                 SettingsScreens.AudioPrefs(onBack = { navController.popBackStack() })

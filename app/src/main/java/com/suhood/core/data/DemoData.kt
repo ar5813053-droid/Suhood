@@ -209,7 +209,117 @@ object DemoData {
             "Protection",
             listOf("protection", "refuge", "evil", "hifazat", "protect", "شر"),
             "Muslim"
-        )
+        ),
+
+        DuaItem(
+            "17", "For travel (mounting)",
+            "سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَى رَبِّنَا لَمُنقَلِبُونَ",
+            "Subhanalladhi sakhkhara lana hadha wa ma kunna lahu muqrinin, wa inna ila rabbina lamunqalibun",
+            "Glory to Him who has subjected this to us, and we could never have it by our efforts. And indeed, to our Lord we will return.",
+            "Travel",
+            listOf("safar", "travel", "journey", "safar ki dua", "musafir", "trip", "سخر", "سفر"),
+            "Quran 43:13-14"
+        ),
+        DuaItem(
+            "18", "Leaving home for travel",
+            "بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
+            "Bismillahi tawakkaltu 'ala Allah, wa la hawla wa la quwwata illa billah",
+            "In the name of Allah, I place my trust in Allah, and there is no power nor might except with Allah.",
+            "Travel",
+            listOf("safar", "travel", "leaving home", "safar ki dua", "tawakkul", "journey"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "19", "When distressed",
+            "لَا إِلَهَ إِلَّا أَنتَ سُبْحَانَكَ إِنِّي كُنتُ مِنَ الظَّالِمِينَ",
+            "La ilaha illa anta subhanaka inni kuntu minaz-zalimin",
+            "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers.",
+            "Distress",
+            listOf("pareshani", "distress", "hardship", "pareshani ki dua", "trouble", "anxiety", "yunus", "ظالمين"),
+            "Quran 21:87"
+        ),
+        DuaItem(
+            "20", "For anxiety and sorrow",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ",
+            "Allahumma inni a'udhu bika minal-hammi wal-hazan",
+            "O Allah, I seek refuge in You from anxiety and sorrow.",
+            "Distress",
+            listOf("pareshani", "anxiety", "sorrow", "gham", "pareshani ki dua", "worry", "stress", "هم"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "21", "Entering the toilet",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
+            "Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith",
+            "O Allah, I seek refuge in You from the male and female unclean spirits.",
+            "Daily",
+            listOf("toilet", "bathroom", "wc", "ghusl room", "enter toilet"),
+            "Bukhari, Muslim"
+        ),
+        DuaItem(
+            "22", "Leaving the toilet",
+            "غُفْرَانَكَ",
+            "Ghufranak",
+            "I seek Your forgiveness.",
+            "Daily",
+            listOf("toilet", "bathroom", "leaving toilet", "ghufranaka"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "23", "Before ablution",
+            "بِسْمِ اللَّهِ",
+            "Bismillah",
+            "In the name of Allah.",
+            "Worship",
+            listOf("wudu", "ablution", "before wudu", "wuzu"),
+            "Abu Dawud, Ibn Majah"
+        ),
+        DuaItem(
+            "24", "After ablution",
+            "أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ",
+            "Ashhadu an la ilaha illallahu wahdahu la sharika lah, wa ashhadu anna Muhammadan 'abduhu wa rasuluh",
+            "I bear witness that there is no deity but Allah alone, without partner, and I bear witness that Muhammad is His servant and messenger.",
+            "Worship",
+            listOf("wudu", "after wudu", "ablution", "wuzu ke baad"),
+            "Muslim"
+        ),
+        DuaItem(
+            "25", "Entering the mosque",
+            "اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ",
+            "Allahumma iftah li abwaba rahmatik",
+            "O Allah, open for me the gates of Your mercy.",
+            "Worship",
+            listOf("mosque", "masjid", "enter mosque", "masjid me dakhil"),
+            "Muslim"
+        ),
+        DuaItem(
+            "26", "Leaving the mosque",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
+            "Allahumma inni as'aluka min fadlik",
+            "O Allah, I ask You from Your bounty.",
+            "Worship",
+            listOf("mosque", "masjid", "leave mosque", "masjid se bahar"),
+            "Muslim"
+        ),
+        DuaItem(
+            "27", "Istikhara (opening)",
+            "اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ",
+            "Allahumma inni astakhiruka bi'ilmika wa astaqdiruka biqudratik",
+            "O Allah, I seek Your guidance by Your knowledge and I seek ability by Your power.",
+            "Guidance",
+            listOf("istikhara", "decision", "guidance", "choice", "mashwara"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "28", "For parents",
+            "رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا",
+            "Rabbi irhamhuma kama rabbayani saghira",
+            "My Lord, have mercy upon them as they brought me up when I was small.",
+            "Family",
+            listOf("parents", "walidain", "mother", "father", "maa baap", "dua for parents"),
+            "Quran 17:24"
+        ),
+
     )
 
     // ── Quiz (carefully checked demo set) ───────────────────────────────────

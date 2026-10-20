@@ -8,6 +8,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.suhood.app.SuhoodApplication
+import com.suhood.core.database.TasbeehStateEntity
 import androidx.compose.ui.unit.dp
 import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.*
@@ -16,6 +23,7 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.model.QuizDifficulty
 import com.suhood.core.navigation.Routes
+import com.suhood.core.dua.DuaSearch
 
 object WorshipScreens {
 
@@ -57,10 +65,27 @@ object WorshipScreens {
     @Composable
     fun Tasbeeh(onBack: () -> Unit) {
         val colors = suhoodColors
+        val context = LocalContext.current
+        val dao = remember { (context.applicationContext as SuhoodApplication).database.dao() }
+        val scope = rememberCoroutineScope()
+        val state by dao.observeTasbeeh().collectAsState(initial = null)
         var count by remember { mutableIntStateOf(0) }
         var target by remember { mutableIntStateOf(33) }
         var dhikrIndex by remember { mutableIntStateOf(0) }
-        val dhikr = DemoData.dhikrItems[dhikrIndex]
+        var customText by remember { mutableStateOf("") }
+        LaunchedEffect(state) {
+            state?.let {
+                count = it.count
+                target = it.goal
+                dhikrIndex = it.dhikrIndex
+            }
+        }
+        fun persist(c: Int = count, g: Int = target, di: Int = dhikrIndex) {
+            scope.launch {
+                dao.upsertTasbeeh(TasbeehStateEntity(id = 1, count = c, goal = g, dhikrIndex = di))
+            }
+        }
+        val dhikr = DemoData.dhikrItems[dhikrIndex % DemoData.dhikrItems.size]
 
         Column(
             modifier = Modifier
@@ -80,23 +105,54 @@ object WorshipScreens {
             Spacer(Modifier.height(32.dp))
             GlassButton(
                 text = "Count",
-                onClick = { if (count < target) count++ },
+                onClick = {
+                    if (count < target) {
+                        count++
+                        persist(count)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(64.dp)
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GlassButton(text = "Undo", onClick = { if (count > 0) count-- }, primary = false)
-                GlassButton(text = "Reset", onClick = { count = 0 }, primary = false)
+                GlassButton(text = "Undo", onClick = {
+                    if (count > 0) { count--; persist(count) }
+                }, primary = false)
+                GlassButton(text = "Reset", onClick = { count = 0; persist(0) }, primary = false)
             }
             Spacer(Modifier.height(20.dp))
-            Text("Target", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+            Text("Goal", style = SuhoodTypography.labelMedium, color = colors.textMuted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(33, 34, 100).forEach { t ->
-                    GlassPill(selected = target == t, onClick = { target = t; if (count > t) count = t }) {
+                listOf(33, 34, 99, 200).forEach { t ->
+                    GlassPill(selected = target == t, onClick = {
+                        target = t
+                        if (count > t) count = t
+                        persist(count, t)
+                    }) {
                         Text("$t", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
                     }
                 }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text("Custom goal", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = customText,
+                    onValueChange = { customText = it.filter { ch -> ch.isDigit() }.take(5) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("Count") }
+                )
+                GlassButton(text = "Set", onClick = {
+                    val n = customText.toIntOrNull()
+                    if (n != null && n > 0) {
+                        target = n
+                        if (count > n) count = n
+                        persist(count, n)
+                    }
+                }, primary = false)
             }
             Spacer(Modifier.height(16.dp))
             GlassButton(
@@ -105,6 +161,7 @@ object WorshipScreens {
                     dhikrIndex = (dhikrIndex + 1) % DemoData.dhikrItems.size
                     count = 0
                     target = DemoData.dhikrItems[dhikrIndex].defaultTarget
+                    persist(0, target, dhikrIndex)
                 },
                 primary = false,
                 modifier = Modifier.fillMaxWidth()
@@ -158,13 +215,7 @@ object WorshipScreens {
         val colors = suhoodColors
         var query by remember { mutableStateOf("") }
         val results = remember(query) {
-            val q = query.trim().lowercase().replace(Regex("\\s+"), " ")
-            if (q.isEmpty()) DemoData.duaItems
-            else DemoData.duaItems.filter { d ->
-                val hay = (listOf(d.title, d.category, d.transliteration, d.translation, d.arabic) + d.keywords)
-                    .joinToString(" ").lowercase()
-                hay.contains(q) || q.split(" ").filter { it.length > 1 }.all { hay.contains(it) }
-            }
+            DuaSearch.search(query, DemoData.duaItems)
         }
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Find Duas", onBack = onBack)
