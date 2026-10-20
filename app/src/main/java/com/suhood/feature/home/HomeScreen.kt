@@ -246,10 +246,9 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
-            items(featureItems.size) { index ->
-                val (triple, route) = featureItems[index]
+            items(featureItems) { entry ->
+                val (triple, route) = entry
                 val (label, icon, accent) = triple
-                // ~4 fit on a normal phone width
                 Box(Modifier.width(78.dp)) {
                     FeatureTile(label, icon, accent) { onNavigate(route) }
                 }
