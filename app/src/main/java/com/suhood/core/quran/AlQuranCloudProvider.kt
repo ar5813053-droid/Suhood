@@ -115,11 +115,6 @@ class AlQuranCloudProvider(
         return SurahContent(meta, ayahs)
     }
 
-    companion object {
-        const val BASE = "https://api.alquran.cloud/v1"
-    }
-}
-
 
     /** Madinah Mushaf page 1–604 (quran-uthmani edition). */
     suspend fun loadPage(page: Int): PageContent {
@@ -137,7 +132,7 @@ class AlQuranCloudProvider(
                         numberInSurah = a.getInt("numberInSurah"),
                         surahNumber = surahObj?.optInt("number") ?: a.optInt("surah"),
                         surahName = surahObj?.optString("name").orEmpty(),
-                        arabic = a.getString("text").trim().removePrefix("\uFEFF")
+                        arabic = a.getString("text").trim().removePrefix("﻿")
                     )
                 )
             }
@@ -145,6 +140,10 @@ class AlQuranCloudProvider(
         return PageContent(pageNumber = page, ayahs = ayahs)
     }
 
+    companion object {
+        const val BASE = "https://api.alquran.cloud/v1"
+    }
+}
 interface QuranTextProvider {
     suspend fun listSurahs(): List<SurahMeta>
     suspend fun loadSurahArabic(surah: Int): SurahContent

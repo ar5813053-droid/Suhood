@@ -541,9 +541,11 @@ object QuranScreens {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
-                }
+                GlassIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    onClick = onBack
+                )
                 Column(Modifier.weight(1f)) {
                     Text("Mushaf", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                     Text(
