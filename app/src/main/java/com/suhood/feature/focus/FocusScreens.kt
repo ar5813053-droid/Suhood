@@ -15,13 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
-import com.suhood.core.model.DistractingApp
 
 object FocusScreens {
 

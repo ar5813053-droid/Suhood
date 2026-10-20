@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
@@ -338,10 +338,11 @@ object QuranScreens {
                             icon = Icons.Filled.SkipPrevious,
                             contentDescription = "Previous",
                             onClick = {
-                                val ayahs = content?.ayahs ?: return@GlassIconButton
-                                currentAyahIndex = (currentAyahIndex - 1).coerceAtLeast(0)
-                                val a = ayahs[currentAyahIndex]
-                                vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                content?.ayahs?.let { ayahs ->
+                                    currentAyahIndex = (currentAyahIndex - 1).coerceAtLeast(0)
+                                    val a = ayahs[currentAyahIndex]
+                                    vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                }
                             }
                         )
                         GlassIconButton(
@@ -362,14 +363,15 @@ object QuranScreens {
                             icon = Icons.Filled.SkipNext,
                             contentDescription = "Next",
                             onClick = {
-                                val ayahs = content?.ayahs ?: return@GlassIconButton
-                                currentAyahIndex = (currentAyahIndex + 1).coerceAtMost(ayahs.lastIndex)
-                                val a = ayahs[currentAyahIndex]
-                                vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                content?.ayahs?.let { ayahs ->
+                                    currentAyahIndex = (currentAyahIndex + 1).coerceAtMost(ayahs.lastIndex)
+                                    val a = ayahs[currentAyahIndex]
+                                    vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                }
                             }
                         )
                         GlassIconButton(
-                            icon = Icons.Filled.RecordVoiceOver,
+                            icon = Icons.Filled.Person,
                             contentDescription = "Qari",
                             onClick = { showQari = !showQari }
                         )

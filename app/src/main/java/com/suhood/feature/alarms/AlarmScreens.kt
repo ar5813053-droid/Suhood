@@ -219,11 +219,7 @@ object AlarmScreens {
                     .clickable(onClick = onCreate),
                 contentAlignment = Alignment.Center
             ) {
-                androidx.compose.material3.Icon(
-                    Icons.Filled.Add,
-                    contentDescription = "Add alarm",
-                    tint = Color.White
-                )
+                Text("+", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
             }
         }
     }

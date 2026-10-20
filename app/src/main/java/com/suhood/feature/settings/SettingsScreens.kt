@@ -585,22 +585,24 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
                     GlassButton(
                         text = "Save",
                         onClick = {
-                            val h = hourText.toIntOrNull()?.coerceIn(0, 23) ?: return@GlassButton
-                            val m = minuteText.toIntOrNull()?.coerceIn(0, 59) ?: return@GlassButton
-                            val hhmm = "%02d:%02d".format(h, m)
-                            scope.launch {
-                                store.update { s ->
-                                    when (editing) {
-                                        "Fajr" -> s.copy(masjidFajr = hhmm)
-                                        "Dhuhr" -> s.copy(masjidDhuhr = hhmm)
-                                        "Asr" -> s.copy(masjidAsr = hhmm)
-                                        "Maghrib" -> s.copy(masjidMaghrib = hhmm)
-                                        "Isha" -> s.copy(masjidIsha = hhmm)
-                                        else -> s
+                            val h = hourText.toIntOrNull()?.coerceIn(0, 23)
+                            val m = minuteText.toIntOrNull()?.coerceIn(0, 59)
+                            if (h != null && m != null) {
+                                val hhmm = "%02d:%02d".format(h, m)
+                                scope.launch {
+                                    store.update { s ->
+                                        when (editing) {
+                                            "Fajr" -> s.copy(masjidFajr = hhmm)
+                                            "Dhuhr" -> s.copy(masjidDhuhr = hhmm)
+                                            "Asr" -> s.copy(masjidAsr = hhmm)
+                                            "Maghrib" -> s.copy(masjidMaghrib = hhmm)
+                                            "Isha" -> s.copy(masjidIsha = hhmm)
+                                            else -> s
+                                        }
                                     }
+                                    com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                                    editing = null
                                 }
-                                com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
-                                editing = null
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
