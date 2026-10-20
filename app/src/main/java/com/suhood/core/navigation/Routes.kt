@@ -89,6 +89,9 @@ object Routes {
     const val NASHEEDIFY_PLAYER = "audio/player"
     const val NASHEEDIFY_PREFERENCES = "audio/preferences"
 
+    // Qibla
+    const val QIBLA = "qibla"
+
     // Settings
     const val SETTINGS = "settings"
     const val SETTINGS_APPEARANCE = "settings/appearance"

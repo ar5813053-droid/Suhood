@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Suhood" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#0B0A10</item>
-        <item name="android:navigationBarColor">#0B0A10</item>
-        <item name="android:windowBackground">#0B0A10</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+        <item name="android:windowBackground">#121212</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
-    <!-- Launch splash: solid charcoal so no white flash before Compose -->
+    <!-- Launch splash: pure black (Tarteel-style) before Compose -->
     <style name="Theme.Suhood.Splash" parent="Theme.Suhood">
-        <item name="android:windowBackground">#0B0A10</item>
-        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
     </style>
 </resources>

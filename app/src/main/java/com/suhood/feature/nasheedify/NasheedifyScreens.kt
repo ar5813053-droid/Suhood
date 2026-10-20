@@ -173,6 +173,42 @@ object NasheedifyScreens {
 
                 Spacer(Modifier.height(12.dp))
 
+                // Free online Islamic streams (Internet Archive, filtered)
+                Text(
+                    "Stream free · Nasheed · Naat · Nazam · Tilawat",
+                    style = SuhoodTypography.titleMedium,
+                    color = colors.textPrimary,
+                    modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+                )
+                Spacer(Modifier.height(10.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = SuhoodSpacing.screenHorizontal),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(
+                        listOf(
+                            "nasheed" to "Nasheed",
+                            "naat" to "Naat",
+                            "nazam" to "Nazam",
+                            "tilawat" to "Quran Tilawat"
+                        )
+                    ) { (id, label) ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(colors.surfaceElevated)
+                                .clickable {
+                                    vm.browseIslamic(id)
+                                    onNavigate(Routes.NASHEEDIFY_SEARCH)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Text(label, style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+
                 // Quick category chips (Spotify-style top tiles)
                 Text(
                     "تصفح · Browse",

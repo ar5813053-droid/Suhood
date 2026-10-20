@@ -280,11 +280,12 @@ object WorshipScreens {
                     .pointerInput(count, target) {
                         detectTapGestures(onTap = { bump() })
                     }
-                    .pointerInput(count) {
+                    .pointerInput(count, target) {
                         var totalDrag = 0f
                         detectHorizontalDragGestures(
                             onDragEnd = {
-                                if (totalDrag < -80f) undoCount()
+                                if (totalDrag > 80f) bump()
+                                else if (totalDrag < -80f) undoCount()
                                 totalDrag = 0f
                             },
                             onHorizontalDrag = { _, dragAmount ->
@@ -318,37 +319,50 @@ object WorshipScreens {
                     Spacer(Modifier.height(28.dp))
 
                     // Bead string (visual like Muslim Pro)
-                    Canvas(Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 12.dp)) {
-                        val n = minOf(target, 18)
+                    Canvas(Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 8.dp)) {
+                        val n = minOf(target, 16).coerceAtLeast(8)
                         val lit = ((count.toFloat() / target.coerceAtLeast(1)) * n).toInt().coerceIn(0, n)
                         val y = size.height / 2
                         val step = size.width / (n + 1)
                         // string
                         drawLine(
-                            color = colors.borderStrong,
-                            start = Offset(step, y),
-                            end = Offset(size.width - step, y),
-                            strokeWidth = 3f
+                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.35f),
+                            start = Offset(step * 0.6f, y),
+                            end = Offset(size.width - step * 0.6f, y),
+                            strokeWidth = 3.5f
                         )
                         for (i in 0 until n) {
                             val x = step * (i + 1)
-                            val r = if (i < lit) 14.dp.toPx() else 11.dp.toPx()
-                            val col = if (i < lit) colors.accentLavender else colors.surfaceElevated
-                            drawCircle(color = colors.borderSubtle, radius = r + 2f, center = Offset(x, y))
-                            drawCircle(color = col, radius = r, center = Offset(x, y))
-                            if (i < lit) {
-                                drawCircle(
-                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f),
-                                    radius = r * 0.35f,
-                                    center = Offset(x - r * 0.25f, y - r * 0.25f)
-                                )
-                            }
+                            val active = i < lit
+                            val r = if (active) 16.dp.toPx() else 13.dp.toPx()
+                            // shadow
+                            drawCircle(
+                                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f),
+                                radius = r,
+                                center = Offset(x + 1.5f, y + 2.5f)
+                            )
+                            // body — green/red bead when counted, grey when not
+                            val body = if (active) androidx.compose.ui.graphics.Color(0xFFE85D4C) else colors.surfaceElevated
+                            drawCircle(color = body, radius = r, center = Offset(x, y))
+                            // rind / rim
+                            drawCircle(
+                                color = if (active) androidx.compose.ui.graphics.Color(0xFF2E8B57) else colors.borderStrong,
+                                radius = r,
+                                center = Offset(x, y),
+                                style = Stroke(width = 3.dp.toPx())
+                            )
+                            // highlight
+                            drawCircle(
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = if (active) 0.35f else 0.12f),
+                                radius = r * 0.32f,
+                                center = Offset(x - r * 0.28f, y - r * 0.28f)
+                            )
                         }
                     }
 
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        "Tap anywhere to count",
+                        "Tap or swipe right to count",
                         style = SuhoodTypography.bodyMedium,
                         color = colors.textSecondary
                     )

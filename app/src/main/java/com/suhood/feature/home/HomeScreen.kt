@@ -26,6 +26,9 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -139,36 +142,33 @@ fun HomeScreen(
             .padding(horizontal = 16.dp)
             .padding(bottom = bottomContentPadding + 16.dp)
     ) {
-        // Compact top bar: next Salah (left) + dates (right) + settings
+        // Top bar: avatar + Hijri | settings (Muslim Pro–inspired, no login)
         Spacer(Modifier.height(6.dp))
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Person, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.size(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "Next · ${nextPrayer.name}",
-                    style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = colors.accentLavender
-                )
-                Text(
-                    formatCountdown(countdown),
-                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    hijri,
+                    style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     color = colors.textPrimary
                 )
-            }
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
                 Text(
                     gregorian,
                     style = SuhoodTypography.labelSmall,
-                    color = colors.textSecondary,
-                    textAlign = TextAlign.End
-                )
-                Text(
-                    hijri,
-                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                    color = colors.textMuted,
-                    textAlign = TextAlign.End
+                    color = colors.textMuted
                 )
             }
             GlassIconButton(
@@ -180,51 +180,87 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Compact next-salah strip (small)
+        // Next prayer hero card
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            onClick = { onNavigate(Routes.SALAH) }
+            onClick = { onNavigate(Routes.SALAH) },
+            contentPadding = PaddingValues(18.dp)
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("Salah today", style = SuhoodTypography.labelSmall, color = colors.textMuted)
                     Text(
-                        "$prayerDone of 5 marked",
-                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        "Next  ${nextPrayer.name}",
+                        style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.accentLavender
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        nextPrayer.time.lowercase(),
+                        style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                         color = colors.textPrimary
                     )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "in ${formatCountdown(countdown)}",
+                        style = SuhoodTypography.bodySmall,
+                        color = colors.textSecondary
+                    )
                 }
-                Text(
-                    nextPrayer.time,
-                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = colors.accentLavender
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Suhood", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    Text(hijri.split(" ").take(3).joinToString(" "), style = SuhoodTypography.labelSmall, color = colors.textSecondary)
+                }
             }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "View all prayer times  →",
+                style = SuhoodTypography.labelMedium,
+                color = colors.accentLavender
+            )
         }
 
         Spacer(Modifier.height(16.dp))
 
         // Quick actions
+        Text(
+            "Features",
+            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
+        Spacer(Modifier.height(10.dp))
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            QuickAction("Focus", Icons.Filled.Timelapse, colors.accentLavender) {
-                onNavigate(Routes.FOCUS)
+            QuickAction("Qibla", Icons.Filled.Explore, colors.accentLavender) {
+                onNavigate(Routes.QIBLA)
             }
-            QuickAction("Worship", Icons.Filled.SelfImprovement, colors.silver) {
-                onNavigate(Routes.WORSHIP)
+            QuickAction("Focus", Icons.Filled.Timelapse, colors.silver) {
+                onNavigate(Routes.FOCUS)
             }
             QuickAction("Tasbeeh", Icons.Filled.SelfImprovement, colors.accentYellow) {
                 onNavigate(Routes.TASBEEH)
             }
+            QuickAction("Duas", Icons.Filled.MenuBook, colors.accentCoral) {
+                onNavigate(Routes.DUA_LIBRARY)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            QuickAction("Worship", Icons.Filled.SelfImprovement, colors.silverBright) {
+                onNavigate(Routes.WORSHIP)
+            }
             QuickAction("Alarm", Icons.Filled.Alarm, colors.accentCoral) {
                 onNavigate(Routes.ALARMS)
+            }
+            QuickAction("Quran", Icons.Filled.MenuBook, colors.accentLavender) {
+                onNavigate(Routes.QURAN)
+            }
+            QuickAction("Nasheed", Icons.Filled.SelfImprovement, colors.accentMint) {
+                onNavigate(Routes.AUDIO)
             }
         }
 

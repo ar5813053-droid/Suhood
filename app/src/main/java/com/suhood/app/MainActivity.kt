@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -16,6 +19,7 @@ import com.suhood.core.designsystem.theme.SuhoodTheme
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.SuhoodNavGraph
+import com.suhood.feature.onboarding.SplashScreen
 import com.suhood.feature.settings.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
@@ -29,13 +33,18 @@ class MainActivity : ComponentActivity() {
             )
             val themeMode by settingsVm.themeMode.collectAsStateWithLifecycle(ThemeMode.DARK)
             val onboardingDone by settingsVm.onboardingCompleted.collectAsStateWithLifecycle(false)
+            var showSplash by remember { mutableStateOf(true) }
 
-            SuhoodTheme(themeMode = themeMode) {
-                SuhoodAppRoot(
-                    onboardingCompleted = onboardingDone,
-                    onOnboardingComplete = { settingsVm.completeOnboarding() },
-                    settingsViewModel = settingsVm
-                )
+            if (showSplash) {
+                SplashScreen(onFinished = { showSplash = false })
+            } else {
+                SuhoodTheme(themeMode = themeMode) {
+                    SuhoodAppRoot(
+                        onboardingCompleted = onboardingDone,
+                        onOnboardingComplete = { settingsVm.completeOnboarding() },
+                        settingsViewModel = settingsVm
+                    )
+                }
             }
         }
     }

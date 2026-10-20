@@ -26,6 +26,7 @@ import com.suhood.feature.alarms.AlarmScreens
 import com.suhood.feature.focus.FocusScreens
 import com.suhood.feature.home.HomeScreen
 import com.suhood.feature.nasheedify.NasheedifyScreens
+import com.suhood.feature.qibla.QiblaScreens
 import com.suhood.feature.onboarding.OnboardingFlow
 import com.suhood.feature.quran.QuranScreens
 import com.suhood.feature.settings.SettingsScreens
@@ -198,6 +199,10 @@ fun SuhoodNavGraph(
             }
             composable(Routes.ALARM_DISMISSED) {
                 AlarmScreens.Dismissed(onDone = { navController.popBackStack(Routes.ALARMS, false) })
+            }
+
+            composable(Routes.QIBLA) {
+                QiblaScreens.Finder(onBack = { navController.popBackStack() })
             }
 
             // Quran
