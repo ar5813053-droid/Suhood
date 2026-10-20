@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -347,11 +348,15 @@ object QuranScreens {
         LaunchedEffect(surahId) { vm.openSurah(surahId) }
 
         // Keep current ayah index in sync with the track that is actually playing
+        val listState = rememberLazyListState()
         LaunchedEffect(playback.currentTrack?.id, content) {
             val id = playback.currentTrack?.id ?: return@LaunchedEffect
             val ayahs = content?.ayahs ?: return@LaunchedEffect
             val idx = ayahs.indexOfFirst { "quran:${it.globalNumber}" == id }
-            if (idx >= 0) currentAyahIndex = idx
+            if (idx >= 0) {
+                currentAyahIndex = idx
+                runCatching { listState.animateScrollToItem(idx) }
+            }
         }
 
         Box(Modifier.fillMaxSize().background(colors.background)) {
@@ -438,7 +443,7 @@ object QuranScreens {
                                         fontSize = 24.sp,
                                         textAlign = TextAlign.Right,
                                         textDirection = TextDirection.Rtl,
-                                        color = colors.textPrimary,
+                                        color = if (playingThis) colors.accentLavender else colors.textPrimary,
                                         lineHeight = 40.sp
                                     ),
                                     modifier = Modifier.fillMaxWidth()

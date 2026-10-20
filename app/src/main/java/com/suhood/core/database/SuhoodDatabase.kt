@@ -75,6 +75,41 @@ data class SalahLogEntity(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+
+@Entity(tableName = "habits")
+data class HabitEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String = "",
+    val category: String = "custom", // salah, quran, hifz, dhikr, custom
+    val targetCount: Int = 1,
+    val frequency: String = "daily", // daily, weekly
+    val reminderHour: Int? = null,
+    val reminderMinute: Int? = null,
+    val enabled: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "habit_completions")
+data class HabitCompletionEntity(
+    @PrimaryKey val id: String, // habitId|dateIso
+    val habitId: String,
+    val dateIso: String,
+    val count: Int = 1,
+    val completedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "muhasabah_entries")
+data class MuhasabahEntryEntity(
+    @PrimaryKey val dateIso: String, // yyyy-MM-dd
+    val reflection: String = "",
+    val gratitude: String = "",
+    val lessons: String = "",
+    val intention: String = "",
+    val prompt: String = "",
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
 @Entity(tableName = "tasbeeh_state")
 data class TasbeehStateEntity(
     @PrimaryKey val id: Int = 1,
@@ -165,6 +200,89 @@ interface SuhoodDao {
 
     @Query("SELECT * FROM tasbeeh_state WHERE id = 1 LIMIT 1")
     suspend fun getTasbeeh(): TasbeehStateEntity?
+
+    // Habits
+    @Query("SELECT * FROM habits ORDER BY createdAt DESC")
+    fun observeHabits(): Flow<List<HabitEntity>>
+
+    @Query("SELECT * FROM habits WHERE id = :id LIMIT 1")
+    suspend fun getHabit(id: String): HabitEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertHabit(habit: HabitEntity)
+
+    @Query("DELETE FROM habits WHERE id = :id")
+    suspend fun deleteHabit(id: String)
+
+    @Query("SELECT * FROM habit_completions WHERE dateIso = :dateIso")
+    fun observeHabitCompletionsForDate(dateIso: String): Flow<List<HabitCompletionEntity>>
+
+    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId ORDER BY dateIso DESC")
+    fun observeHabitCompletions(habitId: String): Flow<List<HabitCompletionEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertHabitCompletion(c: HabitCompletionEntity)
+
+    @Query("SELECT * FROM habit_completions WHERE dateIso >= :fromIso AND dateIso <= :toIso")
+    suspend fun habitCompletionsInRange(fromIso: String, toIso: String): List<HabitCompletionEntity>
+
+    // Muhasabah
+    @Query("SELECT * FROM muhasabah_entries ORDER BY dateIso DESC")
+    fun observeMuhasabah(): Flow<List<MuhasabahEntryEntity>>
+
+    @Query("SELECT * FROM muhasabah_entries WHERE dateIso = :dateIso LIMIT 1")
+    suspend fun getMuhasabah(dateIso: String): MuhasabahEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMuhasabah(entry: MuhasabahEntryEntity)
+
+    @Query("DELETE FROM muhasabah_entries WHERE dateIso = :dateIso")
+    suspend fun deleteMuhasabah(dateIso: String)
+
+    @Query("SELECT * FROM muhasabah_entries WHERE reflection LIKE '%' || :q || '%' OR gratitude LIKE '%' || :q || '%' OR lessons LIKE '%' || :q || '%' OR intention LIKE '%' || :q || '%' ORDER BY dateIso DESC")
+    suspend fun searchMuhasabah(q: String): List<MuhasabahEntryEntity>
+
+}
+
+
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS habits (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT 'custom',
+                targetCount INTEGER NOT NULL DEFAULT 1,
+                frequency TEXT NOT NULL DEFAULT 'daily',
+                reminderHour INTEGER,
+                reminderMinute INTEGER,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                createdAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS habit_completions (
+                id TEXT NOT NULL PRIMARY KEY,
+                habitId TEXT NOT NULL,
+                dateIso TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 1,
+                completedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS muhasabah_entries (
+                dateIso TEXT NOT NULL PRIMARY KEY,
+                reflection TEXT NOT NULL DEFAULT '',
+                gratitude TEXT NOT NULL DEFAULT '',
+                lessons TEXT NOT NULL DEFAULT '',
+                intention TEXT NOT NULL DEFAULT '',
+                prompt TEXT NOT NULL DEFAULT '',
+                updatedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
 }
 
 val MIGRATION_3_4 = object : Migration(3, 4) {
@@ -199,11 +317,19 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         QuranBookmarkEntity::class,
         QuranLastReadEntity::class,
         SalahLogEntity::class,
-        TasbeehStateEntity::class
+        TasbeehStateEntity::class,
+        HabitEntity::class,
+        HabitCompletionEntity::class,
+        MuhasabahEntryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
+
+
+
+
+
 abstract class SuhoodDatabase : RoomDatabase() {
     abstract fun dao(): SuhoodDao
 
@@ -217,7 +343,7 @@ abstract class SuhoodDatabase : RoomDatabase() {
                     SuhoodDatabase::class.java,
                     "suhood.db"
                 )
-                    .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { instance = it }

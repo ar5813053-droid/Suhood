@@ -152,17 +152,6 @@ fun HomeScreen(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(colors.surfaceElevated)
-                    .border(1.dp, colors.borderSubtle, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Person, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.size(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     hijri,

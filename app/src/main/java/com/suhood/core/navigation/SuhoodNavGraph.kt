@@ -30,6 +30,8 @@ import com.suhood.feature.qibla.QiblaScreens
 import com.suhood.feature.onboarding.OnboardingFlow
 import com.suhood.feature.quran.QuranScreens
 import com.suhood.feature.settings.SettingsScreens
+import com.suhood.feature.journey.JourneyScreens
+import com.suhood.feature.muhasabah.MuhasabahScreens
 import com.suhood.feature.salah.SalahScreens
 import com.suhood.feature.settings.SettingsViewModel
 import com.suhood.feature.worship.WorshipScreens
@@ -53,12 +55,14 @@ fun SuhoodNavGraph(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomNav = currentRoute in listOf(
-        Routes.HOME, Routes.QURAN, Routes.AUDIO
+        Routes.HOME, Routes.JOURNEY, Routes.QURAN, Routes.MUHASABAH, Routes.AUDIO
     )
 
     val selectedTop = when {
         currentRoute == Routes.HOME -> TopLevelDestination.HOME
+        currentRoute == Routes.JOURNEY || currentRoute?.startsWith("journey") == true -> TopLevelDestination.JOURNEY
         currentRoute == Routes.QURAN || currentRoute?.startsWith("quran") == true -> TopLevelDestination.QURAN
+        currentRoute == Routes.MUHASABAH || currentRoute?.startsWith("muhasabah") == true -> TopLevelDestination.MUHASABAH
         currentRoute == Routes.AUDIO || currentRoute?.startsWith("audio") == true -> TopLevelDestination.AUDIO
         else -> TopLevelDestination.HOME
     }
@@ -95,6 +99,20 @@ fun SuhoodNavGraph(
                 HomeScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     bottomContentPadding = if (showBottomNav) SuhoodSpacing.aboveBottomNav else 0.dp
+                )
+            }
+            composable(Routes.JOURNEY) {
+                JourneyScreens.Home(
+                    onBack = { navController.popBackStack() },
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
+                )
+            }
+            composable(Routes.MUHASABAH) {
+                MuhasabahScreens.Home(
+                    onBack = { navController.popBackStack() },
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.WORSHIP) {

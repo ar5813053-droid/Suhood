@@ -628,18 +628,19 @@ object DemoData {
     )
 
         val audioTracks = listOf(
-        AudioTrack("t1", "Morning Light", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 210, titleAr = "نور الصباح", creatorAr = "فرقة تجريبية"),
-        AudioTrack("t2", "Path of Peace", "Demo Ensemble", "Dawn Collection", "nasheeds", "English", 185, titleAr = "طريق السلام", creatorAr = "فرقة تجريبية"),
-        AudioTrack("t3", "Ya Rahman", "Demo Vocalists", "Devotion", "madah", "Arabic", 240, titleAr = "يا رحمن", creatorAr = "منشدون"),
-        AudioTrack("t4", "Al-Fatihah (Demo)", "Demo Qari", "Short Surahs", "tilawat", "Arabic", 95, titleAr = "الفاتحة", creatorAr = "قارئ تجريبي"),
-        AudioTrack("t5", "Morning Adhkar", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 320, titleAr = "أذكار الصباح", creatorAr = "مُذكّر"),
-        AudioTrack("t6", "Evening Adhkar", "Demo Reciter", "Daily Adhkar", "adhkar", "Arabic", 280, titleAr = "أذكار المساء", creatorAr = "مُذكّر"),
-        AudioTrack("t7", "Dua for Guidance", "Demo Reciter", "Selected Duas", "duas", "Arabic", 60, titleAr = "دعاء الهداية", creatorAr = "مُذكّر"),
-        AudioTrack("t8", "Remembering the Hereafter", "Demo Speaker", "Short Talks", "lectures", "English", 420, titleAr = "تذكرة الآخرة", creatorAr = "محاضر"),
-        AudioTrack("t9", "Gratitude Reminder", "Demo Speaker", "Short Talks", "reminders", "English", 90, titleAr = "تذكير الشكر", creatorAr = "محاضر"),
-        AudioTrack("t10", "Patience in Hardship", "Demo Speaker", "Short Talks", "reminders", "English", 110, titleAr = "الصبر في البلاء", creatorAr = "محاضر"),
-        AudioTrack("t11", "Heart at Rest", "Demo Ensemble", "Calm", "nasheeds", "English", 195, titleAr = "قلب مطمئن", creatorAr = "فرقة تجريبية"),
-        AudioTrack("t12", "Tawakkul", "Demo Vocalists", "Devotion", "madah", "Arabic", 220, titleAr = "توكل", creatorAr = "منشدون")
+        // Curated Islamic-only catalogue (streamed via Internet Archive / everyayah when online)
+        AudioTrack("t1", "Tala'al Badru Alayna", "Traditional Nasheed", "Seerah & Praise", "nasheeds", "Arabic", 240, titleAr = "طلع البدر علينا", creatorAr = "نشيد تقليدي"),
+        AudioTrack("t2", "Ya Nabi Salam Alayka", "Maher Zain style nasheed", "Madah", "madah", "Arabic", 265, titleAr = "يا نبي سلام عليك", creatorAr = "منشد"),
+        AudioTrack("t3", "Hasbi Rabbi", "Islamic nasheed", "Tawakkul", "nasheeds", "Arabic", 210, titleAr = "حسبي ربي", creatorAr = "منشد"),
+        AudioTrack("t4", "Surah Al-Fatihah", "Mishary Rashid Alafasy", "Tilawat", "tilawat", "Arabic", 95, titleAr = "الفاتحة", creatorAr = "مشاري راشد العفاسي"),
+        AudioTrack("t5", "Surah Al-Mulk", "Abdul Rahman Al-Sudais", "Tilawat", "tilawat", "Arabic", 480, titleAr = "سورة الملك", creatorAr = "عبد الرحمن السديس"),
+        AudioTrack("t6", "Surah Ar-Rahman", "Mahmoud Khalil Al-Husary", "Tilawat", "tilawat", "Arabic", 720, titleAr = "سورة الرحمن", creatorAr = "محمود خليل الحصري"),
+        AudioTrack("t7", "Morning Adhkar", "Hisn al-Muslim", "Daily Adhkar", "adhkar", "Arabic", 320, titleAr = "أذكار الصباح", creatorAr = "حصن المسلم"),
+        AudioTrack("t8", "Evening Adhkar", "Hisn al-Muslim", "Daily Adhkar", "adhkar", "Arabic", 280, titleAr = "أذكار المساء", creatorAr = "حصن المسلم"),
+        AudioTrack("t9", "The Reality of This Dunya", "Islamic bayan", "Reminders", "lectures", "English", 900, titleAr = "حقيقة الدنيا", creatorAr = "محاضرة"),
+        AudioTrack("t10", "Importance of Salah", "Islamic bayan", "Reminders", "lectures", "English", 720, titleAr = "أهمية الصلاة", creatorAr = "محاضرة"),
+        AudioTrack("t11", "Qasidah Burdah (excerpt)", "Classical nasheed", "Madah", "madah", "Arabic", 300, titleAr = "قصيدة البردة", creatorAr = "منشد"),
+        AudioTrack("t12", "Allahul Allah", "Nasheed", "Dhikr", "nasheeds", "Arabic", 200, titleAr = "الله الله", creatorAr = "منشد")
     )
 
     val sampleAlarms = listOf(

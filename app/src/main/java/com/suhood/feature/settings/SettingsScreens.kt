@@ -1,8 +1,35 @@
 package com.suhood.feature.settings
+import com.suhood.R
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Mosque
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VolunteerActivism
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 
 import androidx.compose.foundation.Image
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -27,19 +54,20 @@ object SettingsScreens {
     @Composable
     fun Home(onBack: () -> Unit, onNavigate: (String) -> Unit) {
         val colors = suhoodColors
-        val items = listOf(
-            "Appearance" to Routes.SETTINGS_APPEARANCE,
-            "Language" to Routes.SETTINGS_LANGUAGE,
-            "Prayer preferences" to Routes.SETTINGS_PRAYER,
-            "Customize Salah times" to Routes.SETTINGS_SALAH_TIMES,
-            "Notifications" to Routes.SETTINGS_NOTIFICATIONS,
-            "Focus" to Routes.SETTINGS_FOCUS,
-            "Audio" to Routes.SETTINGS_AUDIO,
-            "Accessibility" to Routes.SETTINGS_ACCESSIBILITY,
-            "Privacy" to Routes.SETTINGS_PRIVACY,
-            "Permissions" to Routes.SETTINGS_PERMISSIONS,
-            "Tip the developer" to Routes.SETTINGS_TIP,
-            "About Suhood" to Routes.SETTINGS_ABOUT
+        data class Row(val label: String, val route: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+        val more = listOf(
+            Row("Appearance", Routes.SETTINGS_APPEARANCE, Icons.Filled.DarkMode),
+            Row("Language", Routes.SETTINGS_LANGUAGE, Icons.Filled.Language),
+            Row("Prayer preferences", Routes.SETTINGS_PRAYER, Icons.Filled.Mosque),
+            Row("Customize Salah times", Routes.SETTINGS_SALAH_TIMES, Icons.Filled.Timer),
+            Row("Notifications", Routes.SETTINGS_NOTIFICATIONS, Icons.Filled.Notifications),
+            Row("Focus", Routes.SETTINGS_FOCUS, Icons.Filled.Timer),
+            Row("Audio", Routes.SETTINGS_AUDIO, Icons.Filled.MusicNote),
+            Row("Accessibility", Routes.SETTINGS_ACCESSIBILITY, Icons.Filled.Accessibility),
+            Row("Privacy", Routes.SETTINGS_PRIVACY, Icons.Filled.PrivacyTip),
+            Row("Permissions", Routes.SETTINGS_PERMISSIONS, Icons.Filled.Security),
+            Row("Tip the developer", Routes.SETTINGS_TIP, Icons.Filled.VolunteerActivism),
+            Row("About Suhood", Routes.SETTINGS_ABOUT, Icons.Filled.Info)
         )
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Settings", onBack = onBack)
@@ -49,12 +77,79 @@ object SettingsScreens {
                     .padding(horizontal = SuhoodSpacing.screenHorizontal)
                     .padding(bottom = 24.dp)
             ) {
-                items.forEach { (label, route) ->
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        onClick = { onNavigate(route) }
+                // Developer banner (Syed Furqan)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .border(1.dp, colors.borderSubtle, RoundedCornerShape(18.dp))
+                        .clickable { onNavigate(Routes.SETTINGS_ABOUT) }
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.developer_banner),
+                        contentDescription = "Syed Furqan — Suhood developer",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.35f))
+                    )
+                    Column(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(14.dp)
                     ) {
-                        Text(label, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                        Text(
+                            "Syed Furqan",
+                            style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White
+                        )
+                        Text(
+                            "Technology Creator · App Developer",
+                            style = SuhoodTypography.bodySmall,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Text(
+                            "“Building ideas into reality, one project at a time.”",
+                            style = SuhoodTypography.labelSmall,
+                            color = Color.White.copy(alpha = 0.75f)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                Text("Preferences", style = SuhoodTypography.labelLarge, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    more.forEachIndexed { i, row ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigate(row.route) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(row.icon, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                row.label,
+                                style = SuhoodTypography.titleMedium,
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Filled.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
+                        }
+                        if (i < more.lastIndex) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(colors.borderSubtle.copy(alpha = 0.5f))
+                            )
+                        }
                     }
                 }
             }

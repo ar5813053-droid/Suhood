@@ -17,6 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,8 +47,10 @@ data class NavItem(
 /** Exactly three top-level destinations: Home, Quran, Nasheedify. */
 val primaryNavItems = listOf(
     NavItem(TopLevelDestination.HOME, "Home", Icons.Filled.Home, "Home"),
+    NavItem(TopLevelDestination.JOURNEY, "Journey", Icons.Filled.Checklist, "My Journey"),
     NavItem(TopLevelDestination.QURAN, "Quran", Icons.Filled.MenuBook, "Quran"),
-    NavItem(TopLevelDestination.AUDIO, "Nasheedify", Icons.Filled.MusicNote, "Nasheedify")
+    NavItem(TopLevelDestination.MUHASABAH, "Journal", Icons.Filled.EditNote, "Muhasabah"),
+    NavItem(TopLevelDestination.AUDIO, "Audio", Icons.Filled.MusicNote, "Nasheedify")
 )
 
 @Composable

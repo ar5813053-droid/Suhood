@@ -8,7 +8,9 @@ package com.suhood.core.navigation
 object Routes {
     // Top-level (bottom nav)
     const val HOME = "home"
+    const val JOURNEY = "journey"
     const val QURAN = "quran"
+    const val MUHASABAH = "muhasabah"
     const val AUDIO = "audio"
 
     // Nested (reachable from Home / deep links)
@@ -92,6 +94,16 @@ object Routes {
     // Qibla
     const val QIBLA = "qibla"
 
+    // My Journey
+    const val JOURNEY_HOME = "journey/home"
+    const val JOURNEY_SETUP = "journey/setup"
+    const val JOURNEY_DETAIL = "journey/detail/{habitId}"
+
+    // Muhasabah
+    const val MUHASABAH_HOME = "muhasabah/home"
+    const val MUHASABAH_EDITOR = "muhasabah/editor"
+    const val MUHASABAH_EDITOR_DATE = "muhasabah/editor/{dateIso}"
+
     // Settings
     const val SETTINGS = "settings"
     const val SETTINGS_APPEARANCE = "settings/appearance"
@@ -112,6 +124,8 @@ object Routes {
 /** Bottom navigation destinations only. */
 enum class TopLevelDestination(val route: String) {
     HOME(Routes.HOME),
+    JOURNEY(Routes.JOURNEY),
     QURAN(Routes.QURAN),
+    MUHASABAH(Routes.MUHASABAH),
     AUDIO(Routes.AUDIO)
 }
