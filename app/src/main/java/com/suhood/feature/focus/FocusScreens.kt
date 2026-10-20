@@ -1,5 +1,21 @@
 package com.suhood.feature.focus
 
+import androidx.compose.foundation.Canvas as ComposeCanvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -38,9 +54,19 @@ object FocusScreens {
     fun Dashboard(onNavigate: (String) -> Unit, bottomContentPadding: Dp) {
         val colors = suhoodColors
         val context = LocalContext.current
-        val session = remember {
-            FocusSessionController.get(context).tick()
+        val controller = remember { FocusSessionController.get(context) }
+        var session by remember { mutableStateOf(controller.tick()) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(1000)
+                session = controller.tick()
+            }
         }
+        val totalSec = (session.durationMinutes.coerceAtLeast(1)) * 60
+        val remaining = session.remainingSeconds.coerceAtLeast(0)
+        val progress = if (session.state.name == "IDLE" || totalSec <= 0) 0f
+        else (1f - remaining.toFloat() / totalSec).coerceIn(0f, 1f)
+
         Column(
             Modifier
                 .fillMaxSize()
@@ -50,72 +76,192 @@ object FocusScreens {
                 .padding(bottom = bottomContentPadding + 24.dp)
         ) {
             Spacer(Modifier.height(8.dp))
-            Text("تركيز", style = SuhoodTypography.arabicTitle, color = colors.textPrimary)
-            Text("Focus", style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
             Text(
-                "Protect time before Salah — timed sessions with optional app limits.",
+                "Suhood · Focus",
+                style = SuhoodTypography.labelMedium,
+                color = colors.textMuted
+            )
+            Text(
+                "تركيز",
+                style = SuhoodTypography.arabicTitle,
+                color = colors.accentLavender
+            )
+            Text(
+                "Focus",
+                style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Protect your time before Salah with a timed session and optional app limits.",
                 style = SuhoodTypography.bodyMedium,
                 color = colors.textSecondary
             )
-            Spacer(Modifier.height(8.dp))
-            DemoStatusLabel("Usage Access · Accessibility optional")
-
-            Spacer(Modifier.height(20.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text("Session", style = SuhoodTypography.labelMedium, color = colors.textMuted)
-                Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(12.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+            ) {
                 Text(
-                    session.state.name.replace('_', ' '),
-                    style = SuhoodTypography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                if (session.remainingSeconds > 0) {
-                    Text(
-                        formatTime(session.remainingSeconds),
-                        style = SuhoodTypography.titleLarge,
-                        color = colors.silverBright
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                GlassButton(
-                    text = "Start focus session",
-                    onClick = { onNavigate(Routes.FOCUS_DURATION) },
-                    modifier = Modifier.fillMaxWidth()
+                    "Usage Access · Accessibility optional",
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textMuted
                 )
             }
 
+            Spacer(Modifier.height(22.dp))
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(24.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Session", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    Spacer(Modifier.height(12.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+                        ComposeCanvas(Modifier.size(200.dp)) {
+                            val stroke = 6.dp.toPx()
+                            val r = size.minDimension / 2 - stroke
+                            drawCircle(
+                                color = colors.borderSubtle.copy(alpha = 0.4f),
+                                radius = r,
+                                style = Stroke(width = stroke)
+                            )
+                            if (progress > 0f) {
+                                drawArc(
+                                    color = colors.accentLavender,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f * progress,
+                                    useCenter = false,
+                                    topLeft = Offset(stroke, stroke),
+                                    size = Size(size.width - stroke * 2, size.height - stroke * 2),
+                                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                                )
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                session.state.name.replace('_', ' '),
+                                style = SuhoodTypography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp
+                                ),
+                                color = colors.accentLavender
+                            )
+                            Text(
+                                if (remaining > 0) formatTime(remaining) else formatTime(totalSec),
+                                style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                                color = colors.textPrimary
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    GlassButton(
+                        text = if (session.state.name == "RUNNING") "Session running…" else "Start focus session",
+                        onClick = {
+                            when (session.state.name) {
+                                "RUNNING" -> onNavigate(Routes.FOCUS_ACTIVE)
+                                "PAUSED" -> onNavigate(Routes.FOCUS_ACTIVE)
+                                else -> onNavigate(Routes.FOCUS_DURATION)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassCard(
                     modifier = Modifier.weight(1f),
-                    onClick = { onNavigate(Routes.FOCUS_SELECT_APPS) }
+                    onClick = { onNavigate(Routes.FOCUS_SELECT_APPS) },
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    Text("Apps", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.accentLavender.copy(alpha = 0.15f))
+                            .border(1.dp, colors.accentLavender.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Apps, null, tint = colors.accentLavender, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Apps", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
                     Text("Limit list", style = SuhoodTypography.labelSmall, color = colors.textMuted)
                 }
                 GlassCard(
                     modifier = Modifier.weight(1f),
-                    onClick = { onNavigate(Routes.FOCUS_HISTORY) }
+                    onClick = { onNavigate(Routes.FOCUS_HISTORY) },
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    Text("History", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.silver.copy(alpha = 0.15f))
+                            .border(1.dp, colors.silver.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.History, null, tint = colors.silverBright, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("History", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
                     Text("Past sessions", style = SuhoodTypography.labelSmall, color = colors.textMuted)
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text("How it works", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "1. Choose duration\n2. Optionally select apps to limit\n3. Enable Usage Access / Accessibility when prompted\n4. Stay with the session until complete",
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.textSecondary
-                )
+            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Info, null, tint = colors.accentLavender, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "How it works",
+                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                listOf(
+                    "Choose a duration for your session",
+                    "Optionally select apps to limit",
+                    "Enable Usage Access / Accessibility when prompted",
+                    "Stay with the session until it completes"
+                ).forEachIndexed { i, line ->
+                    Row(
+                        Modifier.padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            Modifier
+                                .size(22.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(colors.accentLavender.copy(alpha = 0.12f))
+                                .border(1.dp, colors.accentLavender.copy(alpha = 0.3f), RoundedCornerShape(7.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "${i + 1}",
+                                style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = colors.accentLavender
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(line, style = SuhoodTypography.bodySmall, color = colors.textSecondary)
+                    }
+                }
             }
         }
     }
 
-        @Composable
+    @Composable
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = LocalContext.current
