@@ -29,6 +29,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -168,7 +171,7 @@ object QiblaScreens {
                     var delta = deg - smoothAzimuth
                     if (delta > 180f) delta -= 360f
                     if (delta < -180f) delta += 360f
-                    smoothAzimuth = (smoothAzimuth + delta * 0.18f + 360f) % 360f
+                    smoothAzimuth = (smoothAzimuth + delta * 0.12f + 360f) % 360f
                 }
                 val out = smoothAzimuth
                 mainHandler.post {
@@ -228,17 +231,11 @@ object QiblaScreens {
                         }
                     }
                     // Always try accel+mag path as continuous source (works when RV is noisy)
-                    if (hasG && hasM) {
+                    if (hasG && hasM && rotationVector == null && gameRotation == null) {
                         val R = FloatArray(9)
                         val I = FloatArray(9)
                         if (SensorManager.getRotationMatrix(R, I, gravity, geomagnetic)) {
-                            // Prefer RV if available, but still update from mag when only mag works
-                            if (rotationVector == null && gameRotation == null) {
-                                fromRotationMatrix(R)
-                            } else {
-                                // blend: still publish mag-based if RV not yet fired
-                                fromRotationMatrix(R)
-                            }
+                            fromRotationMatrix(R)
                         }
                     }
                 }
@@ -249,7 +246,7 @@ object QiblaScreens {
                 }
             }
 
-            val delay = SensorManager.SENSOR_DELAY_GAME
+            val delay = SensorManager.SENSOR_DELAY_UI
             var registered = false
             rotationVector?.let {
                 sm.registerListener(listener, it, delay)
@@ -286,6 +283,13 @@ object QiblaScreens {
             d
         } else null
         val aligned = relative != null && abs(relative) < 8.0
+
+        // Smooth dial rotation (reduces lag/jitter)
+        val animatedAzimuth by animateFloatAsState(
+            targetValue = azimuthDeg,
+            animationSpec = tween(durationMillis = 90, easing = FastOutSlowInEasing),
+            label = "qiblaAzimuth"
+        )
 
         Column(
             Modifier
@@ -336,7 +340,7 @@ object QiblaScreens {
                     val r = size.minDimension / 2 - 10.dp.toPx()
 
                     // Dial rotates opposite to heading so north stays geographic on dial
-                    rotate(-azimuthDeg, Offset(cx, cy)) {
+                    rotate(-animatedAzimuth, Offset(cx, cy)) {
                         drawCircle(color = ringColor, radius = r, style = Stroke(width = 2.5.dp.toPx()))
                         for (i in 0 until 72) {
                             val a = Math.toRadians(i * 5.0)

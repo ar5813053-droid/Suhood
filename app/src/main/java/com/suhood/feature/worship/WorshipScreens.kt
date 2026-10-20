@@ -52,6 +52,11 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.model.QuizDifficulty
 import com.suhood.core.navigation.Routes
 import com.suhood.core.dua.DuaSearch
+import com.suhood.core.dua.OnlineDuaRepository
+import com.suhood.core.model.DuaItem
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 object WorshipScreens {
 
@@ -463,9 +468,72 @@ object WorshipScreens {
     @Composable
     fun DuaLibrary(onBack: () -> Unit, onDua: (String) -> Unit) {
         val colors = suhoodColors
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
         var query by remember { mutableStateOf("") }
-        val results = remember(query) {
-            DuaSearch.search(query, DemoData.duaItems)
+        var catalog by remember { mutableStateOf<List<DuaItem>>(DemoData.duaItems) }
+        var loading by remember { mutableStateOf(true) }
+        var offlinePopup by remember { mutableStateOf(false) }
+        var sourceLabel by remember { mutableStateOf("Loading…") }
+
+        LaunchedEffect(Unit) {
+            loading = true
+            if (!OnlineDuaRepository.isOnline(context)) {
+                offlinePopup = true
+                catalog = DemoData.duaItems
+                sourceLabel = "Offline · ${DemoData.duaItems.size} everyday adhkar"
+                loading = false
+            } else {
+                offlinePopup = false
+                OnlineDuaRepository.fetchHisnAlMuslim()
+                    .onSuccess { online ->
+                        // Prefer online Hisn catalogue; keep offline searchable set merged for Hinglish
+                        val merged = (online + DemoData.duaItems).distinctBy { it.arabic.take(80) }
+                        catalog = merged
+                        sourceLabel = "Online · Hisn al-Muslim · ${merged.size} entries"
+                    }
+                    .onFailure {
+                        catalog = DemoData.duaItems
+                        sourceLabel = "Offline fallback · ${DemoData.duaItems.size} adhkar"
+                        offlinePopup = true
+                    }
+                loading = false
+            }
+        }
+
+        if (offlinePopup) {
+            AlertDialog(
+                onDismissRequest = { offlinePopup = false },
+                title = { Text("No internet connection") },
+                text = {
+                    Text("Connect to the internet to load the full Hisn al-Muslim directory. Showing offline duas for now.")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        offlinePopup = false
+                        scope.launch {
+                            loading = true
+                            if (OnlineDuaRepository.isOnline(context)) {
+                                OnlineDuaRepository.fetchHisnAlMuslim()
+                                    .onSuccess { online ->
+                                        catalog = (online + DemoData.duaItems).distinctBy { it.arabic.take(80) }
+                                        sourceLabel = "Online · Hisn al-Muslim · ${catalog.size} entries"
+                                    }
+                            } else {
+                                offlinePopup = true
+                            }
+                            loading = false
+                        }
+                    }) { Text("Retry") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { offlinePopup = false }) { Text("Use offline") }
+                }
+            )
+        }
+
+        val results = remember(query, catalog) {
+            DuaSearch.search(query, catalog)
         }
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Find Duas", onBack = onBack)
@@ -482,34 +550,49 @@ object WorshipScreens {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Offline · verified everyday adhkar",
+                sourceLabel,
                 style = SuhoodTypography.labelSmall,
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
             Spacer(Modifier.height(8.dp))
-            if (results.isEmpty()) {
-                Text(
+            when {
+                loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = colors.accentLavender)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Loading full dua directory…", color = colors.textSecondary)
+                    }
+                }
+                results.isEmpty() -> Text(
                     "No dua matched. Try English or Roman Urdu keywords.",
                     color = colors.textMuted,
                     modifier = Modifier.padding(24.dp)
                 )
-            } else {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                        .padding(bottom = 32.dp)
-                ) {
-                    results.forEach { dua ->
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            onClick = { onDua(dua.id) }
-                        ) {
-                            Text(dua.title, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                            Text(dua.category, style = SuhoodTypography.bodySmall, color = colors.textMuted)
-                            if (dua.reference.isNotBlank()) {
-                                Text(dua.reference, style = SuhoodTypography.labelSmall, color = colors.accentLavender)
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                            .padding(bottom = 32.dp)
+                    ) {
+                        results.forEach { dua ->
+                            GlassCard(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                onClick = { onDua(dua.id) }
+                            ) {
+                                Text(dua.title, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                                if (dua.arabic.isNotBlank()) {
+                                    Text(
+                                        dua.arabic.take(120) + if (dua.arabic.length > 120) "…" else "",
+                                        style = SuhoodTypography.arabicBody,
+                                        color = colors.textPrimary
+                                    )
+                                }
+                                Text(dua.category, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                                if (dua.reference.isNotBlank()) {
+                                    Text(dua.reference, style = SuhoodTypography.labelSmall, color = colors.accentLavender)
+                                }
                             }
                         }
                     }
@@ -521,7 +604,7 @@ object WorshipScreens {
     @Composable
     fun DuaDetail(duaId: String, onBack: () -> Unit) {
         val colors = suhoodColors
-        val dua = DemoData.duaItems.find { it.id == duaId } ?: DemoData.duaItems.first()
+        val dua = (DemoData.duaItems + OnlineDuaRepository.cachedOrEmpty()).find { it.id == duaId } ?: DemoData.duaItems.first()
         Column(
             modifier = Modifier
                 .fillMaxSize()
