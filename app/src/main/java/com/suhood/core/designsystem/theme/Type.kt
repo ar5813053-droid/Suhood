@@ -121,6 +121,13 @@ object SuhoodTypography {
         lineHeight = 56.sp,
         letterSpacing = (-1).sp
     )
+    val timer = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 40.sp,
+        lineHeight = 48.sp,
+        letterSpacing = (-0.5).sp
+    )
     val timerSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
