@@ -1,6 +1,17 @@
 package com.suhood.feature.onboarding
 
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +20,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,16 +35,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -39,8 +64,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.suhood.core.designsystem.components.GlassButton
 import com.suhood.core.designsystem.components.GlassSegmentedControl
 import com.suhood.core.designsystem.theme.SuhoodSpacing
@@ -48,8 +78,9 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.feature.settings.SettingsViewModel
+import kotlinx.coroutines.delay
 
-private const val TOTAL_STEPS = 5
+private const val TOTAL_STEPS = 6 // 0-3 intro, 4 permissions, 5 jazakallah
 
 @Composable
 fun OnboardingFlow(
@@ -64,7 +95,6 @@ fun OnboardingFlow(
             .fillMaxSize()
             .background(colors.background)
     ) {
-        // Soft background glow
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -86,7 +116,6 @@ fun OnboardingFlow(
                 .navigationBarsPadding()
                 .padding(horizontal = SuhoodSpacing.xl)
         ) {
-            // Top bar: progress + skip
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -94,11 +123,12 @@ fun OnboardingFlow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OnboardingProgress(step = step, total = TOTAL_STEPS, modifier = Modifier.weight(1f))
-                if (step < TOTAL_STEPS - 1) {
+                // Skip only before permissions; permissions page has its own Skip
+                if (step < 4) {
                     Spacer(Modifier.width(12.dp))
                     GlassButton(
                         text = "Skip",
-                        onClick = onComplete,
+                        onClick = { step = 4 }, // jump to permissions
                         primary = false,
                         modifier = Modifier.height(36.dp)
                     )
@@ -133,30 +163,30 @@ fun OnboardingFlow(
                     )
                     2 -> LanguagePage()
                     3 -> AppearancePage(onSelect = { settingsViewModel.setThemeMode(it) })
-                    else -> OnboardingPage(
-                        illustration = { CheckIllustration() },
-                        title = "Protect your time. Find your focus.",
-                        body = "Use Focus sessions, reminders and peaceful Islamic audio to make room for what matters. Permissions are asked only when a feature needs them."
+                    4 -> PermissionsPage(
+                        onContinue = { step = 5 },
+                        onSkip = { step = 5 }
                     )
+                    else -> JazakallahPage(onFinished = onComplete)
                 }
             }
 
-            // Primary CTA
-            val cta = when (step) {
-                0 -> "Get Started"
-                TOTAL_STEPS - 1 -> "Start your journey"
-                else -> "Continue"
+            // Primary CTA — hidden on permissions (has own buttons) and jazakallah (auto-continues)
+            if (step < 4) {
+                val cta = when (step) {
+                    0 -> "Get Started"
+                    else -> "Continue"
+                }
+                GlassButton(
+                    text = cta,
+                    onClick = { step++ },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp, top = 8.dp)
+                )
+            } else if (step == 5) {
+                Spacer(Modifier.height(12.dp))
             }
-            GlassButton(
-                text = cta,
-                onClick = {
-                    if (step >= TOTAL_STEPS - 1) onComplete()
-                    else step++
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp, top = 8.dp)
-            )
         }
     }
 }
@@ -383,5 +413,285 @@ private fun CheckIllustration() {
             lineTo(c.x + r * 0.4f, c.y - r * 0.28f)
         }
         drawPath(path, Color.White, style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+/**
+ * Claude-style permission cards, Suhood Hybrid Glass theme.
+ * Only permissions that improve core UX: notifications, exact alarms, music library.
+ */
+
+@Composable
+private fun GreenTickIllustration() {
+    // Soft green tick for Jazakallah celebration (not brand lavender)
+    val green = Color(0xFF34D399)
+    Canvas(Modifier.size(140.dp)) {
+        val c = Offset(size.width / 2, size.height / 2)
+        val r = size.minDimension * 0.36f
+        drawCircle(green.copy(alpha = 0.22f), radius = r * 1.2f, center = c)
+        drawCircle(green.copy(alpha = 0.9f), radius = r, center = c)
+        val path = Path().apply {
+            moveTo(c.x - r * 0.35f, c.y)
+            lineTo(c.x - r * 0.08f, c.y + r * 0.28f)
+            lineTo(c.x + r * 0.4f, c.y - r * 0.28f)
+        }
+        drawPath(path, Color.White, style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+private fun PermissionsPage(
+    onContinue: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val colors = suhoodColors
+    val context = LocalContext.current
+    var notifGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT < 33) true
+            else ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var audioGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= 33) {
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.READ_MEDIA_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            } else if (Build.VERSION.SDK_INT >= 23) {
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
+    var alarmOk by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= 31) {
+                val am = context.getSystemService(AlarmManager::class.java)
+                am?.canScheduleExactAlarms() == true
+            } else true
+        )
+    }
+
+    val notifLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> notifGranted = granted }
+
+    val audioLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> audioGranted = granted }
+
+    val alarmLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        alarmOk = if (Build.VERSION.SDK_INT >= 31) {
+            context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
+        } else true
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Enable\npermissions",
+            style = SuhoodTypography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                lineHeight = 40.sp
+            ),
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Suhood works best with these permissions",
+            style = SuhoodTypography.bodyLarge,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(28.dp))
+
+        PermissionCard(
+            icon = Icons.Filled.Notifications,
+            title = "Notifications",
+            body = "Prayer reminders, alarms and Focus session alerts when it is time to return to Allah.",
+            enabled = notifGranted,
+            onClick = {
+                if (Build.VERSION.SDK_INT >= 33 && !notifGranted) {
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        )
+        Spacer(Modifier.height(12.dp))
+        PermissionCard(
+            icon = Icons.Filled.Alarm,
+            title = "Alarms & reminders",
+            body = "Exact alarms so Fajr and custom wake-up times ring on time, even in Do Not Disturb.",
+            enabled = alarmOk,
+            onClick = {
+                if (Build.VERSION.SDK_INT >= 31 && !alarmOk) {
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        data = android.net.Uri.parse("package:${context.packageName}")
+                    }
+                    runCatching { alarmLauncher.launch(intent) }
+                }
+            }
+        )
+        Spacer(Modifier.height(12.dp))
+        PermissionCard(
+            icon = Icons.Filled.MusicNote,
+            title = "Music & audio",
+            body = "Play nasheeds and tilawat from your device library in Nasheedify.",
+            enabled = audioGranted,
+            onClick = {
+                if (audioGranted) return@PermissionCard
+                if (Build.VERSION.SDK_INT >= 33) {
+                    audioLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
+                } else {
+                    audioLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+            }
+        )
+
+        Spacer(Modifier.height(28.dp))
+        GlassButton(
+            text = "Continue",
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .border(1.dp, colors.borderSubtle, RoundedCornerShape(28.dp))
+                .clickable(onClick = onSkip)
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Skip for now",
+                style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = colors.textSecondary
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "You can change these later in Settings → Permissions.",
+            style = SuhoodTypography.labelSmall,
+            color = colors.textMuted,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun PermissionCard(
+    icon: ImageVector,
+    title: String,
+    body: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = suhoodColors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.surfaceElevated.copy(alpha = 0.95f))
+            .border(1.dp, colors.borderSubtle.copy(alpha = 0.8f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.accentLavender.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (enabled) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = colors.success, modifier = Modifier.size(24.dp))
+            } else {
+                Icon(icon, contentDescription = null, tint = colors.accentLavender, modifier = Modifier.size(24.dp))
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                body,
+                style = SuhoodTypography.bodySmall,
+                color = colors.textSecondary
+            )
+            if (enabled) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Enabled",
+                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.success
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun JazakallahPage(onFinished: () -> Unit) {
+    val colors = suhoodColors
+    val scale = remember { Animatable(0.4f) }
+    LaunchedEffect(Unit) {
+        scale.animateTo(
+            1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+        delay(1600)
+        onFinished()
+    }
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(modifier = Modifier.scale(scale.value)) {
+            GreenTickIllustration()
+        }
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "JazakAllah Khair",
+            style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "You're all set. May Allah put barakah in your time.",
+            style = SuhoodTypography.bodyLarge,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(24.dp))
+        GlassButton(
+            text = "Enter Suhood",
+            onClick = onFinished,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
