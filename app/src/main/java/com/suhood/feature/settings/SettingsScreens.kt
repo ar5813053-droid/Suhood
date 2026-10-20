@@ -1,5 +1,5 @@
 package com.suhood.feature.settings
-import com.suhood.R
+import com.suhood.app.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
