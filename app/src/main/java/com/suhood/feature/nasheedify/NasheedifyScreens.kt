@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suhood.app.SuhoodApplication
 import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.DemoStatusLabel
+import com.suhood.core.designsystem.components.GlassButton
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassIconButton
 import com.suhood.core.designsystem.components.GlassSearchField
@@ -404,6 +405,7 @@ object NasheedifyScreens {
         }
     }
 
+    @Composable
     fun CategoryDetail(categoryId: String, onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
         val vm = rememberNasheedifyVm()
         val favorites by vm.favorites.collectAsStateWithLifecycle()
