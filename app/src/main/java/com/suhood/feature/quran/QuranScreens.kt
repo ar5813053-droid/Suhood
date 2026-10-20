@@ -253,6 +253,7 @@ object QuranScreens {
         }
     }
 
+    @Composable
     fun SurahDetail(surahId: Int, onBack: () -> Unit, onRead: () -> Unit) {
         LaunchedEffect(surahId) { onRead() }
     }
