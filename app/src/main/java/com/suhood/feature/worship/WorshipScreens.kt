@@ -474,9 +474,11 @@ object WorshipScreens {
                 onQueryChange = { query = it },
                 placeholder = "Search duas by name or purpose in any language...",
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
-
+            )
             Spacer(Modifier.height(12.dp))
-            PalestineBanner(compact = true)
+            PalestineBanner(
+                compact = true,
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
             Spacer(Modifier.height(8.dp))
             Text(
