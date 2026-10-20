@@ -187,12 +187,18 @@ fun GlassButton(
     val colors = suhoodColors
     val bg = when {
         !enabled -> colors.disabled.copy(alpha = 0.3f)
-        primary -> colors.surfaceSelected
+        primary -> colors.accentLavender.copy(alpha = if (colors.isDark) 0.28f else 0.22f)
         else -> colors.surfaceGlass
     }
     val textColor = when {
         !enabled -> colors.disabled
+        primary -> if (colors.isDark) colors.textPrimary else colors.accentLavender
         else -> colors.textPrimary
+    }
+    val borderColor = when {
+        !enabled -> colors.borderSubtle
+        primary -> colors.accentLavender.copy(alpha = 0.55f)
+        else -> colors.borderStrong
     }
 
     Row(
@@ -200,7 +206,7 @@ fun GlassButton(
             .heightIn(min = 48.dp)
             .clip(SuhoodShapes.pill)
             .background(bg)
-            .border(1.dp, if (enabled) colors.borderStrong else colors.borderSubtle, SuhoodShapes.pill)
+            .border(1.dp, borderColor, SuhoodShapes.pill)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 24.dp, vertical = 12.dp)
             .semantics {

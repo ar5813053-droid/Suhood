@@ -121,13 +121,13 @@ private fun NavPillItem(
 ) {
     val colors = suhoodColors
     val iconColor by animateColorAsState(
-        targetValue = if (selected) colors.silverBright else colors.textMuted,
-        animationSpec = tween(150),
+        targetValue = if (selected) colors.accentLavender else colors.textMuted,
+        animationSpec = tween(180),
         label = "navIcon"
     )
     val bg by animateColorAsState(
-        targetValue = if (selected) colors.surfaceSelected else Color.Transparent,
-        animationSpec = tween(150),
+        targetValue = if (selected) colors.accentLavender.copy(alpha = 0.18f) else Color.Transparent,
+        animationSpec = tween(180),
         label = "navBg"
     )
 
@@ -163,7 +163,7 @@ private fun NavPillItem(
                 Text(
                     text = item.label,
                     style = SuhoodTypography.labelMedium,
-                    color = colors.textPrimary,
+                    color = colors.accentLavender,
                     maxLines = 1
                 )
             }

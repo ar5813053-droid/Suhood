@@ -3,54 +3,59 @@ package com.suhood.core.designsystem.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Hybrid Glass design tokens — monochrome black / graphite / silver palette.
- * Apple-inspired Liquid Glass aesthetics without proprietary iOS frameworks.
+ * Suhood Gen-Z × Premium Islamic Wellness palette.
+ * Dark is default. Accents are semantic — one dominant per screen.
  */
 
 // ── Dark Theme ──────────────────────────────────────────────────────────────
 object SuhoodDarkColors {
     val background = Color(0xFF08090B)
     val backgroundElevated = Color(0xFF111316)
-    val surface = Color(0xFF141519)
-    val surfaceElevated = Color(0xFF1A1C20)
+    val surface = Color(0xFF17191F)
+    val surfaceElevated = Color(0xFF1C1F26)
     val surfaceGlassBase = Color(0x14FFFFFF) // ~8% white
-    val surfaceSelected = Color(0xFF35383E)
-    val borderSubtle = Color(0x1FFFFFFF) // ~12% white
-    val borderStrong = Color(0x2EFFFFFF) // ~18% white
+    val surfaceSelected = Color(0xFF2A2D36)
+    val borderSubtle = Color(0xFF30333B)
+    val borderStrong = Color(0xFF3E424C)
     val textPrimary = Color(0xFFF5F6F7)
-    val textSecondary = Color(0xFFA4A8B0)
-    val textMuted = Color(0xFF858B94)
+    val textSecondary = Color(0xFFA5AAB4)
+    val textMuted = Color(0xFF7A808C)
     val silver = Color(0xFFC7CBD1)
     val silverBright = Color(0xFFE4E6EA)
     val disabled = Color(0xFF555A63)
-    val error = Color(0xFFCF6679)
-    val success = Color(0xFF81C784)
+    val error = Color(0xFFFF8A80) // coral for warnings
+    val success = Color(0xFFA7E8C1) // mint
+    // Gen-Z accents
+    val accentLavender = Color(0xFFB8A5FF)
+    val accentMint = Color(0xFFA7E8C1)
+    val accentCoral = Color(0xFFFF8A80)
+    val accentYellow = Color(0xFFFFD66B)
 }
 
 // ── Light Theme ─────────────────────────────────────────────────────────────
 object SuhoodLightColors {
-    val background = Color(0xFFF1F2F4)
+    val background = Color(0xFFF3F4F6)
     val backgroundElevated = Color(0xFFFFFFFF)
     val surface = Color(0xFFFFFFFF)
-    val surfaceElevated = Color(0xFFFFFFFF)
-    val surfaceGlassBase = Color(0xB8FFFFFF) // ~72% white
-    val surfaceSelected = Color(0xFFE1E4E9)
-    val borderSubtle = Color(0x17000000) // ~9% black
-    val borderStrong = Color(0x24000000) // ~14% black
+    val surfaceElevated = Color(0xFFF8F9FB)
+    val surfaceGlassBase = Color(0xB8FFFFFF)
+    val surfaceSelected = Color(0xFFE8E4F7) // soft lavender tint
+    val borderSubtle = Color(0xFFE2E4EA)
+    val borderStrong = Color(0xFFC8CCD5)
     val textPrimary = Color(0xFF15171B)
-    val textSecondary = Color(0xFF606671)
-    val textMuted = Color(0xFF777D87)
+    val textSecondary = Color(0xFF5C6370)
+    val textMuted = Color(0xFF7A828F)
     val silver = Color(0xFF606773)
     val silverBright = Color(0xFF343941)
     val disabled = Color(0xFFA7ABB3)
-    val error = Color(0xFFB00020)
+    val error = Color(0xFFE57373)
     val success = Color(0xFF2E7D32)
+    val accentLavender = Color(0xFF7C6BC4)
+    val accentMint = Color(0xFF2E9B6A)
+    val accentCoral = Color(0xFFE57373)
+    val accentYellow = Color(0xFFC9A227)
 }
 
-/**
- * Semantic color scheme used throughout the app.
- * Always prefer these tokens over hard-coded colors.
- */
 data class SuhoodColorScheme(
     val background: Color,
     val backgroundElevated: Color,
@@ -68,6 +73,10 @@ data class SuhoodColorScheme(
     val disabled: Color,
     val error: Color,
     val success: Color,
+    val accentLavender: Color,
+    val accentMint: Color,
+    val accentCoral: Color,
+    val accentYellow: Color,
     val isDark: Boolean
 )
 
@@ -88,6 +97,10 @@ val DarkColorScheme = SuhoodColorScheme(
     disabled = SuhoodDarkColors.disabled,
     error = SuhoodDarkColors.error,
     success = SuhoodDarkColors.success,
+    accentLavender = SuhoodDarkColors.accentLavender,
+    accentMint = SuhoodDarkColors.accentMint,
+    accentCoral = SuhoodDarkColors.accentCoral,
+    accentYellow = SuhoodDarkColors.accentYellow,
     isDark = true
 )
 
@@ -108,5 +121,9 @@ val LightColorScheme = SuhoodColorScheme(
     disabled = SuhoodLightColors.disabled,
     error = SuhoodLightColors.error,
     success = SuhoodLightColors.success,
+    accentLavender = SuhoodLightColors.accentLavender,
+    accentMint = SuhoodLightColors.accentMint,
+    accentCoral = SuhoodLightColors.accentCoral,
+    accentYellow = SuhoodLightColors.accentYellow,
     isDark = false
 )
