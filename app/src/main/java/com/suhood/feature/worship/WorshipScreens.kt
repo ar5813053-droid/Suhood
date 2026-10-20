@@ -45,6 +45,7 @@ import com.suhood.core.database.TasbeehStateEntity
 import androidx.compose.ui.unit.dp
 import com.suhood.core.data.DemoData
 import com.suhood.core.designsystem.components.*
+import com.suhood.core.designsystem.components.PalestineBanner
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
@@ -168,6 +169,8 @@ object WorshipScreens {
                 accent = colors.accentLavender,
                 onClick = { onNavigate(Routes.QURAN) }
             )
+            Spacer(Modifier.height(20.dp))
+            PalestineBanner(compact = true)
         }
     }
 
@@ -271,6 +274,7 @@ object WorshipScreens {
                 .background(colors.background)
         ) {
             ScreenHeader(title = "Tasbeeh", onBack = onBack)
+            PalestineBanner(compact = true, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
 
             // Full interactive area — tap to count, swipe left to undo
             Box(
@@ -470,6 +474,9 @@ object WorshipScreens {
                 onQueryChange = { query = it },
                 placeholder = "Search duas by name or purpose in any language...",
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+
+            Spacer(Modifier.height(12.dp))
+            PalestineBanner(compact = true)
             )
             Spacer(Modifier.height(8.dp))
             Text(

@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MenuBook
@@ -54,6 +57,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.suhood.app.SuhoodApplication
 import com.suhood.core.designsystem.components.GlassCard
+import com.suhood.core.designsystem.components.PalestineBanner
 import com.suhood.core.designsystem.components.GlassIconButton
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
@@ -221,48 +225,42 @@ fun HomeScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Quick actions
+        // Features — horizontal slider (4 visible, swipe for more)
         Text(
             "Features",
             style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = colors.textPrimary
         )
         Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        val featureItems = listOf(
+            Triple("Qibla", Icons.Filled.Explore, colors.accentLavender) to Routes.QIBLA,
+            Triple("Focus", Icons.Filled.Timelapse, colors.silver) to Routes.FOCUS,
+            Triple("Tasbeeh", Icons.Filled.SelfImprovement, colors.accentYellow) to Routes.TASBEEH,
+            Triple("Duas", Icons.Filled.MenuBook, colors.accentCoral) to Routes.DUA_LIBRARY,
+            Triple("Worship", Icons.Filled.SelfImprovement, colors.silverBright) to Routes.WORSHIP,
+            Triple("Alarm", Icons.Filled.Alarm, colors.accentCoral) to Routes.ALARMS,
+            Triple("Quran", Icons.Filled.MenuBook, colors.accentLavender) to Routes.QURAN,
+            Triple("Nasheed", Icons.Filled.SelfImprovement, colors.accentMint) to Routes.AUDIO
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
-            QuickAction("Qibla", Icons.Filled.Explore, colors.accentLavender) {
-                onNavigate(Routes.QIBLA)
-            }
-            QuickAction("Focus", Icons.Filled.Timelapse, colors.silver) {
-                onNavigate(Routes.FOCUS)
-            }
-            QuickAction("Tasbeeh", Icons.Filled.SelfImprovement, colors.accentYellow) {
-                onNavigate(Routes.TASBEEH)
-            }
-            QuickAction("Duas", Icons.Filled.MenuBook, colors.accentCoral) {
-                onNavigate(Routes.DUA_LIBRARY)
+            items(featureItems.size) { index ->
+                val (triple, route) = featureItems[index]
+                val (label, icon, accent) = triple
+                // ~4 fit on a normal phone width
+                Box(Modifier.width(78.dp)) {
+                    FeatureTile(label, icon, accent) { onNavigate(route) }
+                }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            QuickAction("Worship", Icons.Filled.SelfImprovement, colors.silverBright) {
-                onNavigate(Routes.WORSHIP)
-            }
-            QuickAction("Alarm", Icons.Filled.Alarm, colors.accentCoral) {
-                onNavigate(Routes.ALARMS)
-            }
-            QuickAction("Quran", Icons.Filled.MenuBook, colors.accentLavender) {
-                onNavigate(Routes.QURAN)
-            }
-            QuickAction("Nasheed", Icons.Filled.SelfImprovement, colors.accentMint) {
-                onNavigate(Routes.AUDIO)
-            }
-        }
+        Text(
+            "Swipe for more →",
+            style = SuhoodTypography.labelSmall,
+            color = colors.textMuted,
+            modifier = Modifier.padding(top = 6.dp)
+        )
 
         Spacer(Modifier.height(20.dp))
         Text(
@@ -330,6 +328,10 @@ fun HomeScreen(
                 color = colors.textSecondary
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+        PalestineBanner(compact = false)
+
     }
 }
 
@@ -348,7 +350,7 @@ private fun formatHijri(): String {
 }
 
 @Composable
-private fun RowScope.QuickAction(
+private fun FeatureTile(
     label: String,
     icon: ImageVector,
     accent: androidx.compose.ui.graphics.Color,
@@ -356,7 +358,7 @@ private fun RowScope.QuickAction(
 ) {
     val colors = suhoodColors
     GlassCard(
-        modifier = Modifier.weight(1f),
+        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
         contentPadding = PaddingValues(10.dp)
     ) {

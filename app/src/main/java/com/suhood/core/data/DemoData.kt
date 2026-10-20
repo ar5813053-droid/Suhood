@@ -320,7 +320,252 @@ object DemoData {
             "Quran 17:24"
         ),
 
-    )
+    ,
+
+        DuaItem(
+            "29", "Morning — Asbahna",
+            "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ",
+            "Asbahna wa asbahal-mulku lillah, wal-hamdu lillah, la ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir",
+            "We have entered the morning and at this time all dominion belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner. To Him belongs dominion and praise, and He is over all things competent.",
+            "Morning",
+            listOf("asbahna", "morning adhkar", "subah", "morning zikr", "صبح"),
+            "Abu Dawud"
+        ),
+        DuaItem(
+            "30", "Evening — Amsayna",
+            "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ",
+            "Amsayna wa amsal-mulku lillah, wal-hamdu lillah, la ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir",
+            "We have entered the evening and at this time all dominion belongs to Allah. All praise is for Allah. None has the right to be worshipped except Allah, alone, without partner.",
+            "Evening",
+            listOf("amsayna", "evening", "shaam", "evening adhkar", "شام"),
+            "Abu Dawud"
+        ),
+        DuaItem(
+            "31", "Sayyid al-Istighfar",
+            "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَٰهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَىٰ عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ",
+            "Allahumma anta Rabbi la ilaha illa anta, khalaqtani wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika mastata'tu, a'udhu bika min sharri ma sana'tu, abu'u laka bi ni'matika 'alayya, wa abu'u bi dhanbi faghfir li fa innahu la yaghfirudh-dhunuba illa anta",
+            "O Allah, You are my Lord, none has the right to be worshipped except You. You created me and I am Your servant. I try to keep Your covenant and promise as much as I can. I seek refuge in You from the evil of what I have done. I acknowledge Your favor upon me and I acknowledge my sin, so forgive me, for none forgives sins except You.",
+            "Morning",
+            listOf("istighfar", "sayyid", "forgiveness", "astaghfirullah", "مغفرة", "توبة"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "32", "Ayat al-Kursi",
+            "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ",
+            "Allahu la ilaha illa huwal-hayyul-qayyum. La ta'khudhuhu sinatun wa la nawm. Lahu ma fis-samawati wa ma fil-ard. Man dhal-ladhi yashfa'u 'indahu illa bi idhnih. Ya'lamu ma bayna aydihim wa ma khalfahum. Wa la yuhituna bi shay'im-min 'ilmihi illa bima sha'. Wasi'a kursiyyuhus-samawati wal-ard. Wa la ya'uduhu hifzuhuma. Wa huwal-'aliyyul-'azim",
+            "Allah — there is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep. To Him belongs whatever is in the heavens and whatever is on the earth...",
+            "Protection",
+            listOf("ayatul kursi", "kursi", "protection", "hifazat", "آية الكرسي", "quran 2:255"),
+            "Quran 2:255"
+        ),
+        DuaItem(
+            "33", "Before travel (mounting)",
+            "سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَٰذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَىٰ رَبِّنَا لَمُنْقَلِبُونَ",
+            "Subhanal-ladhi sakhkhara lana hadha wa ma kunna lahu muqrinin, wa inna ila rabbina la-munqalibun",
+            "Glory be to Him who has subjected this to us, and we could not have done it by ourselves. And indeed, to our Lord we will return.",
+            "Travel",
+            listOf("travel", "safar", "car", "vehicle", "bus", "plane", "سفر", "گاڑی"),
+            "Quran 43:13-14; Muslim"
+        ),
+        DuaItem(
+            "34", "Full travel dua",
+            "اللَّهُمَّ إِنَّا نَسْأَلُكَ فِي سَفَرِنَا هَٰذَا الْبِرَّ وَالتَّقْوَىٰ، وَمِنَ الْعَمَلِ مَا تَرْضَىٰ، اللَّهُمَّ هَوِّنْ عَلَيْنَا سَفَرَنَا هَٰذَا وَاطْوِ عَنَّا بُعْدَهُ، اللَّهُمَّ أَنْتَ الصَّاحِبُ فِي السَّفَرِ، وَالْخَلِيفَةُ فِي الْأَهْلِ",
+            "Allahumma inna nas'aluka fi safarina hadhal-birra wat-taqwa, wa minal-'amali ma tarda. Allahumma hawwin 'alayna safarana hadha watwi 'anna bu'dah. Allahumma antas-sahibu fis-safar, wal-khalifatu fil-ahl",
+            "O Allah, we ask You on this journey of ours for righteousness and piety, and for deeds that please You. O Allah, make this journey easy for us and fold up its distance. O Allah, You are the companion on the journey and the guardian of the family.",
+            "Travel",
+            listOf("safar dua", "travel dua", "journey", "safar ki dua"),
+            "Muslim"
+        ),
+        DuaItem(
+            "35", "Leaving the home",
+            "بِسْمِ اللَّهِ، تَوَكَّلْتُ عَلَى اللَّهِ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
+            "Bismillah, tawakkaltu 'alallah, wa la hawla wa la quwwata illa billah",
+            "In the name of Allah, I place my trust in Allah, and there is no might nor power except with Allah.",
+            "Home",
+            listOf("leaving home", "ghar se nikalna", "exit", "bahar", "توكل"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "36", "Entering the mosque",
+            "اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ",
+            "Allahumma iftah li abwaba rahmatik",
+            "O Allah, open the gates of Your mercy for me.",
+            "Mosque",
+            listOf("mosque", "masjid", "enter mosque", "مسجد"),
+            "Muslim"
+        ),
+        DuaItem(
+            "37", "Leaving the mosque",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
+            "Allahumma inni as'aluka min fadlik",
+            "O Allah, I ask You from Your bounty.",
+            "Mosque",
+            listOf("leave mosque", "masjid se nikalna", "mosque exit"),
+            "Muslim"
+        ),
+        DuaItem(
+            "38", "Before entering toilet",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
+            "Allahumma inni a'udhu bika minal-khubthi wal-khaba'ith",
+            "O Allah, I seek refuge in You from the male and female unclean spirits.",
+            "Daily",
+            listOf("toilet", "bathroom", "wc", "غسل", "ٹوائلٹ"),
+            "Bukhari, Muslim"
+        ),
+        DuaItem(
+            "39", "Leaving the toilet",
+            "غُفْرَانَكَ",
+            "Ghufranaka",
+            "I seek Your forgiveness.",
+            "Daily",
+            listOf("after toilet", "bathroom leave", "غفرانك"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "40", "When it rains",
+            "اللَّهُمَّ صَيِّبًا نَافِعًا",
+            "Allahumma sayyiban nafi'a",
+            "O Allah, make it a beneficial rain.",
+            "Weather",
+            listOf("rain", "baarish", "rain dua", "مطر"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "41", "After the adhan",
+            "اللَّهُمَّ رَبَّ هَٰذِهِ الدَّعْوَةِ التَّامَّةِ وَالصَّلَاةِ الْقَائِمَةِ آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ",
+            "Allahumma rabba hadhihid-da'watit-tammah, was-salatil-qa'imah, ati Muhammadanil-wasilata wal-fadilah, wab'athhu maqaman mahmuda alladhi wa'adtah",
+            "O Allah, Lord of this perfect call and established prayer, grant Muhammad the intercession and favor, and raise him to the praised station You have promised him.",
+            "Prayer",
+            listOf("adhan", "azan", "after adhan", "أذان"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "42", "Between adhan and iqamah",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ العَفْوَ وَالعَافِيَةَ فِي الدُّنْيَا وَالآخِرَةِ",
+            "Allahumma inni as'alukal-'afwa wal-'afiyah fid-dunya wal-akhirah",
+            "O Allah, I ask You for pardon and well-being in this world and the Hereafter.",
+            "Prayer",
+            listOf("iqamah", "between adhan", "afiyah", "عافية"),
+            "Ibn Majah"
+        ),
+        DuaItem(
+            "43", "After salah — Istighfar",
+            "أَسْتَغْفِرُ اللَّهَ",
+            "Astaghfirullah",
+            "I seek the forgiveness of Allah. (Said three times after salah)",
+            "Prayer",
+            listOf("after salah", "namaz ke baad", "istighfar", "استغفر"),
+            "Muslim"
+        ),
+        DuaItem(
+            "44", "After salah — Tashahhud dhikr",
+            "اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
+            "Allahumma antas-salam wa minkas-salam, tabarakta ya dhal-jalali wal-ikram",
+            "O Allah, You are Peace and from You is peace. Blessed are You, O Owner of majesty and honor.",
+            "Prayer",
+            listOf("after prayer", "salam", "tabarakta", "namaz"),
+            "Muslim"
+        ),
+        DuaItem(
+            "45", "When angry",
+            "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
+            "A'udhu billahi minash-shaytanir-rajim",
+            "I seek refuge in Allah from Satan, the expelled.",
+            "Distress",
+            listOf("angry", "gussa", "anger", "غضب", "شیطان"),
+            "Bukhari, Muslim"
+        ),
+        DuaItem(
+            "46", "In distress",
+            "لَا إِلَٰهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَٰهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لَا إِلَٰهَ إِلَّا اللَّهُ رَبُّ السَّمَاوَاتِ وَرَبُّ الْأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ",
+            "La ilaha illallahul-'azimul-halim. La ilaha illallahu rabbul-'arshil-'azim. La ilaha illallahu rabbus-samawati wa rabbul-ardi wa rabbul-'arshil-karim",
+            "There is no god but Allah, the Magnificent, the Forbearing. There is no god but Allah, Lord of the Magnificent Throne. There is no god but Allah, Lord of the heavens, Lord of the earth, and Lord of the Noble Throne.",
+            "Distress",
+            listOf("distress", "hardship", "musibat", "anxiety", "tension", "پریشانی"),
+            "Bukhari, Muslim"
+        ),
+        DuaItem(
+            "47", "For anxiety and sorrow",
+            "اللَّهُمَّ إِنِّي عَبْدُكَ، ابْنُ عَبْدِكَ، ابْنُ أَمَتِكَ، نَاصِيَتِي بِيَدِكَ، مَاضٍ فِيَّ حُكْمُكَ، عَدْلٌ فِيَّ قَضَاؤُكَ، أَسْأَلُكَ بِكُلِّ اسْمٍ هُوَ لَكَ...",
+            "Allahumma inni 'abduka, ibnu 'abdika, ibnu amatika, nasiyati bi yadika, madin fiyya hukmuka, 'adlun fiyya qada'uka, as'aluka bi kullismin huwa lak...",
+            "O Allah, I am Your servant, son of Your servant, son of Your maidservant. My forelock is in Your hand. Your command concerning me is executed. Your decree concerning me is just. I ask You by every name that is Yours...",
+            "Distress",
+            listOf("anxiety", "sorrow", "gham", "depression", "حزن", "هم"),
+            "Ahmad; graded sahih by Albani"
+        ),
+        DuaItem(
+            "48", "When visiting the sick",
+            "لَا بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ",
+            "La ba'sa tahurun in sha Allah",
+            "No harm, it will be a purification, if Allah wills.",
+            "Health",
+            listOf("sick", "bimar", "hospital", "illness", "مريض"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "49", "For the sick person",
+            "أَسْأَلُ اللَّهَ الْعَظِيمَ رَبَّ الْعَرْشِ الْعَظِيمِ أَنْ يَشْفِيَكَ",
+            "As'alullahal-'azim rabbal-'arshil-'azim an yashfiyak",
+            "I ask Allah the Magnificent, Lord of the Magnificent Throne, to cure you. (Seven times)",
+            "Health",
+            listOf("shifa", "cure", "healing", "شفاء", "dua for sick"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "50", "Breaking the fast",
+            "ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ",
+            "Dhahaz-zama'u wabtallatil-'uruqu wa thabatal-ajru in sha Allah",
+            "The thirst is gone, the veins are moistened, and the reward is confirmed, if Allah wills.",
+            "Food",
+            listOf("iftar", "roza", "fasting", "ramadan", "افطار", "صوم"),
+            "Abu Dawud"
+        ),
+        DuaItem(
+            "51", "Seeing someone in trial",
+            "الْحَمْدُ لِلَّهِ الَّذِي عَافَانِي مِمَّا ابْتَلَاكَ بِهِ وَفَضَّلَنِي عَلَىٰ كَثِيرٍ مِمَّنْ خَلَقَ تَفْضِيلًا",
+            "Alhamdu lillahil-ladhi 'afani mimmabtalaka bihi wa faddalani 'ala kathirin mimman khalaqa tafdila",
+            "Praise be to Allah who has spared me from what He has tested you with, and has favored me greatly over many of those He has created.",
+            "Daily",
+            listOf("trial", "seeing affliction", "afani", "عافاني"),
+            "Tirmidhi"
+        ),
+        DuaItem(
+            "52", "When looking in the mirror",
+            "اللَّهُمَّ كَمَا حَسَّنْتَ خَلْقِي فَحَسِّنْ خُلُقِي",
+            "Allahumma kama hassanta khalqi fa hassin khuluqi",
+            "O Allah, just as You have made my external features beautiful, make my character beautiful as well.",
+            "Daily",
+            listOf("mirror", "aina", "beauty", "khuluq", "خلق"),
+            "Ahmad"
+        ),
+        DuaItem(
+            "53", "Dua for parents",
+            "رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا",
+            "Rabbi irhamhuma kama rabbayani saghira",
+            "My Lord, have mercy upon them as they brought me up when I was small.",
+            "Family",
+            listOf("parents", "walidain", "mother", "father", "والدین", "ماں باپ"),
+            "Quran 17:24"
+        ),
+        DuaItem(
+            "54", "Dua for knowledge",
+            "رَّبِّ زِدْنِي عِلْمًا",
+            "Rabbi zidni 'ilma",
+            "My Lord, increase me in knowledge.",
+            "Knowledge",
+            listOf("knowledge", "ilm", "study", "exam", "علم", "پڑھائی"),
+            "Quran 20:114"
+        ),
+        DuaItem(
+            "55", "Istikhara (seeking guidance)",
+            "اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ...",
+            "Allahumma inni astakhiruka bi 'ilmika, wa astaqdiruka bi qudratika, wa as'aluka min fadlikal-'azim...",
+            "O Allah, I seek Your guidance through Your knowledge, and I seek ability through Your power, and I ask You from Your immense favor...",
+            "Guidance",
+            listOf("istikhara", "decision", "guidance", "choice", "استخاره"),
+            "Bukhari"
+        ),
+)
 
     // ── Quiz (carefully checked demo set) ───────────────────────────────────
     val quizQuestions = listOf(

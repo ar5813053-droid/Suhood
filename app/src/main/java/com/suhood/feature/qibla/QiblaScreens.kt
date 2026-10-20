@@ -12,13 +12,16 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Surface
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,7 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -37,7 +42,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.theme.SuhoodTypography
@@ -53,6 +57,8 @@ object QiblaScreens {
     fun Finder(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = LocalContext.current
+        val mainHandler = remember { Handler(Looper.getMainLooper()) }
+
         var hasPermission by remember {
             mutableStateOf(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -69,10 +75,11 @@ object QiblaScreens {
 
         var latitude by remember { mutableStateOf<Double?>(null) }
         var longitude by remember { mutableStateOf<Double?>(null) }
-        var placeLabel by remember { mutableStateOf("Locating…") }
+        var placeLabel by remember { mutableStateOf("Getting location…") }
         var accuracyM by remember { mutableStateOf<Float?>(null) }
         var azimuthDeg by remember { mutableFloatStateOf(0f) }
         var sensorOk by remember { mutableStateOf(true) }
+        var sensorLabel by remember { mutableStateOf("Compass starting…") }
 
         LaunchedEffect(hasPermission) {
             if (!hasPermission) {
@@ -85,102 +92,184 @@ object QiblaScreens {
             }
         }
 
-        // GPS
+        // GPS / network location
         DisposableEffect(hasPermission) {
-            if (!hasPermission) return@DisposableEffect onDispose { }
+            if (!hasPermission) {
+                placeLabel = "Allow location permission"
+                return@DisposableEffect onDispose { }
+            }
             val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            fun applyLocation(location: Location) {
+                latitude = location.latitude
+                longitude = location.longitude
+                accuracyM = location.accuracy
+                placeLabel = reverseGeocode(context, location.latitude, location.longitude)
+                    ?: String.format("%.4f°, %.4f°", location.latitude, location.longitude)
+            }
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
-                    latitude = location.latitude
-                    longitude = location.longitude
-                    accuracyM = location.accuracy
-                    placeLabel = reverseGeocode(context, location.latitude, location.longitude)
-                        ?: String.format("%.4f, %.4f", location.latitude, location.longitude)
+                    mainHandler.post { applyLocation(location) }
                 }
-                @Deprecated("Deprecated in Java")
+                @Deprecated("Deprecated")
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 override fun onProviderEnabled(provider: String) {}
                 override fun onProviderDisabled(provider: String) {}
             }
             try {
-                val last = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                    ?: lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (last != null) {
-                    latitude = last.latitude
-                    longitude = last.longitude
-                    accuracyM = last.accuracy
-                    placeLabel = reverseGeocode(context, last.latitude, last.longitude)
-                        ?: String.format("%.4f, %.4f", last.latitude, last.longitude)
-                }
+                val last = listOf(
+                    LocationManager.GPS_PROVIDER,
+                    LocationManager.NETWORK_PROVIDER,
+                    LocationManager.PASSIVE_PROVIDER
+                ).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+                    .maxByOrNull { it.time }
+                if (last != null) applyLocation(last)
+
                 if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 2f, listener)
+                    lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 1f, listener)
                 }
                 if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000L, 5f, listener)
+                    lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1500L, 2f, listener)
                 }
             } catch (_: SecurityException) {
                 placeLabel = "Location permission needed"
             }
-            onDispose {
-                runCatching { lm.removeUpdates(listener) }
-            }
+            onDispose { runCatching { lm.removeUpdates(listener) } }
         }
 
-        // Compass sensors
+        // Compass — rotation vector + accel/mag, main-thread updates, display remap
         DisposableEffect(Unit) {
             val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-            val rotation = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-                ?: sm.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+            val rotationVector = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+            val gameRotation = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             val accelerometer = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             val magnetometer = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
             val gravity = FloatArray(3)
             val geomagnetic = FloatArray(3)
             var hasG = false
             var hasM = false
+            var smoothAzimuth = 0f
+            var initialized = false
+
+            fun displayRotation(): Int {
+                val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                @Suppress("DEPRECATION")
+                return wm.defaultDisplay.rotation
+            }
+
+            fun publishAzimuth(rawDeg: Float) {
+                var deg = rawDeg
+                while (deg < 0f) deg += 360f
+                while (deg >= 360f) deg -= 360f
+                if (!initialized) {
+                    smoothAzimuth = deg
+                    initialized = true
+                } else {
+                    // shortest-path low-pass
+                    var delta = deg - smoothAzimuth
+                    if (delta > 180f) delta -= 360f
+                    if (delta < -180f) delta += 360f
+                    smoothAzimuth = (smoothAzimuth + delta * 0.18f + 360f) % 360f
+                }
+                val out = smoothAzimuth
+                mainHandler.post {
+                    azimuthDeg = out
+                    sensorOk = true
+                    sensorLabel = "Compass active"
+                }
+            }
+
+            fun fromRotationMatrix(Rin: FloatArray) {
+                val rotation = displayRotation()
+                val outR = FloatArray(9)
+                val axisX: Int
+                val axisY: Int
+                when (rotation) {
+                    Surface.ROTATION_90 -> {
+                        axisX = SensorManager.AXIS_Y
+                        axisY = SensorManager.AXIS_MINUS_X
+                    }
+                    Surface.ROTATION_180 -> {
+                        axisX = SensorManager.AXIS_MINUS_X
+                        axisY = SensorManager.AXIS_MINUS_Y
+                    }
+                    Surface.ROTATION_270 -> {
+                        axisX = SensorManager.AXIS_MINUS_Y
+                        axisY = SensorManager.AXIS_X
+                    }
+                    else -> {
+                        axisX = SensorManager.AXIS_X
+                        axisY = SensorManager.AXIS_Y
+                    }
+                }
+                SensorManager.remapCoordinateSystem(Rin, axisX, axisY, outR)
+                val orient = FloatArray(3)
+                SensorManager.getOrientation(outR, orient)
+                var deg = Math.toDegrees(orient[0].toDouble()).toFloat()
+                if (deg < 0) deg += 360f
+                publishAzimuth(deg)
+            }
+
             val listener = object : SensorEventListener {
                 override fun onSensorChanged(event: SensorEvent) {
                     when (event.sensor.type) {
-                        Sensor.TYPE_ROTATION_VECTOR -> {
-                            val rot = FloatArray(9)
-                            SensorManager.getRotationMatrixFromVector(rot, event.values)
-                            val orient = FloatArray(3)
-                            SensorManager.getOrientation(rot, orient)
-                            // azimuth: radians → degrees, 0 = North
-                            var deg = Math.toDegrees(orient[0].toDouble()).toFloat()
-                            if (deg < 0) deg += 360f
-                            azimuthDeg = deg
-                            sensorOk = true
+                        Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GAME_ROTATION_VECTOR -> {
+                            val R = FloatArray(9)
+                            SensorManager.getRotationMatrixFromVector(R, event.values)
+                            fromRotationMatrix(R)
                         }
                         Sensor.TYPE_ACCELEROMETER -> {
-                            System.arraycopy(event.values, 0, gravity, 0, 3)
+                            // slight smoothing
+                            for (i in 0..2) gravity[i] = gravity[i] * 0.8f + event.values[i] * 0.2f
                             hasG = true
                         }
                         Sensor.TYPE_MAGNETIC_FIELD -> {
-                            System.arraycopy(event.values, 0, geomagnetic, 0, 3)
+                            for (i in 0..2) geomagnetic[i] = geomagnetic[i] * 0.8f + event.values[i] * 0.2f
                             hasM = true
                         }
                     }
-                    if (hasG && hasM && rotation == null) {
+                    // Always try accel+mag path as continuous source (works when RV is noisy)
+                    if (hasG && hasM) {
                         val R = FloatArray(9)
                         val I = FloatArray(9)
                         if (SensorManager.getRotationMatrix(R, I, gravity, geomagnetic)) {
-                            val orient = FloatArray(3)
-                            SensorManager.getOrientation(R, orient)
-                            var deg = Math.toDegrees(orient[0].toDouble()).toFloat()
-                            if (deg < 0) deg += 360f
-                            azimuthDeg = deg
-                            sensorOk = true
+                            // Prefer RV if available, but still update from mag when only mag works
+                            if (rotationVector == null && gameRotation == null) {
+                                fromRotationMatrix(R)
+                            } else {
+                                // blend: still publish mag-based if RV not yet fired
+                                fromRotationMatrix(R)
+                            }
                         }
                     }
                 }
-                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+                    if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
+                        mainHandler.post { sensorLabel = "Move phone in a figure-8 to calibrate" }
+                    }
+                }
             }
-            if (rotation != null) {
-                sm.registerListener(listener, rotation, SensorManager.SENSOR_DELAY_UI)
-            } else {
-                accelerometer?.let { sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_UI) }
-                magnetometer?.let { sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_UI) }
-                if (accelerometer == null && magnetometer == null) sensorOk = false
+
+            val delay = SensorManager.SENSOR_DELAY_GAME
+            var registered = false
+            rotationVector?.let {
+                sm.registerListener(listener, it, delay)
+                registered = true
+            }
+            gameRotation?.let {
+                sm.registerListener(listener, it, delay)
+                registered = true
+            }
+            accelerometer?.let {
+                sm.registerListener(listener, it, delay)
+                registered = true
+            }
+            magnetometer?.let {
+                sm.registerListener(listener, it, delay)
+                registered = true
+            }
+            if (!registered) {
+                sensorOk = false
+                sensorLabel = "No compass sensor on this device"
             }
             onDispose { sm.unregisterListener(listener) }
         }
@@ -188,19 +277,15 @@ object QiblaScreens {
         val qiblaBearing = remember(latitude, longitude) {
             val lat = latitude
             val lng = longitude
-            if (lat == null || lng == null) null
-            else computeQiblaBearing(lat, lng)
+            if (lat == null || lng == null) null else computeQiblaBearing(lat, lng)
         }
 
-        // Angle to rotate compass so Kaaba marker aligns when phone points correctly
-        val needleRotation = remember(azimuthDeg, qiblaBearing) {
-            val q = qiblaBearing ?: 0.0
-            // Device heading clockwise from north; we rotate dial opposite so north stays up relative to heading
-            -(azimuthDeg)
-        }
-        val kaabaAngleOnDial = (qiblaBearing ?: 0.0).toFloat()
-        val aligned = qiblaBearing != null &&
-            abs((((qiblaBearing - azimuthDeg) + 540) % 360) - 180) < 8.0
+        val relative = if (qiblaBearing != null) {
+            var d = (qiblaBearing - azimuthDeg + 360.0) % 360.0
+            if (d > 180.0) d -= 360.0
+            d
+        } else null
+        val aligned = relative != null && abs(relative) < 8.0
 
         Column(
             Modifier
@@ -213,23 +298,28 @@ object QiblaScreens {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
                 }
-                Text("Qibla", style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
+                Text(
+                    "Qibla",
+                    style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
             }
 
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip(placeLabel.take(22), colors)
-                Chip(
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                InfoChip(placeLabel.take(28), colors)
+                InfoChip(
                     when {
-                        accuracyM == null -> "Waiting GPS"
-                        accuracyM!! > 100 -> "Low accuracy"
+                        accuracyM == null -> "GPS…"
+                        accuracyM!! > 80 -> "Low accuracy"
                         else -> "±${accuracyM!!.toInt()} m"
                     },
                     colors
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(sensorLabel, style = SuhoodTypography.labelSmall, color = colors.textMuted)
 
             Box(
                 Modifier
@@ -239,52 +329,61 @@ object QiblaScreens {
             ) {
                 val ringColor = colors.borderStrong
                 val accent = colors.accentLavender
-                Canvas(Modifier.size(280.dp)) {
+                val q = (qiblaBearing ?: 0.0).toFloat()
+                Canvas(Modifier.size(300.dp)) {
                     val cx = size.width / 2
                     val cy = size.height / 2
-                    val r = size.minDimension / 2 - 8.dp.toPx()
-                    // Outer ring
-                    drawCircle(color = ringColor, radius = r, style = Stroke(width = 2.dp.toPx()))
-                    // Tick marks + rotate with device
-                    rotate(needleRotation, Offset(cx, cy)) {
+                    val r = size.minDimension / 2 - 10.dp.toPx()
+
+                    // Dial rotates opposite to heading so north stays geographic on dial
+                    rotate(-azimuthDeg, Offset(cx, cy)) {
+                        drawCircle(color = ringColor, radius = r, style = Stroke(width = 2.5.dp.toPx()))
                         for (i in 0 until 72) {
                             val a = Math.toRadians(i * 5.0)
-                            val outer = r - 4.dp.toPx()
-                            val inner = if (i % 6 == 0) r - 18.dp.toPx() else r - 10.dp.toPx()
-                            val x1 = cx + cos(a - PI / 2).toFloat() * outer
-                            val y1 = cy + sin(a - PI / 2).toFloat() * outer
-                            val x2 = cx + cos(a - PI / 2).toFloat() * inner
-                            val y2 = cy + sin(a - PI / 2).toFloat() * inner
-                            drawLine(ringColor, Offset(x1, y1), Offset(x2, y2), strokeWidth = 2f)
+                            val outer = r - 2.dp.toPx()
+                            val inner = if (i % 18 == 0) r - 22.dp.toPx() else if (i % 6 == 0) r - 14.dp.toPx() else r - 8.dp.toPx()
+                            drawLine(
+                                ringColor,
+                                Offset(cx + cos(a - PI / 2).toFloat() * outer, cy + sin(a - PI / 2).toFloat() * outer),
+                                Offset(cx + cos(a - PI / 2).toFloat() * inner, cy + sin(a - PI / 2).toFloat() * inner),
+                                strokeWidth = if (i % 18 == 0) 3f else 1.5f
+                            )
                         }
-                        // Kaaba marker on dial at qibla bearing
-                        val qa = Math.toRadians(kaabaAngleOnDial.toDouble())
-                        val kx = cx + cos(qa - PI / 2).toFloat() * (r - 36.dp.toPx())
-                        val ky = cy + sin(qa - PI / 2).toFloat() * (r - 36.dp.toPx())
-                        // Simple Kaaba cube
-                        val s = 14.dp.toPx()
+                        // Cardinal labels as ticks only (N at 0)
+                        val nY = cy - (r - 36.dp.toPx())
+                        drawCircle(Color(0xFFE74C3C), radius = 4.dp.toPx(), center = Offset(cx, nY))
+
+                        // Kaaba on true qibla bearing
+                        val qa = Math.toRadians(q.toDouble())
+                        val kx = cx + cos(qa - PI / 2).toFloat() * (r - 40.dp.toPx())
+                        val ky = cy + sin(qa - PI / 2).toFloat() * (r - 40.dp.toPx())
+                        val s = 16.dp.toPx()
                         drawRoundRect(
-                            color = Color(0xFF1A1A1A),
+                            color = Color(0xFF111111),
                             topLeft = Offset(kx - s / 2, ky - s / 2),
-                            size = androidx.compose.ui.geometry.Size(s, s),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
+                            size = Size(s, s),
+                            cornerRadius = CornerRadius(2f, 2f)
                         )
                         drawRoundRect(
                             color = Color(0xFFD4AF37),
                             topLeft = Offset(kx - s / 2, ky - s / 2),
-                            size = androidx.compose.ui.geometry.Size(s, s * 0.22f)
+                            size = Size(s, s * 0.25f)
                         )
                     }
-                    // Fixed phone needle (points up = direction phone faces)
+
+                    // Phone forward needle (fixed up)
                     drawLine(
                         color = if (aligned) Color(0xFF4ADE80) else accent,
-                        start = Offset(cx, cy + 20.dp.toPx()),
-                        end = Offset(cx, cy - r + 28.dp.toPx()),
-                        strokeWidth = 5.dp.toPx(),
+                        start = Offset(cx, cy + 28.dp.toPx()),
+                        end = Offset(cx, cy - r + 30.dp.toPx()),
+                        strokeWidth = 6.dp.toPx(),
                         cap = StrokeCap.Round
                     )
-                    drawCircle(color = colors.surfaceElevated, radius = 10.dp.toPx())
-                    drawCircle(color = if (aligned) Color(0xFF4ADE80) else accent, radius = 5.dp.toPx())
+                    drawCircle(color = colors.surfaceElevated, radius = 12.dp.toPx())
+                    drawCircle(
+                        color = if (aligned) Color(0xFF4ADE80) else accent,
+                        radius = 6.dp.toPx()
+                    )
                 }
             }
 
@@ -292,47 +391,41 @@ object QiblaScreens {
                 when {
                     !hasPermission -> "Allow location to find Qibla"
                     qiblaBearing == null -> "Getting location…"
-                    aligned -> "Facing the Qibla"
-                    else -> "Rotate phone until needle meets Kaaba"
+                    aligned -> "✓ Facing the Qibla"
+                    relative != null && relative > 0 -> "Turn right ${relative.toInt()}°"
+                    relative != null -> "Turn left ${abs(relative).toInt()}°"
+                    else -> "Rotate phone slowly"
                 },
                 style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = colors.textPrimary,
+                color = if (aligned) Color(0xFF4ADE80) else colors.textPrimary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
             if (qiblaBearing != null) {
                 Text(
-                    "Qibla bearing ${qiblaBearing.toInt()}° from North",
+                    "Qibla ${qiblaBearing.toInt()}° · Heading ${azimuthDeg.toInt()}°",
                     style = SuhoodTypography.bodySmall,
                     color = colors.textMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                 )
             }
-            if (!sensorOk) {
-                Text(
-                    "Compass sensor unavailable on this device",
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.error,
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text("Tip", style = SuhoodTypography.labelMedium, color = colors.textMuted)
+                Text("How to use", style = SuhoodTypography.labelMedium, color = colors.textMuted)
                 Text(
-                    "Hold the phone flat. Move away from metal and magnets for better accuracy.",
+                    "1. Allow location · 2. Hold phone flat · 3. Rotate until the needle meets the Kaaba · Away from metal for accuracy.",
                     style = SuhoodTypography.bodySmall,
                     color = colors.textSecondary
                 )
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
         }
     }
 
     @Composable
-    private fun Chip(text: String, colors: com.suhood.core.designsystem.theme.SuhoodColorScheme) {
+    private fun InfoChip(text: String, colors: com.suhood.core.designsystem.theme.SuhoodColorScheme) {
         Box(
             Modifier
                 .background(colors.surfaceElevated, RoundedCornerShape(999.dp))
@@ -349,18 +442,20 @@ object QiblaScreens {
         val dLng = Math.toRadians(KAABA_LNG - lng)
         val y = sin(dLng) * cos(lat2)
         val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLng)
-        var brng = Math.toDegrees(atan2(y, x))
-        brng = (brng + 360.0) % 360.0
-        return brng
+        return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
     }
 
     private fun reverseGeocode(context: Context, lat: Double, lng: Double): String? {
         return runCatching {
             if (!Geocoder.isPresent()) return null
             @Suppress("DEPRECATION")
-            val list = Geocoder(context).getFromLocation(lat, lng, 1)
-            val a = list?.firstOrNull() ?: return null
-            a.locality ?: a.subAdminArea ?: a.adminArea
+            val list = Geocoder(context).getFromLocation(lat, lng, 1) ?: return null
+            val a = list.firstOrNull() ?: return null
+            listOfNotNull(a.locality, a.subAdminArea, a.adminArea, a.countryName)
+                .distinct()
+                .take(2)
+                .joinToString(", ")
+                .ifBlank { null }
         }.getOrNull()
     }
 }
