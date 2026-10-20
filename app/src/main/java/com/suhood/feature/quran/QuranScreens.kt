@@ -476,6 +476,7 @@ object QuranScreens {
         }
     }
 
+    @Composable
     fun Bookmarks(onBack: () -> Unit) {
         val vm = rememberVm()
         val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
