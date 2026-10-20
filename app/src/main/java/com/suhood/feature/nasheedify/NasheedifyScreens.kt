@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -84,7 +85,8 @@ object NasheedifyScreens {
             factory = NasheedifyViewModel.Factory(
                 app.playbackController,
                 app.libraryRepository,
-                app.audioCatalog
+                app.audioCatalog,
+                app.nasheedRepository
             )
         )
     }
@@ -275,100 +277,133 @@ object NasheedifyScreens {
     fun Search(onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
         val vm = rememberNasheedifyVm()
         val favorites by vm.favorites.collectAsStateWithLifecycle()
+        val onlineHits by vm.onlineHits.collectAsStateWithLifecycle()
+        val searching by vm.searching.collectAsStateWithLifecycle()
+        val resolving by vm.resolving.collectAsStateWithLifecycle()
+        val searchMessage by vm.searchMessage.collectAsStateWithLifecycle()
         val colors = suhoodColors
         var query by remember { mutableStateOf("") }
-        var tab by remember { mutableStateOf(0) }
-        val filtered = remember(query) { vm.search(query) }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            ScreenHeader(title = "بحث · Search", onBack = onBack)
+            ScreenHeader(title = "بحث · Islamic Audio", onBack = onBack)
             Column(modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)) {
                 GlassSearchField(
                     query = query,
                     onQueryChange = { query = it },
-                    placeholder = "Search nasheeds, tilawat…",
+                    placeholder = "Nasheed, naat, nazam, tilawat…",
                     leadingIcon = Icons.Filled.Search
                 )
-                Spacer(Modifier.height(14.dp))
-                GlassSegmentedControl(
-                    options = listOf("Explore", "Suggestions", "Album"),
-                    selectedIndex = tab,
-                    onSelect = { tab = it }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    GlassButton(
+                        text = "Search free Islamic audio",
+                        onClick = { if (query.isNotBlank()) vm.searchOnline(query) },
+                        primary = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                // Quick Islamic categories
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Nasheed", "Naat", "Nazam", "Tilawat").forEach { cat ->
+                        GlassButton(
+                            text = cat,
+                            onClick = {
+                                query = cat
+                                vm.browseIslamic(cat)
+                            },
+                            primary = false,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Text(
+                    "Free streams · Islamic only · No haram music",
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
 
-            if (query.isNotBlank()) {
-                LazyColumn(
+            when {
+                searching || resolving -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = colors.silverBright)
+                }
+                searchMessage != null && onlineHits.isEmpty() -> Text(
+                    searchMessage ?: "",
+                    style = SuhoodTypography.bodyMedium,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(24.dp)
+                )
+                onlineHits.isNotEmpty() -> LazyColumn(
                     contentPadding = PaddingValues(
                         horizontal = SuhoodSpacing.screenHorizontal,
                         vertical = 8.dp
                     )
                 ) {
-                    items(filtered, key = { it.id }) { track ->
-                        TrackRow(
-                            track = track,
-                            isFavorite = track.id in favorites,
-                            onFavorite = {
-                                vm.toggleFavorite(track.id)
-                            },
-                            onClick = { onTrack(track) }
-                        )
-                    }
-                    if (filtered.isEmpty()) {
-                        item {
+                    items(onlineHits, key = { it.id }) { hit ->
+                        GlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable { vm.playOnlineHit(hit) }
+                        ) {
+                            Text(hit.title, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                            Text(hit.artist, style = SuhoodTypography.bodySmall, color = colors.textMuted)
                             Text(
-                                "لا نتائج · No results",
-                                style = SuhoodTypography.bodyMedium,
-                                color = colors.textMuted,
-                                modifier = Modifier.padding(24.dp)
+                                "Internet Archive · tap to play",
+                                style = SuhoodTypography.labelSmall,
+                                color = colors.silverBright
                             )
                         }
                     }
                 }
-            } else {
-                Text(
-                    "أمزجة ولحظات · Moods & moments",
-                    style = SuhoodTypography.titleMedium,
-                    color = colors.textPrimary,
-                    modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
-                )
-                Spacer(Modifier.height(12.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(horizontal = SuhoodSpacing.screenHorizontal),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(moodTiles.size) { i ->
-                        val (ar, en) = moodTiles[i]
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(72.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(artworkColors[i % artworkColors.size])
-                                .clickable { query = en }
-                                .padding(16.dp),
-                            contentAlignment = Alignment.CenterStart
+                else -> {
+                    // Local samples fallback when no online query yet
+                    val local = remember(query) { vm.searchLocal(query) }
+                    if (query.isNotBlank() && local.isNotEmpty()) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(
+                                horizontal = SuhoodSpacing.screenHorizontal,
+                                vertical = 8.dp
+                            )
                         ) {
-                            Column {
-                                Text(ar, style = SuhoodTypography.arabicBody, color = Color.White.copy(0.95f))
-                                Text(en, style = SuhoodTypography.labelSmall, color = Color.White.copy(0.7f))
+                            items(local, key = { it.id }) { track ->
+                                TrackRow(
+                                    track = track,
+                                    isFavorite = track.id in favorites,
+                                    onFavorite = { vm.toggleFavorite(track.id) },
+                                    onClick = { onTrack(track) }
+                                )
                             }
                         }
+                    } else {
+                        Text(
+                            "Search nasheed · naat · nazam · Quran tilawat\nOnly Islamic audio is streamed.",
+                            style = SuhoodTypography.bodyMedium,
+                            color = colors.textMuted,
+                            modifier = Modifier.padding(24.dp)
+                        )
                     }
                 }
             }
         }
     }
 
-    @Composable
     fun CategoryDetail(categoryId: String, onBack: () -> Unit, onTrack: (AudioTrack) -> Unit) {
         val vm = rememberNasheedifyVm()
         val favorites by vm.favorites.collectAsStateWithLifecycle()

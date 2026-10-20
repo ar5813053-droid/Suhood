@@ -22,15 +22,19 @@ object IslamicContentClassifier {
     )
 
     private val allowedSignals = listOf(
-        "nasheed", "naat", "nazam", "tilawat", "quran", "quraan", "surah",
+        "nasheed", "anasheed", "naat", "nazam", "tilawat", "quran", "quraan", "surah",
         "ayah", "adhkar", "dhikr", "dua", "duaa", "madah", "hamd", "salawat",
-        "islamic", "deen", "iman", "rahman", "tawakkul", "subhan"
+        "islamic", "islam", "deen", "iman", "rahman", "tawakkul", "subhan",
+        "allah", "rasool", "muhammad", "prophet", "adhan", "azan", "iqamah",
+        "tasbeeh", "zikr", "moulid", "mawlid", "ilahi", "nasyid", "nashiid"
     )
 
-    /** Ordinary entertainment music signals (conservative block only with low Islamic signal). */
+    /** Entertainment / non-Islamic music signals — never stream these. */
     private val blockedSignals = listOf(
         "nightclub", "party mix", "explicit", "club banger", "hip-hop instrumental",
-        "trap beat", "edm festival", "karaoke pop"
+        "trap beat", "edm festival", "karaoke pop", "rock concert", "heavy metal",
+        "rap battle", "love song lyrics", "bollywood item", "punjabi party",
+        "dj remix club", "r&b sensual", "pop chart"
     )
 
     fun classify(track: AudioTrack): Classification {
@@ -83,4 +87,12 @@ object IslamicContentClassifier {
 
     fun isPlayable(track: AudioTrack): Boolean =
         classify(track).state == ContentClass.ALLOWED
+
+    /** Used by online search to score Archive metadata blobs. */
+    fun allowedKeywordHit(blob: String): Boolean =
+        allowedSignals.any { blob.contains(it) }
+
+    fun blockedKeywordHit(blob: String): Boolean =
+        blockedSignals.any { blob.contains(it) }
 }
+

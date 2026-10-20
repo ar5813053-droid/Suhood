@@ -10,6 +10,8 @@ data class OnlineSearchHit(
     val artist: String,
     val description: String = "",
     val providerId: String,
+    /** Archive.org identifier (or other provider key) used to resolve the file list. */
+    val sourceId: String = "",
     val artworkUrl: String? = null,
     val durationSeconds: Int = 0
 )

@@ -8,6 +8,7 @@ import com.suhood.core.audio.AudioCatalogProvider
 import com.suhood.core.audio.LibraryRepository
 import com.suhood.core.audio.LocalMediaStoreCatalog
 import com.suhood.core.audio.PlaybackController
+import com.suhood.core.audio.online.NasheedRepository
 import com.suhood.core.database.SuhoodDatabase
 import com.suhood.core.datastore.PreferencesRepository
 
@@ -22,6 +23,8 @@ class SuhoodApplication : Application() {
         private set
     lateinit var audioCatalog: AudioCatalogProvider
         private set
+    lateinit var nasheedRepository: NasheedRepository
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -30,6 +33,7 @@ class SuhoodApplication : Application() {
         libraryRepository = LibraryRepository(database.dao())
         audioCatalog = LocalMediaStoreCatalog(this)
         playbackController = PlaybackController(this, audioCatalog)
+        nasheedRepository = NasheedRepository(playback = playbackController)
         createChannels()
     }
 
