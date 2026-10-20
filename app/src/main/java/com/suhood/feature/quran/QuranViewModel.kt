@@ -83,7 +83,11 @@ class QuranViewModel(
     }
 
     fun setQari(id: String) {
+        if (id.isBlank()) return
+        if (VerifiedQaris.list.none { it.id == id }) return
         _qariId.value = id
+        // Stop current playback safely when switching reciter to avoid stale queue crashes
+        runCatching { if (playback.state.value.isPlaying) playback.togglePlayPause() }
     }
 
     fun bookmark(surah: Int, ayah: Int, note: String = "") {
@@ -106,29 +110,45 @@ class QuranViewModel(
     }
 
     fun playAyah(globalNumber: Int, surah: Int, ayahInSurah: Int) {
-        val url = provider.ayahAudioUrl(_qariId.value, globalNumber)
-        val qari = VerifiedQaris.list.find { it.id == _qariId.value }?.englishName ?: _qariId.value
-        playback.playUri(
-            mediaId = "quran:$globalNumber",
-            title = "Surah $surah · Ayah $ayahInSurah",
-            artist = qari,
-            uriString = url,
-            categoryId = "tilawat"
-        )
-        saveLastRead(surah, ayahInSurah)
+        if (globalNumber <= 0) return
+        val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
+        val url = provider.ayahAudioUrl(qariId, globalNumber)
+        val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
+        runCatching {
+            playback.playUri(
+                mediaId = "quran:$globalNumber",
+                title = "Surah $surah · Ayah $ayahInSurah",
+                artist = qari,
+                uriString = url,
+                categoryId = "tilawat"
+            )
+            saveLastRead(surah, ayahInSurah)
+        }.onFailure {
+            _error.value = it.message ?: "Unable to play audio"
+        }
     }
 
     fun playSurahFrom(startAyahIndex: Int = 0) {
-        val c = _content.value ?: return
-        val qari = VerifiedQaris.list.find { it.id == _qariId.value }?.englishName ?: _qariId.value
+        val c = _content.value
+        if (c == null || c.ayahs.isEmpty()) {
+            _error.value = "Ayahs not loaded yet"
+            return
+        }
+        val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
+        val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
         val items = c.ayahs.map { a ->
             Triple(
                 "quran:${a.globalNumber}",
                 "Ayah ${a.numberInSurah}",
-                provider.ayahAudioUrl(_qariId.value, a.globalNumber)
+                provider.ayahAudioUrl(qariId, a.globalNumber)
             )
         }
-        playback.playQueueUris(items, artist = qari, startIndex = startAyahIndex)
+        val safeIndex = startAyahIndex.coerceIn(0, items.lastIndex)
+        runCatching {
+            playback.playQueueUris(items, artist = qari, startIndex = safeIndex)
+        }.onFailure {
+            _error.value = it.message ?: "Unable to start playback"
+        }
     }
 
     fun translatorNote(): String = provider.translatorAttribution()

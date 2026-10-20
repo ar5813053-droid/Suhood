@@ -5,10 +5,14 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,22 +113,57 @@ object FocusScreens {
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = LocalContext.current
+        val controller = remember { FocusSessionController.get(context) }
         val installed = remember {
             runCatching {
                 InstalledAppsRepository.loadLauncherApps(context)
             }.getOrDefault(emptyList())
         }
-        var selected by remember { mutableStateOf(setOf<String>()) }
+        // Persist selection so returning to this screen keeps choices
+        var selected by remember { mutableStateOf(controller.getBlockedApps()) }
 
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
             Text(
-                "Select apps to limit during focus. Icons load from your launcher.",
+                "Enable apps to limit during focus. Your choices are saved.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
             Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SuhoodSpacing.screenHorizontal, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${selected.size} selected",
+                    style = SuhoodTypography.labelMedium,
+                    color = colors.silverBright
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Clear all",
+                        style = SuhoodTypography.labelMedium,
+                        color = colors.textMuted,
+                        modifier = Modifier.clickable {
+                            selected = emptySet()
+                            controller.setBlockedApps(emptySet())
+                        }
+                    )
+                    Text(
+                        "Select all",
+                        style = SuhoodTypography.labelMedium,
+                        color = colors.silverBright,
+                        modifier = Modifier.clickable {
+                            selected = installed.map { it.packageName }.toSet()
+                            controller.setBlockedApps(selected)
+                        }
+                    )
+                }
+            }
             Column(
                 Modifier
                     .weight(1f)
@@ -141,8 +180,7 @@ object FocusScreens {
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         selected = on,
                         onClick = {
-                            selected = if (on) selected - app.packageName
-                            else selected + app.packageName
+                            selected = controller.toggleBlockedApp(app.packageName)
                         }
                     ) {
                         Row(
@@ -161,16 +199,27 @@ object FocusScreens {
                             } else {
                                 Box(Modifier.size(40.dp))
                             }
-                            Text(
-                                app.label,
-                                style = SuhoodTypography.titleSmall,
-                                color = colors.textPrimary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                if (on) "On" else "Off",
-                                style = SuhoodTypography.labelMedium,
-                                color = if (on) colors.silverBright else colors.textMuted
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    app.label,
+                                    style = SuhoodTypography.titleSmall,
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    if (on) "Limited during focus" else "Allowed",
+                                    style = SuhoodTypography.labelSmall,
+                                    color = if (on) colors.silverBright else colors.textMuted
+                                )
+                            }
+                            Switch(
+                                checked = on,
+                                onCheckedChange = {
+                                    selected = controller.toggleBlockedApp(app.packageName)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedTrackColor = Color(0xFF3B82F6),
+                                    checkedThumbColor = Color.White
+                                )
                             )
                         }
                     }

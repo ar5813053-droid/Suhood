@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Focus timer based on wall-clock end time so remaining time stays accurate
  * when the process is backgrounded or recreated.
+ * Distracting-app selection is stored separately so it survives session cancel
+ * and screen navigation.
  */
 class FocusSessionController(context: Context) {
     private val prefs: SharedPreferences =
@@ -19,7 +21,29 @@ class FocusSessionController(context: Context) {
     private val _session = MutableStateFlow(read())
     val session: StateFlow<FocusSession> = _session.asStateFlow()
 
+    fun getBlockedApps(): Set<String> =
+        prefs.getString(KEY_BLOCKED_APPS, "")
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.toSet()
+            .orEmpty()
+
+    fun setBlockedApps(packages: Set<String>) {
+        prefs.edit()
+            .putString(KEY_BLOCKED_APPS, packages.joinToString(","))
+            .apply()
+    }
+
+    fun toggleBlockedApp(packageName: String): Set<String> {
+        val current = getBlockedApps().toMutableSet()
+        if (packageName in current) current.remove(packageName) else current.add(packageName)
+        setBlockedApps(current)
+        return current
+    }
+
     fun start(durationMinutes: Int, selectedAppIds: List<String> = emptyList()) {
+        val apps = selectedAppIds.ifEmpty { getBlockedApps().toList() }
         val now = System.currentTimeMillis()
         val totalSec = durationMinutes * 60
         val endAt = now + totalSec * 1000L
@@ -28,9 +52,11 @@ class FocusSessionController(context: Context) {
             .putInt(KEY_DURATION, durationMinutes)
             .putLong(KEY_STARTED, now)
             .putString(KEY_STATE, FocusSessionState.RUNNING.name)
-            .putString(KEY_APPS, selectedAppIds.joinToString(","))
+            .putString(KEY_APPS, apps.joinToString(","))
             .putLong(KEY_PAUSED_REMAINING, -1)
             .apply()
+        // Keep blocked list in sync
+        if (apps.isNotEmpty()) setBlockedApps(apps.toSet())
         _session.value = read()
     }
 
@@ -57,7 +83,15 @@ class FocusSessionController(context: Context) {
     }
 
     fun cancel() {
-        prefs.edit().clear().apply()
+        // Clear session only — keep KEY_BLOCKED_APPS
+        prefs.edit()
+            .remove(KEY_END)
+            .remove(KEY_DURATION)
+            .remove(KEY_STARTED)
+            .remove(KEY_STATE)
+            .remove(KEY_APPS)
+            .remove(KEY_PAUSED_REMAINING)
+            .apply()
         _session.value = FocusSession(durationMinutes = 25, remainingSeconds = 25 * 60)
     }
 
@@ -83,6 +117,7 @@ class FocusSessionController(context: Context) {
             .getOrDefault(FocusSessionState.IDLE)
         val duration = prefs.getInt(KEY_DURATION, 25)
         val apps = prefs.getString(KEY_APPS, "")?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+            .ifEmpty { getBlockedApps().toList() }
         val remaining = when (state) {
             FocusSessionState.RUNNING -> {
                 val end = prefs.getLong(KEY_END, 0)
@@ -108,6 +143,7 @@ class FocusSessionController(context: Context) {
         private const val KEY_STATE = "state"
         private const val KEY_APPS = "apps"
         private const val KEY_PAUSED_REMAINING = "paused_remaining"
+        private const val KEY_BLOCKED_APPS = "blocked_apps_persistent"
 
         @Volatile private var instance: FocusSessionController? = null
         fun get(context: Context): FocusSessionController =

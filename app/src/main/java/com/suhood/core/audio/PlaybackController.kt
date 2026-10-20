@@ -194,17 +194,24 @@ class PlaybackController(
                 )
                 .build()
         }
-        player.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
-        player.prepare()
-        player.playWhenReady = true
-        _state.value = PlaybackState(
-            currentTrack = tracks.getOrNull(startIndex),
-            isPlaying = true,
-            queue = tracks,
-            isDemoPlayback = false
-        )
-        startPositionUpdates()
-        startService()
+        val idx = startIndex.coerceIn(0, mediaItems.lastIndex)
+        runCatching {
+            player.stop()
+            player.clearMediaItems()
+            player.setMediaItems(mediaItems, idx, 0L)
+            player.prepare()
+            player.playWhenReady = true
+            _state.value = PlaybackState(
+                currentTrack = tracks.getOrNull(idx),
+                isPlaying = true,
+                queue = tracks,
+                isDemoPlayback = false
+            )
+            startPositionUpdates()
+            startService()
+        }.onFailure {
+            _error.value = it.message ?: "Playback failed"
+        }
     }
 
     fun clearError() {
