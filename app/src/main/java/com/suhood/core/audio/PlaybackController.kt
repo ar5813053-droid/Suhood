@@ -2,15 +2,17 @@ package com.suhood.core.audio
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.suhood.core.audio.filter.IslamicContentClassifier
 import com.suhood.core.model.AudioTrack
 import com.suhood.core.model.PlaybackState
-import com.suhood.core.audio.filter.IslamicContentClassifier
-import androidx.media3.common.MediaMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,10 +26,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Shared Media3 ExoPlayer controller for the whole app (single instance via Application).
- *
- * Progress comes from the real player — not a fake timer.
- * Sample tones are test audio only ([isDemoPlayback] = true).
+ * Shared Media3 ExoPlayer controller. All player mutations run on the main thread.
+ * Stream queues (Quran) never fall back to the local sample catalog.
  */
 class PlaybackController(
     private val context: Context,
@@ -35,6 +35,7 @@ class PlaybackController(
 ) {
     val player: ExoPlayer = ExoPlayer.Builder(context).build()
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var positionJob: Job? = null
 
@@ -53,14 +54,13 @@ class PlaybackController(
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_ENDED -> {
-                    // Prefer advancing within the current ExoPlayer playlist (Quran streams).
-                    // Fall back to catalog next only for local/demo queues.
-                    if (player.hasNextMediaItem()) {
-                        runCatching { player.seekToNextMediaItem() }
-                    } else if (_state.value.isDemoPlayback) {
-                        next()
-                    } else {
-                        _state.update { it.copy(isPlaying = false) }
+                    runCatching {
+                        if (player.hasNextMediaItem()) {
+                            player.seekToNextMediaItem()
+                            player.playWhenReady = true
+                        } else {
+                            _state.update { it.copy(isPlaying = false) }
+                        }
                     }
                 }
                 Player.STATE_BUFFERING, Player.STATE_READY, Player.STATE_IDLE -> {
@@ -71,8 +71,7 @@ class PlaybackController(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val id = mediaItem?.mediaId ?: return
-            val q = _state.value.queue
-            val track = q.find { it.id == id }
+            val track = _state.value.queue.find { it.id == id }
             if (track != null) {
                 _state.update {
                     it.copy(currentTrack = track, positionMs = 0L, isPlaying = player.isPlaying)
@@ -83,6 +82,14 @@ class PlaybackController(
         override fun onPlayerError(error: PlaybackException) {
             _error.value = error.message ?: "Playback error"
             _state.update { it.copy(isPlaying = false) }
+            // Try to skip to next item instead of crashing
+            runCatching {
+                if (player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    player.playWhenReady = true
+                }
+            }
         }
     }
 
@@ -90,105 +97,109 @@ class PlaybackController(
         player.addListener(listener)
     }
 
-    fun play(track: AudioTrack, queue: List<AudioTrack> = catalog.allTracks()) {
-        _error.value = null
-        val uri = catalog.resolveUri(context, track)
-        if (uri == null) {
-            _error.value = "Track unavailable"
-            return
+    private fun onMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runCatching(block)
+        } else {
+            mainHandler.post { runCatching(block) }
         }
-        player.setMediaItem(MediaItem.fromUri(uri))
-        player.prepare()
-        player.playWhenReady = true
-        _state.value = PlaybackState(
-            currentTrack = track,
-            isPlaying = true,
-            positionMs = 0L,
-            queue = queue,
-            isDemoPlayback = true
-        )
-        startPositionUpdates()
-        startService()
+    }
+
+    fun play(track: AudioTrack, queue: List<AudioTrack> = catalog.allTracks()) {
+        onMain {
+            _error.value = null
+            val uri = catalog.resolveUri(context, track)
+            if (uri == null) {
+                _error.value = "Track unavailable"
+                return@onMain
+            }
+            player.setMediaItem(MediaItem.fromUri(uri))
+            player.prepare()
+            player.playWhenReady = true
+            _state.value = PlaybackState(
+                currentTrack = track,
+                isPlaying = true,
+                positionMs = 0L,
+                queue = queue,
+                isDemoPlayback = true
+            )
+            startPositionUpdates()
+            startServiceSafe()
+        }
     }
 
     fun togglePlayPause() {
-        if (player.isPlaying) player.pause() else player.play()
-    }
-
-    fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs.coerceAtLeast(0))
-        _state.update { it.copy(positionMs = player.currentPosition) }
-    }
-
-    fun next() {
-        runCatching {
-            if (player.mediaItemCount > 1 && player.hasNextMediaItem()) {
-                player.seekToNextMediaItem()
-                player.playWhenReady = true
-                return
-            }
-            val s = _state.value
-            if (!s.isDemoPlayback) {
-                // Stream queue without further items — stay stopped safely
-                player.pause()
-                _state.update { it.copy(isPlaying = false) }
-                return
-            }
-            val q = s.queue.ifEmpty { catalog.allTracks() }
-            val track = s.currentTrack ?: return
-            val i = q.indexOfFirst { it.id == track.id }.let { if (it < 0 || it >= q.lastIndex) 0 else it + 1 }
-            play(q[i], q)
-        }.onFailure {
-            _error.value = it.message ?: "Could not skip"
-            _state.update { it.copy(isPlaying = false) }
-        }
-    }
-
-    fun previous() {
-        runCatching {
-            if (player.currentPosition > 3000) {
-                seekTo(0)
-                return
-            }
-            if (player.mediaItemCount > 1 && player.hasPreviousMediaItem()) {
-                player.seekToPreviousMediaItem()
-                player.playWhenReady = true
-                return
-            }
-            val s = _state.value
-            if (!s.isDemoPlayback) {
-                seekTo(0)
-                return
-            }
-            val q = s.queue.ifEmpty { catalog.allTracks() }
-            val track = s.currentTrack ?: return
-            val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
-            play(q[i], q)
-        }.onFailure {
-            _error.value = it.message ?: "Could not go previous"
+        onMain {
+            if (player.isPlaying) player.pause() else player.play()
         }
     }
 
     fun pause() {
-        runCatching {
+        onMain {
             player.pause()
             _state.update { it.copy(isPlaying = false) }
         }
     }
 
     fun stopAndClear() {
-        runCatching {
+        onMain {
+            positionJob?.cancel()
             player.stop()
             player.clearMediaItems()
-            positionJob?.cancel()
             _state.value = PlaybackState()
         }
     }
 
+    fun seekTo(positionMs: Long) {
+        onMain {
+            player.seekTo(positionMs.coerceAtLeast(0))
+            _state.update { it.copy(positionMs = player.currentPosition) }
+        }
+    }
 
-    /**
-     * Play a direct stream/file URI (Archive, Quran CDN, etc.).
-     */
+    fun next() {
+        onMain {
+            if (player.mediaItemCount > 0 && player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+                player.playWhenReady = true
+                return@onMain
+            }
+            val s = _state.value
+            if (!s.isDemoPlayback) {
+                player.pause()
+                _state.update { it.copy(isPlaying = false) }
+                return@onMain
+            }
+            val q = s.queue.ifEmpty { catalog.allTracks() }
+            val track = s.currentTrack ?: return@onMain
+            val i = q.indexOfFirst { it.id == track.id }.let { if (it < 0 || it >= q.lastIndex) 0 else it + 1 }
+            play(q[i], q)
+        }
+    }
+
+    fun previous() {
+        onMain {
+            if (player.currentPosition > 3000) {
+                seekTo(0)
+                return@onMain
+            }
+            if (player.mediaItemCount > 0 && player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+                player.playWhenReady = true
+                return@onMain
+            }
+            val s = _state.value
+            if (!s.isDemoPlayback) {
+                seekTo(0)
+                return@onMain
+            }
+            val q = s.queue.ifEmpty { catalog.allTracks() }
+            val track = s.currentTrack ?: return@onMain
+            val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
+            play(q[i], q)
+        }
+    }
+
     fun playUri(
         mediaId: String,
         title: String,
@@ -196,47 +207,60 @@ class PlaybackController(
         uriString: String,
         categoryId: String = "nasheeds"
     ) {
-        val track = AudioTrack(
-            id = mediaId,
-            title = title,
-            creator = artist,
-            collection = categoryId,
-            categoryId = categoryId,
-            language = "",
-            durationSeconds = 0,
-            isDemo = false
-        )
-        if (!IslamicContentClassifier.isPlayable(track) &&
-            IslamicContentClassifier.classify(track).state ==
-            com.suhood.core.audio.filter.ContentClass.BLOCKED
-        ) {
-            _error.value = "Content outside Islamic preferences"
-            return
-        }
-        _error.value = null
-        val meta = MediaMetadata.Builder()
-            .setTitle(title)
-            .setArtist(artist)
-            .setIsPlayable(true)
-            .build()
-        player.setMediaItem(
-            MediaItem.Builder()
-                .setUri(uriString)
-                .setMediaId(mediaId)
-                .setMediaMetadata(meta)
+        onMain {
+            val track = AudioTrack(
+                id = mediaId,
+                title = title,
+                creator = artist,
+                collection = categoryId,
+                categoryId = categoryId,
+                language = "",
+                durationSeconds = 0,
+                isDemo = false
+            )
+            if (!IslamicContentClassifier.isPlayable(track) &&
+                IslamicContentClassifier.classify(track).state ==
+                com.suhood.core.audio.filter.ContentClass.BLOCKED
+            ) {
+                _error.value = "Content outside Islamic preferences"
+                return@onMain
+            }
+            if (uriString.isBlank()) {
+                _error.value = "Invalid audio URL"
+                return@onMain
+            }
+            _error.value = null
+            val meta = MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist)
+                .setIsPlayable(true)
                 .build()
-        )
-        player.prepare()
-        player.playWhenReady = true
-        _state.value = PlaybackState(
-            currentTrack = track,
-            isPlaying = true,
-            positionMs = 0L,
-            queue = listOf(track),
-            isDemoPlayback = false
-        )
-        startPositionUpdates()
-        startService()
+            runCatching {
+                player.stop()
+                player.clearMediaItems()
+                player.setMediaItem(
+                    MediaItem.Builder()
+                        .setUri(uriString)
+                        .setMediaId(mediaId)
+                        .setMediaMetadata(meta)
+                        .build()
+                )
+                player.prepare()
+                player.playWhenReady = true
+                _state.value = PlaybackState(
+                    currentTrack = track,
+                    isPlaying = true,
+                    positionMs = 0L,
+                    queue = listOf(track),
+                    isDemoPlayback = false
+                )
+                startPositionUpdates()
+                startServiceSafe()
+            }.onFailure {
+                _error.value = it.message ?: "Playback failed"
+                _state.update { s -> s.copy(isPlaying = false) }
+            }
+        }
     }
 
     fun playQueueUris(
@@ -244,39 +268,50 @@ class PlaybackController(
         artist: String,
         startIndex: Int = 0
     ) {
-        if (items.isEmpty()) return
-        val tracks = items.map { (id, title, _) ->
-            AudioTrack(
-                id = id, title = title, creator = artist, collection = "Quran",
-                categoryId = "tilawat", language = "Arabic", durationSeconds = 0, isDemo = false
-            )
-        }
-        val mediaItems = items.map { (id, title, uri) ->
-            MediaItem.Builder()
-                .setUri(uri)
-                .setMediaId(id)
-                .setMediaMetadata(
-                    MediaMetadata.Builder().setTitle(title).setArtist(artist).build()
+        onMain {
+            if (items.isEmpty()) {
+                _error.value = "No audio items"
+                return@onMain
+            }
+            val tracks = items.map { (id, title, _) ->
+                AudioTrack(
+                    id = id, title = title, creator = artist, collection = "Quran",
+                    categoryId = "tilawat", language = "Arabic", durationSeconds = 0, isDemo = false
                 )
-                .build()
-        }
-        val idx = startIndex.coerceIn(0, mediaItems.lastIndex)
-        runCatching {
-            player.stop()
-            player.clearMediaItems()
-            player.setMediaItems(mediaItems, idx, 0L)
-            player.prepare()
-            player.playWhenReady = true
-            _state.value = PlaybackState(
-                currentTrack = tracks.getOrNull(idx),
-                isPlaying = true,
-                queue = tracks,
-                isDemoPlayback = false
-            )
-            startPositionUpdates()
-            startService()
-        }.onFailure {
-            _error.value = it.message ?: "Playback failed"
+            }
+            val mediaItems = items.mapNotNull { (id, title, uri) ->
+                if (uri.isBlank()) null
+                else MediaItem.Builder()
+                    .setUri(uri)
+                    .setMediaId(id)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder().setTitle(title).setArtist(artist).build()
+                    )
+                    .build()
+            }
+            if (mediaItems.isEmpty()) {
+                _error.value = "No valid audio URLs"
+                return@onMain
+            }
+            val idx = startIndex.coerceIn(0, mediaItems.lastIndex)
+            runCatching {
+                player.stop()
+                player.clearMediaItems()
+                player.setMediaItems(mediaItems, idx, 0L)
+                player.prepare()
+                player.playWhenReady = true
+                _state.value = PlaybackState(
+                    currentTrack = tracks.getOrNull(idx),
+                    isPlaying = true,
+                    queue = tracks,
+                    isDemoPlayback = false
+                )
+                startPositionUpdates()
+                startServiceSafe()
+            }.onFailure {
+                _error.value = it.message ?: "Playback failed"
+                _state.update { s -> s.copy(isPlaying = false) }
+            }
         }
     }
 
@@ -290,10 +325,7 @@ class PlaybackController(
             while (isActive) {
                 if (player.isPlaying) {
                     _state.update {
-                        it.copy(
-                            isPlaying = true,
-                            positionMs = player.currentPosition
-                        )
+                        it.copy(isPlaying = true, positionMs = player.currentPosition)
                     }
                 }
                 delay(400)
@@ -301,16 +333,19 @@ class PlaybackController(
         }
     }
 
-    private fun startService() {
+    private fun startServiceSafe() {
         runCatching {
             val intent = Intent(context, MediaPlaybackService::class.java)
             ContextCompat.startForegroundService(context, intent)
         }
+        // Ignore — audio still plays via in-process ExoPlayer even if service fails
     }
 
     fun release() {
         positionJob?.cancel()
-        player.removeListener(listener)
-        player.release()
+        runCatching {
+            player.removeListener(listener)
+            player.release()
+        }
     }
 }

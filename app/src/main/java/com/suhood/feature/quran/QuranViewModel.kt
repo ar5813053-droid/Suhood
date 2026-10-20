@@ -110,11 +110,14 @@ class QuranViewModel(
     }
 
     fun playAyah(globalNumber: Int, surah: Int, ayahInSurah: Int) {
-        if (globalNumber <= 0) return
+        if (globalNumber <= 0) {
+            _error.value = "Invalid ayah"
+            return
+        }
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
         val url = provider.ayahAudioUrl(qariId, globalNumber)
         val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
-        runCatching {
+        try {
             playback.playUri(
                 mediaId = "quran:$globalNumber",
                 title = "Surah $surah · Ayah $ayahInSurah",
@@ -123,15 +126,15 @@ class QuranViewModel(
                 categoryId = "tilawat"
             )
             saveLastRead(surah, ayahInSurah)
-        }.onFailure {
-            _error.value = it.message ?: "Unable to play audio"
+        } catch (t: Throwable) {
+            _error.value = t.message ?: "Unable to play audio"
         }
     }
 
     fun playSurahFrom(startAyahIndex: Int = 0) {
         val c = _content.value
         if (c == null || c.ayahs.isEmpty()) {
-            _error.value = "Ayahs not loaded yet"
+            _error.value = "Ayahs not loaded yet — wait a moment"
             return
         }
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
@@ -144,10 +147,10 @@ class QuranViewModel(
             )
         }
         val safeIndex = startAyahIndex.coerceIn(0, items.lastIndex)
-        runCatching {
+        try {
             playback.playQueueUris(items, artist = qari, startIndex = safeIndex)
-        }.onFailure {
-            _error.value = it.message ?: "Unable to start playback"
+        } catch (t: Throwable) {
+            _error.value = t.message ?: "Unable to start playback"
         }
     }
 
