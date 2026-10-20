@@ -1,6 +1,18 @@
 package com.suhood.feature.quran
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -220,19 +232,62 @@ object QuranScreens {
 
         LaunchedEffect(surahId) { vm.openSurah(surahId) }
 
-        Box(Modifier.fillMaxSize().statusBarsPadding()) {
-            Column(Modifier.fillMaxSize()) {
-                ScreenHeader(
-                    title = content?.meta?.nameEnglish ?: "Surah $surahId",
-                    onBack = onBack,
-                    actions = {
+        // Keep current ayah index in sync with the track that is actually playing
+        LaunchedEffect(playback.currentTrack?.id, content) {
+            val id = playback.currentTrack?.id ?: return@LaunchedEffect
+            val ayahs = content?.ayahs ?: return@LaunchedEffect
+            val idx = ayahs.indexOfFirst { "quran:${it.globalNumber}" == id }
+            if (idx >= 0) currentAyahIndex = idx
+        }
+
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().statusBarsPadding()) {
+                // Liquid glass top navbar
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color(0xCC0B1220),
+                                    Color(0x990B1220),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                ) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(colors.surfaceGlass.copy(alpha = 0.55f))
+                            .border(1.dp, colors.borderSubtle.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        GlassIconButton(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            onClick = onBack,
+                            size = 40.dp,
+                            iconSize = 20.dp
+                        )
+                        Text(
+                            text = content?.meta?.nameEnglish ?: "Surah $surahId",
+                            style = SuhoodTypography.titleMedium,
+                            color = colors.textPrimary,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                            maxLines = 1
+                        )
                         GlassButton(
                             text = if (showUrdu) "Urdu" else "AR",
                             onClick = { vm.toggleUrdu() },
                             primary = false
                         )
                     }
-                )
+                }
+
                 when {
                     loading && content == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = colors.silverBright)
@@ -243,9 +298,10 @@ object QuranScreens {
                         color = colors.textSecondary
                     )
                     content != null -> LazyColumn(
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 120.dp, top = 8.dp)
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 140.dp, top = 8.dp)
                     ) {
                         itemsIndexed(content!!.ayahs) { index, ayah ->
+                            val playingThis = playback.currentTrack?.id == "quran:${ayah.globalNumber}" && playback.isPlaying
                             GlassCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -254,22 +310,22 @@ object QuranScreens {
                                         currentAyahIndex = index
                                         vm.playAyah(ayah.globalNumber, surahId, ayah.numberInSurah)
                                     },
-                                selected = index == currentAyahIndex && playback.isPlaying
+                                selected = playingThis || index == currentAyahIndex
                             ) {
                                 Text(
-                                    "﴿ ${ayah.numberInSurah} ﴾",
+                                    "﴾ ${ayah.numberInSurah} ﴿",
                                     style = SuhoodTypography.labelMedium,
-                                    color = colors.silverBright
+                                    color = colors.textMuted
                                 )
                                 Spacer(Modifier.height(6.dp))
                                 Text(
                                     ayah.arabic,
                                     style = TextStyle(
                                         fontSize = 24.sp,
-                                        lineHeight = 44.sp,
-                                        textAlign = TextAlign.End,
+                                        textAlign = TextAlign.Right,
+                                        textDirection = TextDirection.Rtl,
                                         color = colors.textPrimary,
-                                        textDirection = TextDirection.Rtl
+                                        lineHeight = 40.sp
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -277,13 +333,8 @@ object QuranScreens {
                                     Spacer(Modifier.height(8.dp))
                                     Text(
                                         ayah.translation,
-                                        style = TextStyle(
-                                            fontSize = 15.sp,
-                                            lineHeight = 26.sp,
-                                            color = colors.textSecondary,
-                                            textDirection = TextDirection.Rtl
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
+                                        style = SuhoodTypography.bodyMedium,
+                                        color = colors.textSecondary
                                     )
                                 }
                             }
@@ -292,43 +343,51 @@ object QuranScreens {
                 }
             }
 
-            // Bottom floating player
+            // Liquid glass bottom player bar
             Column(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(12.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color(0xE60B1220), Color(0xF20B1220))
+                        )
+                    )
+                    .padding(start = 12.dp, end = 12.dp, bottom = 16.dp, top = 24.dp)
             ) {
                 if (showQari) {
-                    GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
                         Text("Select Qari", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
                         Spacer(Modifier.height(8.dp))
                         VerifiedQaris.list.forEach { q ->
+                            val selected = q.id == qariId
                             Text(
-                                "${q.englishName} · ${q.name}",
-                                color = if (q.id == qariId) colors.silverBright else colors.textSecondary,
+                                q.englishName,
+                                style = SuhoodTypography.bodyMedium,
+                                color = if (selected) colors.silverBright else colors.textSecondary,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
                                         vm.setQari(q.id)
                                         showQari = false
+                                        // Re-start from current ayah with new qari when user presses play
                                     }
-                                    .padding(vertical = 6.dp)
+                                    .padding(vertical = 8.dp)
                             )
                         }
                     }
                 }
+
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     val progress = if (playback.positionMs > 0) {
                         (playback.positionMs % 60_000L) / 60_000f
                     } else 0f
                     LinearProgressIndicator(
                         progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(3.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                         color = colors.silverBright,
-                        trackColor = colors.surfaceGlass
+                        trackColor = colors.borderSubtle
                     )
-                    Spacer(Modifier.height(10.dp))
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -339,34 +398,70 @@ object QuranScreens {
                             contentDescription = "Previous",
                             onClick = {
                                 content?.ayahs?.let { ayahs ->
+                                    if (ayahs.isEmpty()) return@GlassIconButton
                                     currentAyahIndex = (currentAyahIndex - 1).coerceAtLeast(0)
                                     val a = ayahs[currentAyahIndex]
-                                    vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                    runCatching {
+                                        vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                    }
                                 }
                             }
                         )
-                        GlassIconButton(
-                            icon = Icons.Filled.PlayArrow,
-                            contentDescription = "Play",
-                            onClick = {
-                                if (playback.isPlaying) app.playbackController.togglePlayPause()
-                                else {
-                                    val ayahs = content?.ayahs
-                                    if (ayahs != null && ayahs.isNotEmpty()) {
-                                        vm.playSurahFrom(currentAyahIndex)
+
+                        // Animated Play / Pause
+                        val isPlaying = playback.isPlaying
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(colors.silverBright.copy(alpha = 0.18f))
+                                .border(1.dp, colors.silverBright.copy(alpha = 0.45f), CircleShape)
+                                .clickable {
+                                    runCatching {
+                                        if (isPlaying) {
+                                            app.playbackController.togglePlayPause()
+                                        } else {
+                                            val ayahs = content?.ayahs
+                                            if (ayahs != null && ayahs.isNotEmpty()) {
+                                                // If current track already in queue, just resume; else start from index
+                                                val currentId = playback.currentTrack?.id
+                                                val matches = currentId != null && ayahs.any { "quran:${it.globalNumber}" == currentId }
+                                                if (matches && !playback.isPlaying) {
+                                                    app.playbackController.togglePlayPause()
+                                                } else {
+                                                    vm.playSurahFrom(currentAyahIndex.coerceIn(0, ayahs.lastIndex))
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                            },
-                            size = 52.dp
-                        )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AnimatedContent(
+                                targetState = isPlaying,
+                                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                label = "playPause"
+                            ) { playing ->
+                                Icon(
+                                    imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = if (playing) "Pause" else "Play",
+                                    tint = colors.silverBright,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                        }
+
                         GlassIconButton(
                             icon = Icons.Filled.SkipNext,
                             contentDescription = "Next",
                             onClick = {
                                 content?.ayahs?.let { ayahs ->
+                                    if (ayahs.isEmpty()) return@GlassIconButton
                                     currentAyahIndex = (currentAyahIndex + 1).coerceAtMost(ayahs.lastIndex)
                                     val a = ayahs[currentAyahIndex]
-                                    vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                    runCatching {
+                                        vm.playAyah(a.globalNumber, surahId, a.numberInSurah)
+                                    }
                                 }
                             }
                         )
@@ -381,7 +476,6 @@ object QuranScreens {
         }
     }
 
-    @Composable
     fun Bookmarks(onBack: () -> Unit) {
         val vm = rememberVm()
         val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()

@@ -52,9 +52,30 @@ class PlaybackController(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
-                Player.STATE_ENDED -> next()
+                Player.STATE_ENDED -> {
+                    // Prefer advancing within the current ExoPlayer playlist (Quran streams).
+                    // Fall back to catalog next only for local/demo queues.
+                    if (player.hasNextMediaItem()) {
+                        runCatching { player.seekToNextMediaItem() }
+                    } else if (_state.value.isDemoPlayback) {
+                        next()
+                    } else {
+                        _state.update { it.copy(isPlaying = false) }
+                    }
+                }
                 Player.STATE_BUFFERING, Player.STATE_READY, Player.STATE_IDLE -> {
                     _state.update { it.copy(positionMs = player.currentPosition) }
+                }
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val id = mediaItem?.mediaId ?: return
+            val q = _state.value.queue
+            val track = q.find { it.id == id }
+            if (track != null) {
+                _state.update {
+                    it.copy(currentTrack = track, positionMs = 0L, isPlaying = player.isPlaying)
                 }
             }
         }
@@ -100,23 +121,68 @@ class PlaybackController(
     }
 
     fun next() {
-        val s = _state.value
-        val q = s.queue.ifEmpty { catalog.allTracks() }
-        val track = s.currentTrack ?: return
-        val i = q.indexOfFirst { it.id == track.id }.let { if (it < 0 || it >= q.lastIndex) 0 else it + 1 }
-        play(q[i], q)
+        runCatching {
+            if (player.mediaItemCount > 1 && player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+                player.playWhenReady = true
+                return
+            }
+            val s = _state.value
+            if (!s.isDemoPlayback) {
+                // Stream queue without further items — stay stopped safely
+                player.pause()
+                _state.update { it.copy(isPlaying = false) }
+                return
+            }
+            val q = s.queue.ifEmpty { catalog.allTracks() }
+            val track = s.currentTrack ?: return
+            val i = q.indexOfFirst { it.id == track.id }.let { if (it < 0 || it >= q.lastIndex) 0 else it + 1 }
+            play(q[i], q)
+        }.onFailure {
+            _error.value = it.message ?: "Could not skip"
+            _state.update { it.copy(isPlaying = false) }
+        }
     }
 
     fun previous() {
-        val s = _state.value
-        val q = s.queue.ifEmpty { catalog.allTracks() }
-        val track = s.currentTrack ?: return
-        if (player.currentPosition > 3000) {
-            seekTo(0)
-            return
+        runCatching {
+            if (player.currentPosition > 3000) {
+                seekTo(0)
+                return
+            }
+            if (player.mediaItemCount > 1 && player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+                player.playWhenReady = true
+                return
+            }
+            val s = _state.value
+            if (!s.isDemoPlayback) {
+                seekTo(0)
+                return
+            }
+            val q = s.queue.ifEmpty { catalog.allTracks() }
+            val track = s.currentTrack ?: return
+            val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
+            play(q[i], q)
+        }.onFailure {
+            _error.value = it.message ?: "Could not go previous"
         }
-        val i = q.indexOfFirst { it.id == track.id }.let { if (it <= 0) q.lastIndex else it - 1 }
-        play(q[i], q)
+    }
+
+    fun pause() {
+        runCatching {
+            player.pause()
+            _state.update { it.copy(isPlaying = false) }
+        }
+    }
+
+    fun stopAndClear() {
+        runCatching {
+            player.stop()
+            player.clearMediaItems()
+            positionJob?.cancel()
+            _state.value = PlaybackState()
+        }
     }
 
 

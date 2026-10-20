@@ -86,8 +86,8 @@ class QuranViewModel(
         if (id.isBlank()) return
         if (VerifiedQaris.list.none { it.id == id }) return
         _qariId.value = id
-        // Stop current playback safely when switching reciter to avoid stale queue crashes
-        runCatching { if (playback.state.value.isPlaying) playback.togglePlayPause() }
+        // Clear queue so next play uses the new reciter URLs (avoids crash / wrong audio)
+        runCatching { playback.stopAndClear() }
     }
 
     fun bookmark(surah: Int, ayah: Int, note: String = "") {
