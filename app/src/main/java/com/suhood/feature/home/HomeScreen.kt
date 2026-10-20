@@ -1,6 +1,7 @@
 package com.suhood.feature.home
 
 import android.app.Application
+import android.icu.util.IslamicCalendar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -41,13 +42,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.suhood.app.SuhoodApplication
-import com.suhood.core.database.SalahLogEntity
-import com.suhood.core.database.TasbeehStateEntity
 import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassIconButton
 import com.suhood.core.designsystem.theme.SuhoodTypography
@@ -61,6 +63,7 @@ import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Locale
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val dao = (app as SuhoodApplication).database.dao()
@@ -115,12 +118,18 @@ fun HomeScreen(
     val tCount = tasbeeh?.count ?: 0
     val tasbeehPct = ((tCount * 100) / goal).coerceAtMost(100)
 
-    val dayLabel = remember {
+    val gregorian = remember {
         val c = Calendar.getInstance()
-        val days = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-        val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-        "${days[c.get(Calendar.DAY_OF_WEEK) - 1]}, ${c.get(Calendar.DAY_OF_MONTH)} ${months[c.get(Calendar.MONTH)]} ${c.get(Calendar.YEAR)}"
+        String.format(
+            Locale.US,
+            "%s, %d %s %d",
+            arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")[c.get(Calendar.DAY_OF_WEEK) - 1],
+            c.get(Calendar.DAY_OF_MONTH),
+            arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[c.get(Calendar.MONTH)],
+            c.get(Calendar.YEAR)
+        )
     }
+    val hijri = remember { formatHijri() }
 
     Column(
         Modifier
@@ -130,14 +139,37 @@ fun HomeScreen(
             .padding(horizontal = 16.dp)
             .padding(bottom = bottomContentPadding + 16.dp)
     ) {
+        // Compact top bar: next Salah (left) + dates (right) + settings
+        Spacer(Modifier.height(6.dp))
         Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text("Salam", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
-                Text(dayLabel, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Next · ${nextPrayer.name}",
+                    style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.accentLavender
+                )
+                Text(
+                    formatCountdown(countdown),
+                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
+                Text(
+                    gregorian,
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    hijri,
+                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = colors.textMuted,
+                    textAlign = TextAlign.End
+                )
             }
             GlassIconButton(
                 icon = Icons.Filled.Settings,
@@ -146,26 +178,38 @@ fun HomeScreen(
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
 
-        // Next prayer hero
+        // Compact next-salah strip (small)
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(20.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            onClick = { onNavigate(Routes.SALAH) }
         ) {
-            Text("Next prayer", style = SuhoodTypography.labelMedium, color = colors.textMuted)
-            Spacer(Modifier.height(4.dp))
-            Text(nextPrayer.name, style = SuhoodTypography.headlineMedium, color = colors.textPrimary)
-            Text(
-                "in ${formatCountdown(countdown)}",
-                style = SuhoodTypography.titleMedium,
-                color = colors.accentLavender
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Salah today", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    Text(
+                        "$prayerDone of 5 marked",
+                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary
+                    )
+                }
+                Text(
+                    nextPrayer.time,
+                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.accentLavender
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Quick actions: Focus, Worship, Tasbeeh, Alarm
+        // Quick actions
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -185,7 +229,11 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("Today's Progress", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Text(
+            "Today's Progress",
+            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
         Spacer(Modifier.height(10.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -206,7 +254,11 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("Continue", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+        Text(
+            "Continue",
+            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
         Spacer(Modifier.height(8.dp))
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
@@ -216,7 +268,11 @@ fun HomeScreen(
                 Icon(Icons.Filled.MenuBook, null, tint = colors.accentLavender, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.size(12.dp))
                 Column {
-                    Text("Continue Quran", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text(
+                        "Continue Quran",
+                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary
+                    )
                     Text("Open Mushaf pages", style = SuhoodTypography.bodySmall, color = colors.textMuted)
                 }
             }
@@ -239,6 +295,20 @@ fun HomeScreen(
             )
         }
     }
+}
+
+private fun formatHijri(): String {
+    return runCatching {
+        val ic = IslamicCalendar.getInstance()
+        val months = arrayOf(
+            "Muharram", "Safar", "Rabiʻ I", "Rabiʻ II", "Jumada I", "Jumada II",
+            "Rajab", "Shaʻban", "Ramadan", "Shawwal", "Dhul-Qaʻdah", "Dhul-Hijjah"
+        )
+        val d = ic.get(IslamicCalendar.DAY_OF_MONTH)
+        val m = ic.get(IslamicCalendar.MONTH)
+        val y = ic.get(IslamicCalendar.YEAR)
+        "$d ${months.getOrElse(m) { "Hijri" }} $y AH"
+    }.getOrElse { "Hijri date" }
 }
 
 @Composable
@@ -283,7 +353,7 @@ private fun ProgressCard(
     GlassCard(modifier = modifier, onClick = onClick, contentPadding = PaddingValues(16.dp)) {
         Text(title, style = SuhoodTypography.labelMedium, color = colors.textMuted)
         Spacer(Modifier.height(6.dp))
-        Text("$percent%", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
+        Text("$percent%", style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
         Text(subtitle, style = SuhoodTypography.bodySmall, color = colors.textSecondary)
         Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(

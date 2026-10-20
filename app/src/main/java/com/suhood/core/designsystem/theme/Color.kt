@@ -7,14 +7,14 @@ import androidx.compose.ui.graphics.Color
  */
 
 object SuhoodDarkColors {
-    val background = Color(0xFF0B0A10)
-    val backgroundElevated = Color(0xFF14131B)
-    val surface = Color(0xFF1B1924)
-    val surfaceElevated = Color(0xFF24212F)
+    val background = Color(0xFF121212)
+    val backgroundElevated = Color(0xFF1C1C1E)
+    val surface = Color(0xFF1E1E1E)
+    val surfaceElevated = Color(0xFF2C2C2E)
     val surfaceGlassBase = Color(0x14FFFFFF)
-    val surfaceSelected = Color(0xFF2E2A3A)
-    val borderSubtle = Color(0xFF373242)
-    val borderStrong = Color(0xFF4A4558)
+    val surfaceSelected = Color(0xFF3A3A3C)
+    val borderSubtle = Color(0xFF3A3A3C)
+    val borderStrong = Color(0xFF48484A)
     val textPrimary = Color(0xFFF6F4FB)
     val textSecondary = Color(0xFFAAA5B8)
     val textMuted = Color(0xFF7E798C)

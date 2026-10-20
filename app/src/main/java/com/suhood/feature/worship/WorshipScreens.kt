@@ -1,5 +1,10 @@
 package com.suhood.feature.worship
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -225,7 +230,8 @@ object WorshipScreens {
         var count by remember { mutableIntStateOf(0) }
         var target by remember { mutableIntStateOf(33) }
         var dhikrIndex by remember { mutableIntStateOf(0) }
-        var customText by remember { mutableStateOf("") }
+        var loop by remember { mutableIntStateOf(1) }
+        var beadPulse by remember { mutableStateOf(false) }
         LaunchedEffect(state) {
             state?.let {
                 count = it.count
@@ -238,205 +244,159 @@ object WorshipScreens {
                 dao.upsertTasbeeh(TasbeehStateEntity(id = 1, count = c, goal = g, dhikrIndex = di))
             }
         }
+        fun bump() {
+            if (count + 1 >= target) {
+                count = 0
+                loop++
+                persist(0)
+            } else {
+                count++
+                persist(count)
+            }
+            beadPulse = !beadPulse
+        }
+        fun undoCount() {
+            if (count > 0) {
+                count--
+                persist(count)
+            }
+        }
         val dhikr = DemoData.dhikrItems[dhikrIndex % DemoData.dhikrItems.size]
-        val progress = (count.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
-        val beadCount = minOf(target, 33)
+        val scale by animateFloatAsState(if (beadPulse) 1.04f else 1f, label = "countScale")
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(colors.background)
         ) {
             ScreenHeader(title = "Tasbeeh", onBack = onBack)
 
-            // Bead line
-            Row(
-                Modifier
+            // Full interactive area — tap to count, swipe left to undo
+            Box(
+                modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.Center
+                    .pointerInput(count, target) {
+                        detectTapGestures(onTap = { bump() })
+                    }
+                    .pointerInput(count) {
+                        var totalDrag = 0f
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (totalDrag < -80f) undoCount()
+                                totalDrag = 0f
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                totalDrag += dragAmount
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                val lit = (progress * beadCount).toInt()
-                repeat(beadCount) { i ->
-                    Box(
-                        Modifier
-                            .padding(horizontal = 2.dp)
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (i < lit) colors.accentLavender
-                                else colors.borderSubtle.copy(alpha = 0.5f)
-                            )
-                    )
-                }
-            }
-
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(24.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        dhikr.arabic,
-                        style = SuhoodTypography.arabicTitle.copy(fontSize = 34.sp),
-                        color = colors.accentLavender
+                        "Loop $loop",
+                        style = SuhoodTypography.labelLarge,
+                        color = colors.textMuted
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        dhikr.transliteration,
-                        style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = colors.textPrimary
-                    )
-                    Text(dhikr.translation, style = SuhoodTypography.bodySmall, color = colors.textMuted)
-
-                    Spacer(Modifier.height(20.dp))
-                    // Progress ring
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
-                        Canvas(Modifier.size(200.dp)) {
-                            val stroke = 7.dp.toPx()
-                            val r = size.minDimension / 2 - stroke
-                            drawCircle(
-                                color = colors.borderSubtle.copy(alpha = 0.35f),
-                                radius = r,
-                                style = Stroke(width = stroke)
-                            )
-                            drawArc(
-                                color = colors.accentLavender,
-                                startAngle = -90f,
-                                sweepAngle = 360f * progress,
-                                useCenter = false,
-                                topLeft = Offset(stroke, stroke),
-                                size = Size(size.width - stroke * 2, size.height - stroke * 2),
-                                style = Stroke(width = stroke, cap = StrokeCap.Round)
-                            )
+                        "$count",
+                        style = SuhoodTypography.timer.copy(fontSize = 64.sp),
+                        color = colors.success,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "$count",
-                                style = SuhoodTypography.timer,
-                                color = colors.textPrimary
-                            )
-                            Text("of $target", style = SuhoodTypography.bodySmall, color = colors.textMuted)
-                        }
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-                    GlassButton(
-                        text = "Count",
-                        onClick = {
-                            if (count < target) {
-                                count++
-                                persist(count)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
                     )
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        GlassButton(
-                            text = "Undo",
-                            onClick = {
-                                if (count > 0) {
-                                    count--
-                                    persist(count)
-                                }
-                            },
-                            primary = false,
-                            modifier = Modifier.weight(1f)
-                        )
-                        GlassButton(
-                            text = "Reset",
-                            onClick = { count = 0; persist(0) },
-                            primary = false,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp)) {
-                Text(
-                    "GOAL",
-                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = colors.textMuted
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf(33, 34, 99, 200).forEach { t ->
-                        GlassPill(selected = target == t, onClick = {
-                            target = t
-                            if (count > t) count = t
-                            persist(count, t)
-                        }) {
-                            Text("$t", style = SuhoodTypography.labelLarge.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    "CUSTOM GOAL",
-                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = colors.textMuted
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    androidx.compose.material3.OutlinedTextField(
-                        value = customText,
-                        onValueChange = { customText = it.filter { ch -> ch.isDigit() }.take(5) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        label = { Text("Count") }
-                    )
-                    GlassButton(
-                        text = "Set",
-                        onClick = {
-                            val n = customText.toIntOrNull()
-                            if (n != null && n > 0) {
-                                target = n
-                                if (count > n) count = n
-                                persist(count, n)
-                            }
-                        },
-                        primary = false
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    dhikrIndex = (dhikrIndex + 1) % DemoData.dhikrItems.size
-                    count = 0
-                    target = DemoData.dhikrItems[dhikrIndex].defaultTarget
-                    persist(0, target, dhikrIndex)
-                },
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     Text(
-                        "Next dhikr",
-                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = colors.textPrimary
+                        "/ $target",
+                        style = SuhoodTypography.titleMedium,
+                        color = colors.textMuted
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Filled.ChevronRight, null, tint = colors.textMuted)
+                    Spacer(Modifier.height(28.dp))
+
+                    // Bead string (visual like Muslim Pro)
+                    Canvas(Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 12.dp)) {
+                        val n = minOf(target, 18)
+                        val lit = ((count.toFloat() / target.coerceAtLeast(1)) * n).toInt().coerceIn(0, n)
+                        val y = size.height / 2
+                        val step = size.width / (n + 1)
+                        // string
+                        drawLine(
+                            color = colors.borderStrong,
+                            start = Offset(step, y),
+                            end = Offset(size.width - step, y),
+                            strokeWidth = 3f
+                        )
+                        for (i in 0 until n) {
+                            val x = step * (i + 1)
+                            val r = if (i < lit) 14.dp.toPx() else 11.dp.toPx()
+                            val col = if (i < lit) colors.accentLavender else colors.surfaceElevated
+                            drawCircle(color = colors.borderSubtle, radius = r + 2f, center = Offset(x, y))
+                            drawCircle(color = col, radius = r, center = Offset(x, y))
+                            if (i < lit) {
+                                drawCircle(
+                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f),
+                                    radius = r * 0.35f,
+                                    center = Offset(x - r * 0.25f, y - r * 0.25f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        "Tap anywhere to count",
+                        style = SuhoodTypography.bodyMedium,
+                        color = colors.textSecondary
+                    )
+                    Text(
+                        "(swipe left to decrease)",
+                        style = SuhoodTypography.bodySmall,
+                        color = colors.textMuted
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        dhikr.arabic,
+                        style = SuhoodTypography.arabicTitle.copy(fontSize = 22.sp),
+                        color = colors.accentLavender
+                    )
+                    Text(dhikr.transliteration, style = SuhoodTypography.bodySmall, color = colors.textMuted)
                 }
+            }
+
+            // Bottom goal + next
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(33, 34, 99, 200).forEach { g ->
+                        GlassPill(selected = target == g, onClick = {
+                            target = g
+                            if (count > g) count = g
+                            persist(count, g)
+                        }) {
+                            Text("$g", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                GlassButton(
+                    text = "Next dhikr",
+                    onClick = {
+                        dhikrIndex = (dhikrIndex + 1) % DemoData.dhikrItems.size
+                        count = 0
+                        loop = 1
+                        target = DemoData.dhikrItems[dhikrIndex].defaultTarget
+                        persist(0, target, dhikrIndex)
+                    },
+                    primary = false,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

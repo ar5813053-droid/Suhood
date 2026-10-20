@@ -166,7 +166,14 @@ object QuranScreens {
     }
 
         @Composable
-    fun SurahList(onBack: () -> Unit, onSurah: (Int) -> Unit) {
+    fun SurahList(
+        onBack: () -> Unit,
+        onSurah: (Int) -> Unit,
+        onBookmarks: () -> Unit = {},
+        onJuz: () -> Unit = {},
+        onMushaf: () -> Unit = {},
+        onLastRead: () -> Unit = {}
+    ) {
         val vm = rememberVm()
         val surahs by vm.surahs.collectAsStateWithLifecycle()
         val loading by vm.loading.collectAsStateWithLifecycle()
@@ -182,23 +189,66 @@ object QuranScreens {
                     it.number.toString() == query.trim()
             }
         }
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            ScreenHeader(title = "Al-Quran", onBack = onBack)
+        Column(Modifier.fillMaxSize().statusBarsPadding().background(colors.background)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "QURAN",
+                    style = SuhoodTypography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    color = colors.accentLavender,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Text(
                 "The Holy Quran",
-                style = SuhoodTypography.headlineMedium,
+                style = SuhoodTypography.headlineMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
                 color = colors.textPrimary,
-                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            Spacer(Modifier.height(8.dp))
-            // Mushaf entry is opened from Parah/Home via Routes — page reader available in code
             Spacer(Modifier.height(12.dp))
             GlassSearchField(
                 query = query,
                 onQueryChange = { query = it },
                 placeholder = "Search the Quran",
-                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
+            Spacer(Modifier.height(12.dp))
+            // Quick actions 2x2
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GlassCard(Modifier = Modifier.weight(1f), onClick = onLastRead, contentPadding = PaddingValues(12.dp)) {
+                    Text("Last read", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                }
+                GlassCard(modifier = Modifier.weight(1f), onClick = onMushaf, contentPadding = PaddingValues(12.dp)) {
+                    Text("Mushaf", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GlassCard(modifier = Modifier.weight(1f), onClick = onBookmarks, contentPadding = PaddingValues(12.dp)) {
+                    Text("Bookmarks", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                }
+                GlassCard(modifier = Modifier.weight(1f), onClick = onJuz, contentPadding = PaddingValues(12.dp)) {
+                    Text("Juz", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
 
             when {
                 loading && surahs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -208,11 +258,12 @@ object QuranScreens {
                     Text(error ?: "", color = colors.textSecondary)
                     GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(16.dp)) {
+                else -> LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
                     items(filtered, key = { it.number }) { s ->
                         GlassCard(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            onClick = { onSurah(s.number) }
+                            onClick = { onSurah(s.number) },
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
                         ) {
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -220,15 +271,15 @@ object QuranScreens {
                             ) {
                                 Box(
                                     Modifier
-                                        .size(36.dp)
+                                        .size(34.dp)
                                         .clip(CircleShape)
-                                        .background(colors.accentLavender.copy(alpha = 0.2f)),
+                                        .background(colors.surfaceSelected),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         "${s.number}",
                                         style = SuhoodTypography.labelMedium,
-                                        color = colors.accentLavender
+                                        color = colors.textPrimary
                                     )
                                 }
                                 Spacer(Modifier.width(12.dp))
@@ -286,7 +337,7 @@ object QuranScreens {
             if (idx >= 0) currentAyahIndex = idx
         }
 
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(colors.background)) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
                 // Liquid glass top navbar
                 Box(

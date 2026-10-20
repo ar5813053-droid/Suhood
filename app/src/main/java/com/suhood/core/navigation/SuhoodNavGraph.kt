@@ -202,12 +202,13 @@ fun SuhoodNavGraph(
 
             // Quran
             composable(Routes.QURAN) {
-                QuranScreens.ParahList(
+                QuranScreens.SurahList(
                     onBack = { navController.popBackStack() },
-                    onParah = { id -> navController.navigate("quran/parah/$id") },
+                    onSurah = { id -> navController.navigate("quran/reader/$id") },
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
-                    onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) },
-                    onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) }
+                    onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
+                    onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
+                    onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
             composable(
@@ -227,7 +228,11 @@ fun SuhoodNavGraph(
             composable(Routes.QURAN_SURAH_LIST) {
                 QuranScreens.SurahList(
                     onBack = { navController.popBackStack() },
-                    onSurah = { id -> navController.navigate("quran/surah/$id") }
+                    onSurah = { id -> navController.navigate("quran/reader/$id") },
+                    onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
+                    onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
+                    onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
+                    onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
             composable(
