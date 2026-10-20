@@ -104,7 +104,11 @@ data class DuaItem(
     val arabic: String,
     val transliteration: String,
     val translation: String,
-    val category: String
+    val category: String,
+    /** Multilingual search keywords: English, Roman Urdu, Arabic snippets, purpose tags. */
+    val keywords: List<String> = emptyList(),
+    /** Short source note e.g. "Bukhari", "Muslim", "Quran 2:201" — never fabricated. */
+    val reference: String = ""
 )
 
 // ── Quiz ────────────────────────────────────────────────────────────────────

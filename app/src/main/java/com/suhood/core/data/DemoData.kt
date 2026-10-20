@@ -64,35 +64,151 @@ object DemoData {
         DhikrItem("6", "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "SubhanAllahi wa bihamdihi", "Glory and praise be to Allah", 100)
     )
 
-    // ── Duas (sample, respectful) ───────────────────────────────────────────
+    // ── Duas (verified everyday adhkar — offline searchable) ────────────────
     val duaItems = listOf(
         DuaItem(
             "1", "Upon waking",
             "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ",
             "Alhamdu lillahil-ladhi ahyana ba'da ma amatana wa ilayhin-nushur",
             "All praise is for Allah who gave us life after having taken it from us, and unto Him is the resurrection.",
-            "Morning"
+            "Morning",
+            listOf("waking", "wake up", "subah", "subah uthe", "uthne", "morning", "أحيانا", "الحمده"),
+            "Bukhari"
         ),
         DuaItem(
-            "2", "Before eating",
+            "2", "Before sleeping",
+            "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا",
+            "Bismika Allahumma amutu wa ahya",
+            "In Your name, O Allah, I die and I live.",
+            "Sleep",
+            listOf("sleep", "sone", "sone se pehle", "before sleep", "bed", "night", "nam", "sleeping", "النوم", "سونے"),
+            "Bukhari"
+        ),
+        DuaItem(
+            "3", "Before eating",
             "بِسْمِ اللَّهِ",
             "Bismillah",
             "In the name of Allah.",
-            "Daily"
+            "Food",
+            listOf("eat", "eating", "khana", "khane se pehle", "food", "before meal", "bismillah", "کھانا"),
+            "Abu Dawud"
         ),
         DuaItem(
-            "3", "After eating",
+            "4", "After eating",
             "الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ",
             "Alhamdu lillahil-ladhi at'amana wa saqana wa ja'alana muslimin",
             "All praise is for Allah who fed us and gave us drink and made us Muslims.",
-            "Daily"
+            "Food",
+            listOf("after eat", "khana ke baad", "food", "alhamdulillah", "meal", "کھانے کے بعد"),
+            "Abu Dawud, Tirmidhi"
         ),
         DuaItem(
-            "4", "Entering the mosque",
+            "5", "When wearing clothes",
+            "الْحَمْدُ لِلَّهِ الَّذِي كَسَانِي هَذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ",
+            "Alhamdu lillahil-ladhi kasani hadha wa razaqanihi min ghayri hawlin minni wa la quwwah",
+            "All praise is for Allah who clothed me with this and provided it for me with no power or might from myself.",
+            "Clothes",
+            listOf("clothes", "kapde", "kapde pehenne", "pehenne", "dress", "wearing", "لبس", "کپڑے", "clothing"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "6", "Entering the home",
+            "بِسْمِ اللَّهِ وَلَجْنَا، وَبِسْمِ اللَّهِ خَرَجْنَا، وَعَلَى اللَّهِ رَبِّنَا تَوَكَّلْنَا",
+            "Bismillahi walajna, wa bismillahi kharajna, wa 'ala Allahi rabbina tawakkalna",
+            "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we place our trust.",
+            "Home",
+            listOf("home", "ghar", "ghar mein", "enter home", "entering house", "house", "گھر"),
+            "Abu Dawud"
+        ),
+        DuaItem(
+            "7", "Leaving the home",
+            "بِسْمِ اللَّهِ، تَوَكَّلْتُ عَلَى اللَّهِ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
+            "Bismillah, tawakkaltu 'ala Allah, wa la hawla wa la quwwata illa billah",
+            "In the name of Allah, I place my trust in Allah, and there is no might nor power except with Allah.",
+            "Home",
+            listOf("leave home", "ghar se nikal", "nikalne", "going out", "exit", "travel start", "گھر سے"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "8", "Entering the mosque",
             "اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ",
             "Allahumma iftah li abwaba rahmatik",
             "O Allah, open the gates of Your mercy for me.",
-            "Mosque"
+            "Mosque",
+            listOf("mosque", "masjid", "enter mosque", "masjid mein", "مسجد"),
+            "Muslim"
+        ),
+        DuaItem(
+            "9", "Leaving the mosque",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
+            "Allahumma inni as'aluka min fadlik",
+            "O Allah, I ask You from Your bounty.",
+            "Mosque",
+            listOf("leave mosque", "masjid se", "exit mosque", "فضل"),
+            "Muslim"
+        ),
+        DuaItem(
+            "10", "When travelling",
+            "سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَى رَبِّنَا لَمُنقَلِبُونَ",
+            "Subhanalladhi sakhkhara lana hadha wa ma kunna lahu muqrinin, wa inna ila rabbina la-munqalibun",
+            "Glory be to Him who has subjected this to us, and we could never have it (by our efforts). And indeed, to our Lord we will return.",
+            "Travel",
+            listOf("travel", "safar", "journey", "car", "plane", "سفر", "سفر کی دعا"),
+            "Quran 43:13-14"
+        ),
+        DuaItem(
+            "11", "Entering the bathroom",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
+            "Allahumma inni a'udhu bika minal-khubthi wal-khaba'ith",
+            "O Allah, I seek refuge in You from the male and female unclean spirits.",
+            "Bathroom",
+            listOf("bathroom", "toilet", "wc", "latrine", "guslkhana", "enter toilet", "خلاء"),
+            "Bukhari, Muslim"
+        ),
+        DuaItem(
+            "12", "Leaving the bathroom",
+            "غُفْرَانَكَ",
+            "Ghufranaka",
+            "I ask You (Allah) for forgiveness.",
+            "Bathroom",
+            listOf("leave bathroom", "toilet se", "after toilet", "غفرانك"),
+            "Abu Dawud, Tirmidhi"
+        ),
+        DuaItem(
+            "13", "Seeking forgiveness",
+            "أَسْتَغْفِرُ اللَّهَ",
+            "Astaghfirullah",
+            "I seek forgiveness from Allah.",
+            "Forgiveness",
+            listOf("forgiveness", "astaghfirullah", "tauba", "repent", "maghfirat", "استغفر"),
+            "Well-known dhikr"
+        ),
+        DuaItem(
+            "14", "For parents",
+            "رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا",
+            "Rabbir-hamhuma kama rabbayani saghira",
+            "My Lord, have mercy upon them as they brought me up when I was small.",
+            "Family",
+            listOf("parents", "walidain", "mother", "father", "amma", "abba", "والدين", "والدین"),
+            "Quran 17:24"
+        ),
+        DuaItem(
+            "15", "In distress",
+            "لَا إِلَٰهَ إِلَّا أَنتَ سُبْحَانَكَ إِنِّي كُنتُ مِنَ الظَّالِمِينَ",
+            "La ilaha illa anta subhanaka inni kuntu minaz-zalimin",
+            "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers.",
+            "Distress",
+            listOf("distress", "anxiety", "hardship", "trouble", "yusuf", "stress", "پریشانی"),
+            "Quran 21:87"
+        ),
+        DuaItem(
+            "16", "Protection",
+            "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ",
+            "A'udhu bi kalimatillahit-tammati min sharri ma khalaq",
+            "I seek refuge in the perfect words of Allah from the evil of what He has created.",
+            "Protection",
+            listOf("protection", "refuge", "evil", "hifazat", "protect", "شر"),
+            "Muslim"
         )
     )
 

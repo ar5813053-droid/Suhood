@@ -8,6 +8,7 @@ import com.suhood.core.database.QuranBookmarkEntity
 import com.suhood.core.database.QuranLastReadEntity
 import com.suhood.core.database.SuhoodDao
 import com.suhood.core.quran.AlQuranCloudProvider
+import com.suhood.core.quran.PageContent
 import com.suhood.core.quran.SurahContent
 import com.suhood.core.quran.SurahMeta
 import com.suhood.core.quran.VerifiedQaris
@@ -30,6 +31,12 @@ class QuranViewModel(
 
     private val _content = MutableStateFlow<SurahContent?>(null)
     val content: StateFlow<SurahContent?> = _content.asStateFlow()
+
+    private val _page = MutableStateFlow<PageContent?>(null)
+    val page: StateFlow<PageContent?> = _page.asStateFlow()
+
+    private val _pageNumber = MutableStateFlow(1)
+    val pageNumber: StateFlow<Int> = _pageNumber.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
@@ -155,6 +162,22 @@ class QuranViewModel(
     }
 
     fun translatorNote(): String = provider.translatorAttribution()
+
+    fun openPage(page: Int) {
+        val p = page.coerceIn(1, 604)
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            _pageNumber.value = p
+            runCatching { provider.loadPage(p) }
+                .onSuccess { _page.value = it }
+                .onFailure { _error.value = it.message ?: "Failed to load page $p" }
+            _loading.value = false
+        }
+    }
+
+    fun nextPage() = openPage(_pageNumber.value + 1)
+    fun previousPage() = openPage(_pageNumber.value - 1)
 
     class Factory(
         private val dao: SuhoodDao,

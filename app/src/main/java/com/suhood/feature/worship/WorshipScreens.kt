@@ -39,7 +39,7 @@ object WorshipScreens {
             listOf(
                 "Tasbeeh" to Routes.TASBEEH,
                 "Daily Adhkar" to Routes.ADHKAR,
-                "Dua library" to Routes.DUA_LIBRARY,
+                "Find Duas" to Routes.DUA_LIBRARY,
                 "Islamic quiz" to Routes.QUIZ,
                 "Daily checklist" to Routes.WORSHIP_CHECKLIST,
                 "Quran" to Routes.QURAN
@@ -156,20 +156,56 @@ object WorshipScreens {
     @Composable
     fun DuaLibrary(onBack: () -> Unit, onDua: (String) -> Unit) {
         val colors = suhoodColors
+        var query by remember { mutableStateOf("") }
+        val results = remember(query) {
+            val q = query.trim().lowercase().replace(Regex("\\s+"), " ")
+            if (q.isEmpty()) DemoData.duaItems
+            else DemoData.duaItems.filter { d ->
+                val hay = (listOf(d.title, d.category, d.transliteration, d.translation, d.arabic) + d.keywords)
+                    .joinToString(" ").lowercase()
+                hay.contains(q) || q.split(" ").filter { it.length > 1 }.all { hay.contains(it) }
+            }
+        }
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-            ScreenHeader(title = "Dua library", onBack = onBack)
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = SuhoodSpacing.screenHorizontal)
-            ) {
-                DemoData.duaItems.forEach { dua ->
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        onClick = { onDua(dua.id) }
-                    ) {
-                        Text(dua.title, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                        Text(dua.category, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+            ScreenHeader(title = "Find Duas", onBack = onBack)
+            GlassSearchField(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = "Search duas by name or purpose in any language...",
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Offline · verified everyday adhkar",
+                style = SuhoodTypography.labelSmall,
+                color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+            )
+            Spacer(Modifier.height(8.dp))
+            if (results.isEmpty()) {
+                Text(
+                    "No dua matched. Try English or Roman Urdu keywords.",
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(24.dp)
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                        .padding(bottom = 32.dp)
+                ) {
+                    results.forEach { dua ->
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            onClick = { onDua(dua.id) }
+                        ) {
+                            Text(dua.title, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                            Text(dua.category, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                            if (dua.reference.isNotBlank()) {
+                                Text(dua.reference, style = SuhoodTypography.labelSmall, color = colors.accentLavender)
+                            }
+                        }
                     }
                 }
             }
@@ -180,15 +216,36 @@ object WorshipScreens {
     fun DuaDetail(duaId: String, onBack: () -> Unit) {
         val colors = suhoodColors
         val dua = DemoData.duaItems.find { it.id == duaId } ?: DemoData.duaItems.first()
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
             ScreenHeader(title = dua.title, onBack = onBack)
-            Column(modifier = Modifier.padding(SuhoodSpacing.screenHorizontal)) {
+            Column(modifier = Modifier.padding(SuhoodSpacing.screenHorizontal).padding(bottom = 32.dp)) {
+                Text(dua.category, style = SuhoodTypography.labelMedium, color = colors.accentLavender)
+                Spacer(Modifier.height(12.dp))
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
-                    Text(dua.arabic, style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
-                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        dua.arabic,
+                        style = SuhoodTypography.arabicBody,
+                        color = colors.textPrimary
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text("Transliteration", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    Spacer(Modifier.height(4.dp))
                     Text(dua.transliteration, style = SuhoodTypography.bodyMedium, color = colors.textSecondary)
-                    Spacer(Modifier.height(8.dp))
-                    Text(dua.translation, style = SuhoodTypography.bodyMedium, color = colors.textPrimary)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Meaning", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    Spacer(Modifier.height(4.dp))
+                    Text(dua.translation, style = SuhoodTypography.bodyLarge, color = colors.textPrimary)
+                    if (dua.reference.isNotBlank()) {
+                        Spacer(Modifier.height(16.dp))
+                        Text("Source", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                        Spacer(Modifier.height(4.dp))
+                        Text(dua.reference, style = SuhoodTypography.bodySmall, color = colors.accentLavender)
+                    }
                 }
             }
         }

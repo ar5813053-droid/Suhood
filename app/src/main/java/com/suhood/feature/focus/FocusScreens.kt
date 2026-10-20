@@ -1,11 +1,17 @@
 package com.suhood.feature.focus
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -109,18 +115,24 @@ object FocusScreens {
         }
     }
 
-    @Composable
+        @Composable
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = LocalContext.current
         val controller = remember { FocusSessionController.get(context) }
         val installed = remember {
-            runCatching {
-                InstalledAppsRepository.loadLauncherApps(context)
-            }.getOrDefault(emptyList())
+            runCatching { InstalledAppsRepository.loadLauncherApps(context) }
+                .getOrDefault(emptyList())
         }
-        // Persist selection so returning to this screen keeps choices
         var selected by remember { mutableStateOf(controller.getBlockedApps()) }
+        var query by remember { mutableStateOf("") }
+        val filtered = remember(query, installed) {
+            if (query.isBlank()) installed
+            else installed.filter {
+                it.label.contains(query, ignoreCase = true) ||
+                    it.packageName.contains(query, ignoreCase = true)
+            }
+        }
 
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
@@ -128,6 +140,13 @@ object FocusScreens {
                 "Enable apps to limit during focus. Your choices are saved.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+            )
+            Spacer(Modifier.height(8.dp))
+            GlassSearchField(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = "Search apps…",
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
             Spacer(Modifier.height(8.dp))
@@ -141,7 +160,7 @@ object FocusScreens {
                 Text(
                     "${selected.size} selected",
                     style = SuhoodTypography.labelMedium,
-                    color = colors.silverBright
+                    color = colors.accentLavender
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
@@ -156,71 +175,84 @@ object FocusScreens {
                     Text(
                         "Select all",
                         style = SuhoodTypography.labelMedium,
-                        color = colors.silverBright,
+                        color = colors.accentLavender,
                         modifier = Modifier.clickable {
-                            selected = installed.map { it.packageName }.toSet()
-                            controller.setBlockedApps(selected)
+                            val all = installed.map { it.packageName }.toSet()
+                            selected = all
+                            controller.setBlockedApps(all)
                         }
                     )
                 }
             }
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                    .padding(bottom = 24.dp)
-            ) {
-                if (installed.isEmpty()) {
-                    Text("No launcher apps found", color = colors.textMuted)
-                }
-                installed.forEach { app ->
-                    val on = app.packageName in selected
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        selected = on,
-                        onClick = {
-                            selected = controller.toggleBlockedApp(app.packageName)
-                        }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            if (installed.isEmpty()) {
+                Text(
+                    "No launcher apps could be listed. Android may restrict package visibility on this device.",
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(24.dp)
+                )
+            } else {
+                LazyColumn(
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                        .padding(bottom = 24.dp)
+                ) {
+                    items(filtered, key = { it.packageName }) { app ->
+                        val on = app.packageName in selected
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            selected = on,
+                            onClick = {
+                                selected = controller.toggleBlockedApp(app.packageName)
+                            }
                         ) {
-                            val bmp = remember(app.packageName) {
-                                app.icon?.let { drawableToBitmap(it) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val bmp = remember(app.packageName) {
+                                    app.icon?.let { drawableToBitmap(it) }
+                                }
+                                if (bmp != null) {
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                } else {
+                                    Box(
+                                        Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.surfaceSelected),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            app.label.take(1).uppercase(),
+                                            style = SuhoodTypography.labelMedium,
+                                            color = colors.textSecondary
+                                        )
+                                    }
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        app.label,
+                                        style = SuhoodTypography.titleSmall,
+                                        color = colors.textPrimary
+                                    )
+                                    Text(
+                                        if (on) "Limited during focus" else "Allowed",
+                                        style = SuhoodTypography.labelSmall,
+                                        color = if (on) colors.accentLavender else colors.textMuted
+                                    )
+                                }
+                                Switch(
+                                    checked = on,
+                                    onCheckedChange = {
+                                        selected = controller.toggleBlockedApp(app.packageName)
+                                    }
+                                )
                             }
-                            if (bmp != null) {
-                                Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                            } else {
-                                Box(Modifier.size(40.dp))
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    app.label,
-                                    style = SuhoodTypography.titleSmall,
-                                    color = colors.textPrimary
-                                )
-                                Text(
-                                    if (on) "Limited during focus" else "Allowed",
-                                    style = SuhoodTypography.labelSmall,
-                                    color = if (on) colors.silverBright else colors.textMuted
-                                )
-                            }
-                            Switch(
-                                checked = on,
-                                onCheckedChange = {
-                                    selected = controller.toggleBlockedApp(app.packageName)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedTrackColor = Color(0xFF3B82F6),
-                                    checkedThumbColor = Color.White
-                                )
-                            )
                         }
                     }
                 }
@@ -228,15 +260,21 @@ object FocusScreens {
         }
     }
 
-    private fun drawableToBitmap(drawable: Drawable): Bitmap {
-        if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
-        val w = drawable.intrinsicWidth.coerceAtLeast(1)
-        val h = drawable.intrinsicHeight.coerceAtLeast(1)
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
-        return bmp
+    private fun drawableToBitmap(drawable: Drawable): Bitmap? {
+        return try {
+            if (drawable is BitmapDrawable && drawable.bitmap != null && !drawable.bitmap.isRecycled) {
+                return drawable.bitmap
+            }
+            val w = drawable.intrinsicWidth.coerceIn(1, 192)
+            val h = drawable.intrinsicHeight.coerceIn(1, 192)
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bmp
+        } catch (_: Exception) {
+            null
+        }
     }
 
     @Composable

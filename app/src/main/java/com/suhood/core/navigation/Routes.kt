@@ -50,6 +50,7 @@ object Routes {
     const val QURAN_READER = "quran/reader/{surahId}"
     const val QURAN_BOOKMARKS = "quran/bookmarks"
     const val QURAN_PROGRESS = "quran/progress"
+    const val QURAN_MUSHAF = "quran/mushaf"
 
     // Worship / Tasbeeh / Adhkar / Dua / Quiz
     const val WORSHIP_DASHBOARD = "worship/dashboard"

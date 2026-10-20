@@ -67,7 +67,8 @@ object QuranScreens {
         onBack: () -> Unit,
         onParah: (Int) -> Unit,
         onBookmarks: () -> Unit = {},
-        onAllSurahs: () -> Unit = {}
+        onAllSurahs: () -> Unit = {},
+        onMushaf: () -> Unit = {}
     ) {
         val colors = suhoodColors
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -78,6 +79,7 @@ object QuranScreens {
             ) {
                 GlassButton(text = "All surahs", onClick = onAllSurahs, primary = false)
                 GlassButton(text = "Bookmarks", onClick = onBookmarks, primary = false)
+                GlassButton(text = "Mushaf", onClick = onMushaf, primary = true)
             }
             Spacer(Modifier.height(8.dp))
             LazyColumn(
@@ -188,6 +190,8 @@ object QuranScreens {
                 color = colors.textPrimary,
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
+            Spacer(Modifier.height(8.dp))
+            // Mushaf entry is opened from Parah/Home via Routes — page reader available in code
             Spacer(Modifier.height(12.dp))
             GlassSearchField(
                 query = query,
@@ -518,7 +522,114 @@ object QuranScreens {
         }
     }
 
+    
+    /** Page-based Mushaf reader (Madinah pages 1–604 via AlQuran.Cloud quran-uthmani). */
     @Composable
+    fun MushafReader(startPage: Int = 1, onBack: () -> Unit) {
+        val vm = rememberVm()
+        val page by vm.page.collectAsStateWithLifecycle()
+        val pageNumber by vm.pageNumber.collectAsStateWithLifecycle()
+        val loading by vm.loading.collectAsStateWithLifecycle()
+        val error by vm.error.collectAsStateWithLifecycle()
+        val colors = suhoodColors
+        LaunchedEffect(startPage) { vm.openPage(startPage) }
+
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Mushaf", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                    Text(
+                        "Page $pageNumber / 604",
+                        style = SuhoodTypography.labelSmall,
+                        color = colors.textMuted
+                    )
+                }
+            }
+            when {
+                loading && page == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = colors.accentLavender)
+                }
+                error != null && page == null -> Column(Modifier.padding(24.dp)) {
+                    Text(error ?: "", color = colors.textSecondary)
+                    GlassButton(text = "Retry", onClick = { vm.openPage(pageNumber) })
+                }
+                else -> {
+                    val ayahs = page?.ayahs.orEmpty()
+                    val surahLabel = ayahs.firstOrNull()?.surahName.orEmpty()
+                    Column(Modifier.weight(1f)) {
+                        if (surahLabel.isNotBlank()) {
+                            Text(
+                                surahLabel,
+                                style = SuhoodTypography.titleSmall,
+                                color = colors.accentLavender,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        LazyColumn(
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 20.dp),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            items(ayahs, key = { it.globalNumber }) { a ->
+                                Text(
+                                    text = a.arabic + " \u06DD${a.numberInSurah}",
+                                    style = TextStyle(
+                                        fontSize = 26.sp,
+                                        lineHeight = 48.sp,
+                                        textAlign = TextAlign.Center,
+                                        textDirection = TextDirection.Rtl
+                                    ),
+                                    color = colors.textPrimary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            GlassButton(
+                                text = "Previous",
+                                onClick = { vm.previousPage() },
+                                primary = false,
+                                enabled = pageNumber > 1
+                            )
+                            Text(
+                                "$pageNumber",
+                                style = SuhoodTypography.titleMedium,
+                                color = colors.textPrimary,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
+                            GlassButton(
+                                text = "Next",
+                                onClick = { vm.nextPage() },
+                                primary = true,
+                                enabled = pageNumber < 604
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+@Composable
     fun Bookmarks(onBack: () -> Unit) {
         val vm = rememberVm()
         val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()

@@ -39,3 +39,17 @@ object VerifiedQaris {
         QariInfo("ar.shaatree", "أبو بكر الشاطري", "Abu Bakr Ash-Shaatree")
     )
 }
+
+
+data class PageAyah(
+    val globalNumber: Int,
+    val numberInSurah: Int,
+    val surahNumber: Int,
+    val surahName: String,
+    val arabic: String
+)
+
+data class PageContent(
+    val pageNumber: Int,
+    val ayahs: List<PageAyah>
+)

@@ -120,6 +120,31 @@ class AlQuranCloudProvider(
     }
 }
 
+
+    /** Madinah Mushaf page 1–604 (quran-uthmani edition). */
+    suspend fun loadPage(page: Int): PageContent {
+        require(page in 1..604) { "Page must be 1–604" }
+        val json = HttpJson.get("$BASE/page/$page/$arabicEdition")
+        val data = JSONObject(json).getJSONObject("data")
+        val ayahsJson = data.getJSONArray("ayahs")
+        val ayahs = buildList {
+            for (i in 0 until ayahsJson.length()) {
+                val a = ayahsJson.getJSONObject(i)
+                val surahObj = a.optJSONObject("surah")
+                add(
+                    PageAyah(
+                        globalNumber = a.getInt("number"),
+                        numberInSurah = a.getInt("numberInSurah"),
+                        surahNumber = surahObj?.optInt("number") ?: a.optInt("surah"),
+                        surahName = surahObj?.optString("name").orEmpty(),
+                        arabic = a.getString("text").trim().removePrefix("\uFEFF")
+                    )
+                )
+            }
+        }
+        return PageContent(pageNumber = page, ayahs = ayahs)
+    }
+
 interface QuranTextProvider {
     suspend fun listSurahs(): List<SurahMeta>
     suspend fun loadSurahArabic(surah: Int): SurahContent
