@@ -3,57 +3,55 @@ package com.suhood.core.designsystem.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Suhood Gen-Z × Premium Islamic Wellness palette.
- * Dark is default. Accents are semantic — one dominant per screen.
+ * Suhood final identity: lavender × charcoal (no green branding).
  */
 
-// ── Dark Theme ──────────────────────────────────────────────────────────────
 object SuhoodDarkColors {
-    val background = Color(0xFF08090B)
-    val backgroundElevated = Color(0xFF111316)
-    val surface = Color(0xFF17191F)
-    val surfaceElevated = Color(0xFF1C1F26)
-    val surfaceGlassBase = Color(0x14FFFFFF) // ~8% white
-    val surfaceSelected = Color(0xFF2A2D36)
-    val borderSubtle = Color(0xFF30333B)
-    val borderStrong = Color(0xFF3E424C)
-    val textPrimary = Color(0xFFF5F6F7)
-    val textSecondary = Color(0xFFA5AAB4)
-    val textMuted = Color(0xFF7A808C)
+    val background = Color(0xFF0B0A10)
+    val backgroundElevated = Color(0xFF14131B)
+    val surface = Color(0xFF1B1924)
+    val surfaceElevated = Color(0xFF24212F)
+    val surfaceGlassBase = Color(0x14FFFFFF)
+    val surfaceSelected = Color(0xFF2E2A3A)
+    val borderSubtle = Color(0xFF373242)
+    val borderStrong = Color(0xFF4A4558)
+    val textPrimary = Color(0xFFF6F4FB)
+    val textSecondary = Color(0xFFAAA5B8)
+    val textMuted = Color(0xFF7E798C)
     val silver = Color(0xFFC7CBD1)
     val silverBright = Color(0xFFE4E6EA)
-    val disabled = Color(0xFF555A63)
-    val error = Color(0xFFFF8A80) // coral for warnings
-    val success = Color(0xFFA7E8C1) // mint
-    // Gen-Z accents
-    val accentLavender = Color(0xFFB8A5FF)
-    val accentMint = Color(0xFFA7E8C1)
+    val disabled = Color(0xFF55525F)
+    val error = Color(0xFFFF8A80)
+    val success = Color(0xFFB9A7FF) // soft lavender for positive (not green)
+    val accentLavender = Color(0xFFB9A7FF)
+    val accentMint = Color(0xFFD8CFFF) // soft lavender (mint slot reused for soft lavender)
     val accentCoral = Color(0xFFFF8A80)
     val accentYellow = Color(0xFFFFD66B)
+    val strongAccent = Color(0xFF9A82F5)
 }
 
-// ── Light Theme ─────────────────────────────────────────────────────────────
 object SuhoodLightColors {
-    val background = Color(0xFFF3F4F6)
+    val background = Color(0xFFF5F3FA)
     val backgroundElevated = Color(0xFFFFFFFF)
     val surface = Color(0xFFFFFFFF)
-    val surfaceElevated = Color(0xFFF8F9FB)
+    val surfaceElevated = Color(0xFFF8F6FC)
     val surfaceGlassBase = Color(0xB8FFFFFF)
-    val surfaceSelected = Color(0xFFE8E4F7) // soft lavender tint
-    val borderSubtle = Color(0xFFE2E4EA)
-    val borderStrong = Color(0xFFC8CCD5)
-    val textPrimary = Color(0xFF15171B)
-    val textSecondary = Color(0xFF5C6370)
-    val textMuted = Color(0xFF7A828F)
-    val silver = Color(0xFF606773)
-    val silverBright = Color(0xFF343941)
-    val disabled = Color(0xFFA7ABB3)
+    val surfaceSelected = Color(0xFFEDE8FA)
+    val borderSubtle = Color(0xFFE2DFEA)
+    val borderStrong = Color(0xFFCBC5D8)
+    val textPrimary = Color(0xFF211D2C)
+    val textSecondary = Color(0xFF5C5768)
+    val textMuted = Color(0xFF7A7588)
+    val silver = Color(0xFF6A6578)
+    val silverBright = Color(0xFF211D2C)
+    val disabled = Color(0xFFA8A3B3)
     val error = Color(0xFFE57373)
-    val success = Color(0xFF2E7D32)
-    val accentLavender = Color(0xFF7C6BC4)
-    val accentMint = Color(0xFF2E9B6A)
+    val success = Color(0xFF8066D9)
+    val accentLavender = Color(0xFF8066D9)
+    val accentMint = Color(0xFFB9A7FF)
     val accentCoral = Color(0xFFE57373)
     val accentYellow = Color(0xFFC9A227)
+    val strongAccent = Color(0xFF8066D9)
 }
 
 data class SuhoodColorScheme(

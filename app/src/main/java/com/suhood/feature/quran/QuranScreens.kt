@@ -44,6 +44,7 @@ import com.suhood.core.designsystem.components.*
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
+import com.suhood.core.navigation.Routes
 import com.suhood.core.quran.JuzIndex
 import com.suhood.core.quran.VerifiedQaris
 
@@ -162,7 +163,7 @@ object QuranScreens {
         }
     }
 
-    @Composable
+        @Composable
     fun SurahList(onBack: () -> Unit, onSurah: (Int) -> Unit) {
         val vm = rememberVm()
         val surahs by vm.surahs.collectAsStateWithLifecycle()
@@ -175,20 +176,29 @@ object QuranScreens {
             if (query.isBlank()) surahs
             else surahs.filter {
                 it.nameEnglish.contains(query, true) || it.nameArabic.contains(query) ||
+                    it.nameTranslated.contains(query, true) ||
                     it.number.toString() == query.trim()
             }
         }
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            ScreenHeader(title = "Surahs", onBack = onBack)
+            ScreenHeader(title = "Al-Quran", onBack = onBack)
+            Text(
+                "The Holy Quran",
+                style = SuhoodTypography.headlineMedium,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
+            )
+            Spacer(Modifier.height(12.dp))
             GlassSearchField(
                 query = query,
                 onQueryChange = { query = it },
-                placeholder = "Search",
+                placeholder = "Search the Quran",
                 modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal)
             )
+
             when {
                 loading && surahs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colors.silverBright)
+                    CircularProgressIndicator(color = colors.accentLavender)
                 }
                 error != null && surahs.isEmpty() -> Column(Modifier.padding(24.dp)) {
                     Text(error ?: "", color = colors.textSecondary)
@@ -200,9 +210,41 @@ object QuranScreens {
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             onClick = { onSurah(s.number) }
                         ) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${s.number}. ${s.nameEnglish}", color = colors.textPrimary)
-                                Text(s.nameArabic, style = SuhoodTypography.arabicBody, color = colors.textPrimary)
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.accentLavender.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "${s.number}",
+                                        style = SuhoodTypography.labelMedium,
+                                        color = colors.accentLavender
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        s.nameArabic,
+                                        style = SuhoodTypography.arabicBody,
+                                        color = colors.textPrimary
+                                    )
+                                    Text(
+                                        "${s.nameEnglish}" + if (s.nameTranslated.isNotBlank()) " (${s.nameTranslated})" else "",
+                                        style = SuhoodTypography.bodySmall,
+                                        color = colors.textSecondary
+                                    )
+                                }
+                                Text(
+                                    "${s.ayahCount} verses",
+                                    style = SuhoodTypography.labelSmall,
+                                    color = colors.textMuted
+                                )
                             }
                         }
                     }
@@ -211,7 +253,6 @@ object QuranScreens {
         }
     }
 
-    @Composable
     fun SurahDetail(surahId: Int, onBack: () -> Unit, onRead: () -> Unit) {
         LaunchedEffect(surahId) { onRead() }
     }

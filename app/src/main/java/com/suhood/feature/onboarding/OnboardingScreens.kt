@@ -123,28 +123,28 @@ fun OnboardingFlow(
                 when (page) {
                     0 -> OnboardingPage(
                         illustration = { CrescentIllustration() },
-                        title = "Welcome to Suhood",
-                        body = "Return to presence. Reduce distraction. Reconnect with Allah through calm, focused practice."
+                        title = "Make space for what matters.",
+                        body = "A calmer way to reconnect with Salah, Quran and the habits that bring you closer to Allah."
                     )
                     1 -> OnboardingPage(
                         illustration = { FocusIllustration() },
-                        title = "Less noise, more Salah",
-                        body = "Suhood helps you spend less time on distracting apps and more time with prayer, Quran, and dhikr — free, with no ads."
+                        title = "Small steps. Meaningful consistency.",
+                        body = "Keep track of your worship routine, Dhikr and personal goals with a gentle, distraction-free experience."
                     )
                     2 -> LanguagePage()
                     3 -> AppearancePage(onSelect = { settingsViewModel.setThemeMode(it) })
                     else -> OnboardingPage(
                         illustration = { CheckIllustration() },
-                        title = "You're ready",
-                        body = "Explore Focus, Worship, Quran, and Nasheedify. Grant permissions when a feature needs them so reminders and focus can work on your device."
+                        title = "Protect your time. Find your focus.",
+                        body = "Use Focus sessions, reminders and peaceful Islamic audio to make room for what matters. Permissions are asked only when a feature needs them."
                     )
                 }
             }
 
             // Primary CTA
             val cta = when (step) {
-                0 -> "Begin"
-                TOTAL_STEPS - 1 -> "Get started"
+                0 -> "Get Started"
+                TOTAL_STEPS - 1 -> "Start your journey"
                 else -> "Continue"
             }
             GlassButton(
@@ -172,7 +172,7 @@ private fun OnboardingProgress(step: Int, total: Int, modifier: Modifier = Modif
                     .height(4.dp)
                     .clip(CircleShape)
                     .background(
-                        if (i <= step) colors.silverBright else colors.surfaceSelected
+                        if (i <= step) colors.accentLavender else colors.surfaceSelected
                     )
             )
         }

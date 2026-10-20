@@ -337,23 +337,23 @@ object AlarmScreens {
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = SuhoodSpacing.screenHorizontal)
             ) {
-                // Scrollable time wheels (AM/PM + hour + minute) with snap selection
-                val hourItems = (1..12).toList()
-                val minuteItems = (0..59).toList()
+                // Cyclic hour/minute wheels (wrap around; virtualized, not infinite memory)
+                val hourCycle = 12
+                val minuteCycle = 60
+                val virtualMid = 5000
                 val hourListState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = (hour12 - 1).coerceIn(0, 11)
+                    initialFirstVisibleItemIndex = virtualMid + (hour12 - 1)
                 )
                 val minuteListState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = minute.coerceIn(0, 59)
+                    initialFirstVisibleItemIndex = virtualMid + minute
                 )
                 val hourSnap = rememberSnapFlingBehavior(lazyListState = hourListState)
                 val minuteSnap = rememberSnapFlingBehavior(lazyListState = minuteListState)
 
-                // Sync hour from scroll position when user stops scrolling
                 LaunchedEffect(hourListState.isScrollInProgress) {
                     if (!hourListState.isScrollInProgress) {
-                        val idx = hourListState.firstVisibleItemIndex.coerceIn(0, 11)
-                        val h = hourItems[idx]
+                        val idx = hourListState.firstVisibleItemIndex
+                        val h = ((idx % hourCycle) + hourCycle) % hourCycle + 1 // 1..12
                         val newHour24 = if (isAm) {
                             if (h == 12) 0 else h
                         } else {
@@ -364,8 +364,8 @@ object AlarmScreens {
                 }
                 LaunchedEffect(minuteListState.isScrollInProgress) {
                     if (!minuteListState.isScrollInProgress) {
-                        val idx = minuteListState.firstVisibleItemIndex.coerceIn(0, 59)
-                        val m = minuteItems[idx]
+                        val idx = minuteListState.firstVisibleItemIndex
+                        val m = ((idx % minuteCycle) + minuteCycle) % minuteCycle // 0..59
                         if (m != minute) minute = m
                     }
                 }
@@ -375,14 +375,13 @@ object AlarmScreens {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // AM / PM
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         listOf("AM", "PM").forEach { labelAmpm ->
                             val selected = (labelAmpm == "AM") == isAm
                             Text(
                                 labelAmpm,
                                 style = SuhoodTypography.headlineSmall,
-                                color = if (selected) colors.textPrimary else colors.textMuted,
+                                color = if (selected) colors.accentLavender else colors.textMuted,
                                 modifier = Modifier
                                     .padding(8.dp)
                                     .clickable {
@@ -395,7 +394,6 @@ object AlarmScreens {
                             )
                         }
                     }
-                    // Hour wheel
                     Box(Modifier.height(180.dp).width(72.dp), contentAlignment = Alignment.Center) {
                         LazyColumn(
                             state = hourListState,
@@ -403,13 +401,13 @@ object AlarmScreens {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxHeight()
                         ) {
-                            items(hourItems.size) { index ->
-                                val h = hourItems[index]
+                            items(10_000) { index ->
+                                val h = (index % hourCycle) + 1
                                 val selected = h == hour12
                                 Text(
                                     "%02d".format(h),
                                     fontSize = if (selected) 36.sp else 22.sp,
-                                    color = if (selected) colors.textPrimary else colors.textMuted,
+                                    color = if (selected) colors.accentLavender else colors.textMuted,
                                     modifier = Modifier
                                         .padding(vertical = 8.dp)
                                         .clickable {
@@ -423,7 +421,6 @@ object AlarmScreens {
                             }
                         }
                     }
-                    // Minute wheel
                     Box(Modifier.height(180.dp).width(72.dp), contentAlignment = Alignment.Center) {
                         LazyColumn(
                             state = minuteListState,
@@ -431,13 +428,13 @@ object AlarmScreens {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxHeight()
                         ) {
-                            items(minuteItems.size) { index ->
-                                val m = minuteItems[index]
+                            items(10_000) { index ->
+                                val m = index % minuteCycle
                                 val selected = m == minute
                                 Text(
                                     "%02d".format(m),
                                     fontSize = if (selected) 36.sp else 22.sp,
-                                    color = if (selected) colors.textPrimary else colors.textMuted,
+                                    color = if (selected) colors.accentLavender else colors.textMuted,
                                     modifier = Modifier
                                         .padding(vertical = 8.dp)
                                         .clickable { minute = m }
