@@ -165,7 +165,7 @@ object QuranScreens {
         }
     }
 
-        @Composable
+    @Composable
     fun SurahList(
         onBack: () -> Unit,
         onSurah: (Int) -> Unit,
@@ -184,28 +184,27 @@ object QuranScreens {
         val filtered = remember(query, surahs) {
             if (query.isBlank()) surahs
             else surahs.filter {
-                it.nameEnglish.contains(query, true) || it.nameArabic.contains(query) ||
+                it.nameEnglish.contains(query, true) ||
+                    it.nameArabic.contains(query) ||
                     it.nameTranslated.contains(query, true) ||
                     it.number.toString() == query.trim()
             }
         }
-        Column(Modifier.fillMaxSize().statusBarsPadding().background(colors.background)) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "QURAN",
-                    style = SuhoodTypography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                    color = colors.accentLavender,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .background(colors.background)
+        ) {
+            Text(
+                "QURAN",
+                style = SuhoodTypography.titleLarge,
+                color = colors.accentLavender,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
             Text(
                 "The Holy Quran",
-                style = SuhoodTypography.headlineMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                style = SuhoodTypography.headlineMedium,
                 color = colors.textPrimary,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -220,17 +219,22 @@ object QuranScreens {
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(Modifier.height(12.dp))
-            // Quick actions 2x2
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                GlassCard(Modifier = Modifier.weight(1f), onClick = onLastRead, contentPadding = PaddingValues(12.dp)) {
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = onLastRead
+                ) {
                     Text("Last read", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
                 }
-                GlassCard(modifier = Modifier.weight(1f), onClick = onMushaf, contentPadding = PaddingValues(12.dp)) {
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = onMushaf
+                ) {
                     Text("Mushaf", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
                 }
             }
@@ -241,65 +245,78 @@ object QuranScreens {
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                GlassCard(modifier = Modifier.weight(1f), onClick = onBookmarks, contentPadding = PaddingValues(12.dp)) {
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = onBookmarks
+                ) {
                     Text("Bookmarks", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
                 }
-                GlassCard(modifier = Modifier.weight(1f), onClick = onJuz, contentPadding = PaddingValues(12.dp)) {
+                GlassCard(
+                    modifier = Modifier.weight(1f),
+                    onClick = onJuz
+                ) {
                     Text("Juz", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
                 }
             }
             Spacer(Modifier.height(8.dp))
-
             when {
-                loading && surahs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colors.accentLavender)
+                loading && surahs.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colors.accentLavender)
+                    }
                 }
-                error != null && surahs.isEmpty() -> Column(Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = colors.textSecondary)
-                    GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
+                error != null && surahs.isEmpty() -> {
+                    Column(Modifier.padding(24.dp)) {
+                        Text(error ?: "", color = colors.textSecondary)
+                        GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
+                    }
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-                    items(filtered, key = { it.number }) { s ->
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            onClick = { onSurah(s.number) },
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                else -> {
+                    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                        items(filtered, key = { it.number }) { s ->
+                            GlassCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                onClick = { onSurah(s.number) }
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.surfaceSelected),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Box(
+                                        Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.surfaceSelected),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "${s.number}",
+                                            style = SuhoodTypography.labelMedium,
+                                            color = colors.textPrimary
+                                        )
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            s.nameArabic,
+                                            style = SuhoodTypography.arabicBody,
+                                            color = colors.textPrimary
+                                        )
+                                        Text(
+                                            "${s.nameEnglish}" +
+                                                if (s.nameTranslated.isNotBlank()) " (${s.nameTranslated})" else "",
+                                            style = SuhoodTypography.bodySmall,
+                                            color = colors.textSecondary
+                                        )
+                                    }
                                     Text(
-                                        "${s.number}",
-                                        style = SuhoodTypography.labelMedium,
-                                        color = colors.textPrimary
+                                        "${s.ayahCount} verses",
+                                        style = SuhoodTypography.labelSmall,
+                                        color = colors.textMuted
                                     )
                                 }
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        s.nameArabic,
-                                        style = SuhoodTypography.arabicBody,
-                                        color = colors.textPrimary
-                                    )
-                                    Text(
-                                        "${s.nameEnglish}" + if (s.nameTranslated.isNotBlank()) " (${s.nameTranslated})" else "",
-                                        style = SuhoodTypography.bodySmall,
-                                        color = colors.textSecondary
-                                    )
-                                }
-                                Text(
-                                    "${s.ayahCount} verses",
-                                    style = SuhoodTypography.labelSmall,
-                                    color = colors.textMuted
-                                )
                             }
                         }
                     }
