@@ -1,4 +1,10 @@
 package com.suhood.feature.salah
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
@@ -77,6 +83,8 @@ enum class SalahStatus(val key: String, val label: String) {
     JAMA_AH("JAMA_AH", "In jamaah"),
     ON_TIME("ON_TIME", "On time"),
     LATE("LATE", "Late"),
+    /** UI label for make-up; persisted as LATE so no extra branch is needed. */
+    QAZA("LATE", "Qaza"),
     NOT_PRAYED("NOT_PRAYED", "Not prayed");
 
     companion object {
@@ -101,14 +109,26 @@ class SalahViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setStatus(prayerName: String, status: SalahStatus, dateIso: String = todayIso()) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Qaza is always stored as Late (no second choice dialog).
+            val effective = if (status == SalahStatus.QAZA) SalahStatus.LATE else status
+            val id = "$dateIso-$prayerName"
             dao.upsertSalahLog(
                 SalahLogEntity(
-                    id = "$dateIso-$prayerName",
+                    id = id,
                     dateIso = dateIso,
                     prayerName = prayerName,
-                    status = status.key
+                    status = effective.key
                 )
             )
+            if (effective != SalahStatus.NOT_PRAYED) {
+                runCatching {
+                    com.suhood.feature.quest.QuestStore(getApplication()).tryAward(
+                        eventId = "salah-$id",
+                        reason = "Salah $prayerName (${effective.label})",
+                        amount = com.suhood.feature.quest.QuestRules.XP_SALAH
+                    )
+                }
+            }
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(getApplication()) }
         }
     }
@@ -180,7 +200,7 @@ object SalahScreens {
         }
         val colors = suhoodColors
         // Cycle: unmarked -> on time -> late -> not prayed -> unmarked
-        val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.LATE, SalahStatus.NOT_PRAYED)
+        val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.JAMA_AH, SalahStatus.LATE, SalahStatus.QAZA, SalahStatus.NOT_PRAYED)
         val prayerTimes = remember {
             // display-only placeholders; real times come from prayer calculator when wired
             mapOf(
@@ -288,18 +308,22 @@ object SalahScreens {
 
             Spacer(Modifier.height(18.dp))
 
+            AutoMarkSection()
+
+            Spacer(Modifier.height(12.dp))
+
             PRAYER_NAMES.forEach { name ->
                 val status = localStatus[name]
                 val chipLabel = status?.label ?: "Not marked"
                 val chipColor = when (status) {
                     SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender
-                    SalahStatus.LATE -> colors.accentYellow
+                    SalahStatus.LATE, SalahStatus.QAZA -> colors.accentYellow
                     SalahStatus.NOT_PRAYED -> colors.error
                     null -> colors.textMuted
                 }
                 val chipBg = when (status) {
                     SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender.copy(alpha = 0.15f)
-                    SalahStatus.LATE -> colors.accentYellow.copy(alpha = 0.15f)
+                    SalahStatus.LATE, SalahStatus.QAZA -> colors.accentYellow.copy(alpha = 0.15f)
                     SalahStatus.NOT_PRAYED -> colors.error.copy(alpha = 0.14f)
                     null -> colors.surfaceElevated
                 }
@@ -539,5 +563,144 @@ object SalahScreens {
             Text(title, style = SuhoodTypography.labelSmall, color = colors.textMuted)
             Text(value, style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
         }
+    }
+}
+
+@Composable
+private fun AutoMarkSection() {
+    val context = LocalContext.current
+    val colors = suhoodColors
+    var consented by remember { mutableStateOf(AutoMarkPrefs.consented(context)) }
+    var enabled by remember { mutableStateOf(AutoMarkPrefs.enabled(context)) }
+    var mosqueName by remember { mutableStateOf(AutoMarkPrefs.nearestMosqueName(context)) }
+    var mosqueDist by remember { mutableFloatStateOf(AutoMarkPrefs.nearestMosqueDist(context)) }
+    var scanning by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (ok) {
+            scope.launch {
+                scanning = true
+                val loc = AutoMarkEngine.lastKnownLocation(context)
+                if (loc != null) {
+                    val m = AutoMarkEngine.findEligibleMosque(context, loc.latitude, loc.longitude)
+                    if (m != null) {
+                        mosqueName = m.first
+                        mosqueDist = m.second
+                        AutoMarkPrefs.setNearest(context, m.first, m.second)
+                        info = "Nearby mosque found. You can turn Auto Mark on."
+                    } else {
+                        mosqueName = null
+                        mosqueDist = -1f
+                        AutoMarkPrefs.setNearest(context, null, -1f)
+                        info = null
+                    }
+                }
+                scanning = false
+            }
+        } else {
+            info = "Location permission needed for Auto Mark only. Manual tracking still works."
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (consented && enabled && AutoMarkEngine.hasLocationPermission(context)) {
+            runCatching { AutoMarkEngine.tryAutoMark(context) }
+            mosqueName = AutoMarkPrefs.nearestMosqueName(context)
+            mosqueDist = AutoMarkPrefs.nearestMosqueDist(context)
+        }
+    }
+
+    if (!consented) {
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "Smart Auto Mark",
+                style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = colors.textPrimary
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Optional. When a mosque is within 2 km and you stay nearby for about 5 minutes around prayer time, Suhood can record On Time or Late. This never proves a prayer was performed, never marks Missed automatically, and uses location only while you use the app.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textSecondary
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        AutoMarkPrefs.setConsented(context, true)
+                        consented = true
+                        AutoMarkPrefs.setEnabled(context, true)
+                        enabled = true
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                ) { Text("Enable") }
+                TextButton(
+                    onClick = {
+                        AutoMarkPrefs.setConsented(context, true)
+                        AutoMarkPrefs.setEnabled(context, false)
+                        consented = true
+                        enabled = false
+                    }
+                ) { Text("Not now") }
+            }
+        }
+        return
+    }
+
+    // Hide entirely when no eligible mosque (no "unavailable" banner)
+    if (mosqueName == null && !scanning) return
+
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Auto Mark",
+                    style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary
+                )
+                Text(
+                    when {
+                        scanning -> "Looking for nearby mosques…"
+                        mosqueName != null -> "$mosqueName · ${mosqueDist.toInt()} m"
+                        else -> ""
+                    },
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textSecondary
+                )
+            }
+            if (mosqueName != null) {
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = {
+                        enabled = it
+                        AutoMarkPrefs.setEnabled(context, it)
+                        if (it) scope.launch { AutoMarkEngine.tryAutoMark(context) }
+                    }
+                )
+            }
+        }
+        if (info != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(info!!, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+        }
+        Text(
+            "Needs ~5 min stable presence. On Time ≤5 min after adhan; Late ~10–15 min. Missed is never auto-applied.",
+            style = SuhoodTypography.labelSmall,
+            color = colors.textMuted
+        )
     }
 }

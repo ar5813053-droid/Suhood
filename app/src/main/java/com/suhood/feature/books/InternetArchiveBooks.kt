@@ -61,8 +61,10 @@ object InternetArchiveBooks {
         val files = root.optJSONArray("files") ?: JSONArray()
         val formats = mutableListOf<String>()
         for (i in 0 until files.length()) {
-            val f = files.optJSONObject(i) ?: continue
-            val fmt = f.optString("format").ifBlank { continue }
+            val f = files.optJSONObject(i)
+            if (f == null) continue
+            val fmt = f.optString("format")
+            if (fmt.isBlank()) continue
             if (fmt !in formats) formats += fmt
         }
         val id = meta.optString("identifier").ifBlank { identifier }
@@ -84,7 +86,7 @@ object InternetArchiveBooks {
         val lower = formats.map { it.lowercase() }
         return when {
             lower.any { it.contains("text") || it.contains("plain") } ->
-                "https://archive.org/stream/$identifier/$identifier_djvu.txt"
+                "https://archive.org/stream/$identifier/${identifier}_djvu.txt"
             lower.any { it.contains("epub") } ->
                 "https://archive.org/download/$identifier/${identifier}.epub"
             else -> null

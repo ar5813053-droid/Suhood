@@ -66,6 +66,7 @@ import com.suhood.core.designsystem.components.GlassIconButton
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
+import com.suhood.feature.quest.WorshipQuestHomeCard
 import com.suhood.core.prayer.PrayerTimesCalculator
 import com.suhood.core.prayer.SmartNextSalah
 import com.suhood.core.prayer.PrayerTimesCache
@@ -405,7 +406,9 @@ fun HomeScreen(
             modifier = Modifier.padding(top = 6.dp)
         )
 
-        Spacer(Modifier.height(20.dp))
+                WorshipQuestHomeCard(onOpen = { onNavigate(Routes.QUEST) })
+
+Spacer(Modifier.height(20.dp))
         Text(
             "Today's Progress",
             style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),

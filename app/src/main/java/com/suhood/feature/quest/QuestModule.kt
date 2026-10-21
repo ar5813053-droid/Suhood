@@ -12,7 +12,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier.modifier
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,6 +77,12 @@ class QuestStore(context: Context) {
 
     private fun awardedIds(): MutableSet<String> =
         prefs.getStringSet("awarded_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+
+    fun awardSalahIfNew(dateIso: String, prayerName: String): Boolean =
+        tryAward("salah-$dateIso-$prayerName", "Salah $prayerName", QuestRules.XP_SALAH)
+
+    fun awardJuzIfNew(juzNumber: Int, day: String = LocalDate.now().toString()): Boolean =
+        tryAward("juz-$day-$juzNumber", "Completed Juz $juzNumber", QuestRules.XP_JUZ)
 
     fun tryAward(eventId: String, reason: String, amount: Int): Boolean {
         val ids = awardedIds()
@@ -301,6 +307,51 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+
+@Composable
+fun WorshipQuestHomeCard(onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val colors = suhoodColors
+    val store = remember { QuestStore(context) }
+    var xp by remember { mutableIntStateOf(store.totalXp) }
+    var tierProgress by remember { mutableFloatStateOf(0f) }
+    var rankLatin by remember { mutableStateOf("Mubtadi’") }
+    var rankAr by remember { mutableStateOf("مبتدئ") }
+    LaunchedEffect(Unit) {
+        while (true) {
+            xp = store.totalXp
+            val tier = xp / QuestRules.TIER_XP
+            val into = xp % QuestRules.TIER_XP
+            tierProgress = into / QuestRules.TIER_XP.toFloat()
+            val r = Ranks.forTier(tier)
+            rankLatin = r.latin
+            rankAr = r.arabic
+            kotlinx.coroutines.delay(2000)
+        }
+    }
+    GlassCard(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentMint, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Worship Quest", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                Text(
+                    "$rankAr · $rankLatin · $xp XP",
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textSecondary
+                )
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { tierProgress },
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    color = colors.accentMint,
+                    trackColor = colors.borderSubtle
+                )
+            }
         }
     }
 }
