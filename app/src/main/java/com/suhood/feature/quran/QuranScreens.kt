@@ -17,6 +17,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -26,17 +28,33 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,7 +72,9 @@ import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
+import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.JuzIndex
+import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.VerifiedQaris
 
 object QuranScreens {
@@ -478,12 +498,17 @@ object QuranScreens {
         val content by vm.content.collectAsStateWithLifecycle()
         val loading by vm.loading.collectAsStateWithLifecycle()
         val error by vm.error.collectAsStateWithLifecycle()
-        val showUrdu by vm.showUrdu.collectAsStateWithLifecycle()
+        val showTranslation by vm.showTranslation.collectAsStateWithLifecycle()
+        val translationTextId by vm.translationTextId.collectAsStateWithLifecycle()
+        val playTranslationAudio by vm.playTranslationAudio.collectAsStateWithLifecycle()
+        val translationAudioId by vm.translationAudioId.collectAsStateWithLifecycle()
         val qariId by vm.qariId.collectAsStateWithLifecycle()
         val app = LocalContext.current.applicationContext as SuhoodApplication
         val playback by app.playbackController.state.collectAsStateWithLifecycle()
         val colors = suhoodColors
         var showQari by remember { mutableStateOf(false) }
+        var showTranslationPicker by remember { mutableStateOf(false) }
+        var translationSearch by remember { mutableStateOf("") }
         var currentAyahIndex by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(surahId) { vm.openSurah(surahId) }
@@ -493,7 +518,8 @@ object QuranScreens {
         LaunchedEffect(playback.currentTrack?.id, content) {
             val id = playback.currentTrack?.id ?: return@LaunchedEffect
             val ayahs = content?.ayahs ?: return@LaunchedEffect
-            val idx = ayahs.indexOfFirst { "quran:${it.globalNumber}" == id }
+            val num = id.removePrefix("quran-tr:").removePrefix("quran:").toIntOrNull()
+            val idx = if (num != null) ayahs.indexOfFirst { it.globalNumber == num } else -1
             if (idx >= 0) {
                 currentAyahIndex = idx
                 runCatching { listState.animateScrollToItem(idx) }
@@ -541,8 +567,8 @@ object QuranScreens {
                             maxLines = 1
                         )
                         GlassButton(
-                            text = if (showUrdu) "Urdu" else "AR",
-                            onClick = { vm.toggleUrdu() },
+                            text = if (showTranslation) "TR" else "AR",
+                            onClick = { vm.toggleTranslationVisible() },
                             primary = false
                         )
                     }
@@ -561,7 +587,10 @@ object QuranScreens {
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 140.dp, top = 8.dp)
                     ) {
                         itemsIndexed(content!!.ayahs) { index, ayah ->
-                            val playingThis = playback.currentTrack?.id == "quran:${ayah.globalNumber}" && playback.isPlaying
+                            val trackId = playback.currentTrack?.id
+                            val playingArabic = trackId == "quran:${ayah.globalNumber}" && playback.isPlaying
+                            val playingTr = trackId == "quran-tr:${ayah.globalNumber}" && playback.isPlaying
+                            val playingThis = playingArabic || playingTr
                             GlassCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -589,12 +618,14 @@ object QuranScreens {
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                if (showUrdu && ayah.translation.isNotBlank()) {
+                                if (showTranslation && ayah.translation.isNotBlank()) {
                                     Spacer(Modifier.height(8.dp))
                                     Text(
                                         ayah.translation,
-                                        style = SuhoodTypography.bodyMedium,
-                                        color = colors.textSecondary
+                                        style = SuhoodTypography.bodyMedium.copy(
+                                            fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
+                                        ),
+                                        color = if (playingTr) colors.accentMint else colors.textSecondary
                                     )
                                 }
                             }
@@ -630,10 +661,80 @@ object QuranScreens {
                                     .clickable {
                                         vm.setQari(q.id)
                                         showQari = false
-                                        // Re-start from current ayah with new qari when user presses play
                                     }
                                     .padding(vertical = 8.dp)
                             )
+                        }
+                    }
+                }
+
+                if (showTranslationPicker) {
+                    GlassCard(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).padding(bottom = 10.dp)) {
+                        Text("Translation", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                        Text(
+                            "Arabic plays first, then translation audio (when enabled), then the next ayah.",
+                            style = SuhoodTypography.labelSmall,
+                            color = colors.textMuted
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = translationSearch,
+                            onValueChange = { translationSearch = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Search language…") },
+                            singleLine = true
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Play translation audio", color = colors.textSecondary)
+                            Switch(
+                                checked = playTranslationAudio,
+                                onCheckedChange = { vm.setPlayTranslationAudio(it) }
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text("Text language", style = SuhoodTypography.labelMedium, color = colors.accentLavender)
+                        Spacer(Modifier.height(4.dp))
+                        Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
+                            TranslationEditions.searchText(translationSearch).forEach { ed ->
+                                val selected = ed.id == translationTextId
+                                Text(
+                                    "${ed.language} — ${ed.name}",
+                                    style = SuhoodTypography.bodyMedium,
+                                    color = if (selected) colors.silverBright else colors.textSecondary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            vm.setTranslationTextEdition(ed.id)
+                                        }
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+                        if (playTranslationAudio) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Translation audio voice", style = SuhoodTypography.labelMedium, color = colors.accentMint)
+                            Spacer(Modifier.height(4.dp))
+                            TranslationEditions.audioEditions.forEach { ed ->
+                                val selected = ed.id == translationAudioId
+                                Text(
+                                    "${ed.language} — ${ed.name}",
+                                    style = SuhoodTypography.bodyMedium,
+                                    color = if (selected) colors.accentMint else colors.textSecondary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { vm.setTranslationAudioEdition(ed.id) }
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { showTranslationPicker = false }) {
+                            Text("Done")
                         }
                     }
                 }
@@ -726,9 +827,20 @@ object QuranScreens {
                             }
                         )
                         GlassIconButton(
+                            icon = Icons.Filled.Translate,
+                            contentDescription = "Translation",
+                            onClick = {
+                                showTranslationPicker = !showTranslationPicker
+                                if (showTranslationPicker) showQari = false
+                            }
+                        )
+                        GlassIconButton(
                             icon = Icons.Filled.Person,
                             contentDescription = "Qari",
-                            onClick = { showQari = !showQari }
+                            onClick = {
+                                showQari = !showQari
+                                if (showQari) showTranslationPicker = false
+                            }
                         )
                     }
                 }

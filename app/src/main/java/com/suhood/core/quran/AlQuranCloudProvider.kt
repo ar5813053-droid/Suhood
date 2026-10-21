@@ -140,6 +140,42 @@ class AlQuranCloudProvider(
         return PageContent(pageNumber = page, ayahs = ayahs)
     }
 
+
+    suspend fun loadSurahWithTranslation(surah: Int, translationEdition: String): SurahContent {
+        val arJson = HttpJson.get("$BASE/surah/$surah/$arabicEdition")
+        val trJson = HttpJson.get("$BASE/surah/$surah/$translationEdition")
+        val ar = JSONObject(arJson).getJSONObject("data")
+        val tr = JSONObject(trJson).getJSONObject("data")
+        val meta = SurahMeta(
+            number = ar.getInt("number"),
+            nameArabic = ar.getString("name"),
+            nameEnglish = ar.getString("englishName"),
+            nameTranslated = ar.optString("englishNameTranslation"),
+            ayahCount = ar.getInt("numberOfAyahs"),
+            revelationType = ar.optString("revelationType")
+        )
+        val arAyahs = ar.getJSONArray("ayahs")
+        val trAyahs = tr.getJSONArray("ayahs")
+        val ayahs = buildList {
+            for (i in 0 until arAyahs.length()) {
+                val a = arAyahs.getJSONObject(i)
+                val u = trAyahs.optJSONObject(i)
+                add(
+                    AyahText(
+                        globalNumber = a.getInt("number"),
+                        numberInSurah = a.getInt("numberInSurah"),
+                        arabic = a.getString("text"),
+                        translation = u?.optString("text").orEmpty()
+                    )
+                )
+            }
+        }
+        return SurahContent(meta, ayahs)
+    }
+
+    fun translationAudioUrl(editionId: String, globalAyahNumber: Int, bitrate: Int = 128): String =
+        "https://cdn.islamic.network/quran/audio/$bitrate/$editionId/$globalAyahNumber.mp3"
+
     companion object {
         const val BASE = "https://api.alquran.cloud/v1"
     }
