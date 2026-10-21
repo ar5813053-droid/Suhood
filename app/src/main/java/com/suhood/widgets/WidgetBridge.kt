@@ -199,29 +199,17 @@ object WidgetBridge {
         }
     }
 
-        fun refreshAll(context: Context) {
-        val mgr = AppWidgetManager.getInstance(context)
-        listOf(
-            NextSalahWidgetReceiver::class.java,
-            DuaWidgetReceiver::class.java,
-            IslamicDateWidgetReceiver::class.java,
-            PrayerTrackerWidgetReceiver::class.java,
-            QuranCompanionWidgetReceiver::class.java,
-            NasheedifyWidgetReceiver::class.java,
-            HabitWidgetReceiver::class.java,
-            MushafWidgetReceiver::class.java,
-            PrayerMarkerWidgetReceiver::class.java
-        ).forEach { cls ->
-            val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
-            if (ids.isNotEmpty()) {
-                context.sendBroadcast(
-                    Intent(context, cls).apply {
-                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                    }
-                )
-            }
-        }
+    fun refreshAll(context: Context) {
+        // Direct RemoteViews updates (reliable) + broadcast for system
+        runCatching { updateProvider(context, NextSalahWidgetReceiver::class.java, ::buildNextSalah) }
+        runCatching { updateProvider(context, DuaWidgetReceiver::class.java, ::buildDua) }
+        runCatching { updateProvider(context, IslamicDateWidgetReceiver::class.java, ::buildIslamicDate) }
+        runCatching { updateProvider(context, PrayerTrackerWidgetReceiver::class.java, ::buildPrayerTracker) }
+        runCatching { updateProvider(context, QuranCompanionWidgetReceiver::class.java, ::buildQuranCompanion) }
+        runCatching { updateProvider(context, NasheedifyWidgetReceiver::class.java, ::buildNasheedify) }
+        runCatching { updateProvider(context, HabitWidgetReceiver::class.java, ::buildHabits) }
+        runCatching { updateProvider(context, MushafWidgetReceiver::class.java, ::buildMushaf) }
+        runCatching { updateProvider(context, PrayerMarkerWidgetReceiver::class.java, ::buildPrayerMarker) }
     }
 
     suspend fun markPrayer(context: Context, prayer: String, statusKey: String) {

@@ -155,6 +155,9 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_prayer_marker_info" />
         </receiver>
             <receiver
+            android:name="com.suhood.widgets.WidgetClickReceiver"
+            android:exported="false" />
+        <receiver
             android:name="com.suhood.widgets.WidgetRefreshReceiver"
             android:exported="false" />
     </application>

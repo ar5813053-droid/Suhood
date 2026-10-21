@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/widget_bg"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center">
+    <TextView android:id="@+id/w_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="@color/widget_text" android:textSize="14sp" android:textStyle="bold" android:text="Suhood" />
+    <TextView android:id="@+id/w_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="@color/widget_text_sec" android:textSize="11sp" android:text="Tap to open" android:layout_marginTop="4dp" />
+</LinearLayout>
