@@ -69,19 +69,20 @@ fun FloatingTopNavigation(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(58.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.surfaceElevated.copy(alpha = 0.92f))
                 .border(1.dp, colors.borderSubtle.copy(alpha = 0.7f), RoundedCornerShape(28.dp))
                 .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             primaryNavItems.forEach { item ->
                 NavBarItem(
                     item = item,
                     selected = selected == item.destination,
-                    onClick = { onSelect(item.destination) }
+                    onClick = { onSelect(item.destination) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -92,15 +93,16 @@ fun FloatingTopNavigation(
 private fun NavBarItem(
     item: NavItem,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = suhoodColors
     val tint = if (selected) colors.accentLavender else colors.textMuted
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
             .then(
-                if (selected) Modifier.background(colors.accentLavender.copy(alpha = 0.14f))
+                if (selected) Modifier.background(colors.accentLavender.copy(alpha = 0.16f))
                 else Modifier
             )
             .clickable(onClick = onClick)
@@ -108,19 +110,16 @@ private fun NavBarItem(
                 role = Role.Tab
                 contentDescription = item.contentDescription
             }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(item.icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
-            Text(
-                item.label,
-                style = SuhoodTypography.labelSmall,
-                color = tint
-            )
-        }
+        // Icons only — labels stay in contentDescription for TalkBack
+        Icon(
+            item.icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 

@@ -54,8 +54,9 @@ fun SuhoodNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Hide bottom nav on Journey and Journal (full-screen focus)
     val showBottomNav = currentRoute in listOf(
-        Routes.HOME, Routes.JOURNEY, Routes.QURAN, Routes.MUHASABAH, Routes.AUDIO
+        Routes.HOME, Routes.QURAN, Routes.AUDIO
     )
 
     val selectedTop = when {
@@ -105,14 +106,14 @@ fun SuhoodNavGraph(
                 JourneyScreens.Home(
                     onBack = { navController.popBackStack() },
                     onNavigate = { route -> navController.navigate(route) },
-                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
+                    bottomContentPadding = 0.dp
                 )
             }
             composable(Routes.MUHASABAH) {
                 MuhasabahScreens.Home(
                     onBack = { navController.popBackStack() },
                     onNavigate = { route -> navController.navigate(route) },
-                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
+                    bottomContentPadding = 0.dp
                 )
             }
             composable(Routes.WORSHIP) {

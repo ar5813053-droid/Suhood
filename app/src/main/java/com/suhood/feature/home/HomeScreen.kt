@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
@@ -259,15 +260,20 @@ fun HomeScreen(
             Triple("Quran", Icons.Filled.MenuBook, colors.accentLavender) to Routes.QURAN,
             Triple("Nasheed", Icons.Filled.SelfImprovement, colors.accentMint) to Routes.AUDIO
         )
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(horizontal = 2.dp)
-        ) {
-            items(featureItems) { entry ->
-                val (triple, route) = entry
-                val (label, icon, accent) = triple
-                Box(Modifier.width(78.dp)) {
-                    FeatureTile(label, icon, accent) { onNavigate(route) }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val gap = 10.dp
+            // Exactly 4 full tiles in viewport — no half 5th button
+            val tileWidth = (maxWidth - gap * 3) / 4
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                items(featureItems) { entry ->
+                    val (triple, route) = entry
+                    val (label, icon, accent) = triple
+                    Box(Modifier.width(tileWidth)) {
+                        FeatureTile(label, icon, accent) { onNavigate(route) }
+                    }
                 }
             }
         }
