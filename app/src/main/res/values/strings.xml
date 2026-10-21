@@ -6,4 +6,15 @@
     <string name="nav_focus">Focus</string>
     <string name="nav_audio">Audio</string>
     <string name="focus_accessibility_description">Suhood Focus uses Accessibility only while a focus session is active, to detect apps you chose to limit and show a return-to-focus screen. It does not read passwords or upload accessibility data.</string>
+
+    <string name="widget_next_salah_desc">Next prayer, countdown and active highlight</string>
+    <string name="widget_dua_desc">Daily verified dua</string>
+    <string name="widget_islamic_date_desc">Hijri and Gregorian date</string>
+    <string name="widget_prayer_tracker_desc">Today's Salah progress</string>
+    <string name="widget_quran_companion_desc">Daily Quran goal and progress</string>
+    <string name="widget_nasheedify_desc">Play and pause Islamic audio</string>
+    <string name="widget_habit_desc">My Journey habits today</string>
+    <string name="widget_mushaf_desc">Continue Quran reading</string>
+    <string name="widget_prayer_marker_desc">Mark Fajr to Isha</string>
+
 </resources>

@@ -226,6 +226,9 @@ interface SuhoodDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertHabitCompletion(c: HabitCompletionEntity)
 
+    @Query("DELETE FROM habit_completions WHERE id = :id")
+    suspend fun deleteHabitCompletion(id: String)
+
     @Query("SELECT * FROM habit_completions WHERE dateIso >= :fromIso AND dateIso <= :toIso")
     suspend fun habitCompletionsInRange(fromIso: String, toIso: String): List<HabitCompletionEntity>
 

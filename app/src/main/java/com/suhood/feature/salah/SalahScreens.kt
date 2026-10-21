@@ -109,12 +109,14 @@ class SalahViewModel(app: Application) : AndroidViewModel(app) {
                     status = status.key
                 )
             )
+            runCatching { com.suhood.widgets.WidgetBridge.refreshAll(getApplication()) }
         }
     }
 
     fun clearStatus(prayerName: String, dateIso: String = todayIso()) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { dao.deleteSalahLog("$dateIso-$prayerName") }
+            runCatching { com.suhood.widgets.WidgetBridge.refreshAll(getApplication()) }
         }
     }
 }
