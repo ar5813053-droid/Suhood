@@ -659,7 +659,7 @@ object QuranScreens {
                     GlassCard(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).padding(bottom = 10.dp)) {
                         Text("Translation", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
                         Text(
-                            "Arabic plays first, then translation audio (when enabled), then the next ayah.",
+                            "Arabic first, then translation audio (EveryAyah), then next ayah. Enable the switch below, then press Play.",
                             style = SuhoodTypography.labelSmall,
                             color = colors.textMuted
                         )

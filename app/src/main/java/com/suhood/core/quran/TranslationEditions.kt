@@ -1,21 +1,20 @@
 package com.suhood.core.quran
 
 /**
- * Curated translation editions from AlQuran.Cloud / Islamic Network.
- * Text editions load ayah translations; audio editions play verse-by-verse
- * translation audio from the public CDN (same path pattern as Arabic qaris).
- *
- * Attribution: AlQuran.Cloud / Islamic Network — not owned by Suhood.
+ * Curated translation editions.
+ * Text: AlQuran.Cloud. Audio: everyayah.com verse files (SSS AAA = surah/ayah padded).
+ * Attribution: sources retain ownership; Suhood does not own Quran text or audio.
  */
 data class TranslationEdition(
     val id: String,
     val language: String,
     val name: String,
-    val hasAudio: Boolean = false
+    val hasAudio: Boolean = false,
+    /** everyayah.com relative folder under /data/ when hasAudio */
+    val everyAyahFolder: String? = null
 )
 
 object TranslationEditions {
-    /** Text translations for on-screen display. */
     val textEditions = listOf(
         TranslationEdition("en.sahih", "English", "Sahih International"),
         TranslationEdition("en.pickthall", "English", "Pickthall"),
@@ -40,12 +39,24 @@ object TranslationEditions {
     )
 
     /**
-     * Editions known to have verse-by-verse audio on
-     * cdn.islamic.network/quran/audio/{bitrate}/{id}/{ayah}.mp3
+     * Verified verse-by-verse translation audio on everyayah.com
+     * (cdn.islamic.network returns 403 for translation edition ids).
      */
     val audioEditions = listOf(
-        TranslationEdition("en.walk", "English", "Ibrahim Walk", hasAudio = true),
-        TranslationEdition("ur.khan", "Urdu", "Shamshad Ali Khan", hasAudio = true)
+        TranslationEdition(
+            id = "en.walk",
+            language = "English",
+            name = "Sahih Intl · Ibrahim Walk",
+            hasAudio = true,
+            everyAyahFolder = "English/Sahih_Intnl_Ibrahim_Walk_192kbps"
+        ),
+        TranslationEdition(
+            id = "ur.khan",
+            language = "Urdu",
+            name = "Shamshad Ali Khan",
+            hasAudio = true,
+            everyAyahFolder = "translations/urdu_shamshad_ali_khan_46kbps"
+        )
     )
 
     fun textById(id: String): TranslationEdition? = textEditions.find { it.id == id }
@@ -70,4 +81,11 @@ object TranslationEditions {
                 it.id.lowercase().contains(q)
         }
     }
+
+    /** everyayah file name: SSSAAA.mp3 (surah 3 digits + ayah-in-surah 3 digits). */
+    fun everyAyahFileName(surah: Int, ayahInSurah: Int): String =
+        "%03d%03d.mp3".format(surah.coerceIn(1, 114), ayahInSurah.coerceAtLeast(1))
+
+    fun everyAyahUrl(folder: String, surah: Int, ayahInSurah: Int): String =
+        "https://everyayah.com/data/$folder/${everyAyahFileName(surah, ayahInSurah)}"
 }

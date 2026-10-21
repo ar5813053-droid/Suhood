@@ -161,16 +161,30 @@ class QuranViewModel(
             return
         }
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
-        val url = provider.ayahAudioUrl(qariId, globalNumber)
         val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
+        val arUrl = provider.ayahAudioUrl(qariId, globalNumber)
         try {
-            playback.playUri(
-                mediaId = "quran:$globalNumber",
-                title = "Surah $surah · Ayah $ayahInSurah",
-                artist = qari,
-                uriString = url,
-                categoryId = "tilawat"
-            )
+            if (_playTranslationAudio.value) {
+                val trUrl = provider.translationAudioUrl(
+                    _translationAudioId.value, surah, ayahInSurah
+                )
+                playback.playQueueUris(
+                    listOf(
+                        Triple("quran:$globalNumber", "Ayah $ayahInSurah", arUrl),
+                        Triple("quran-tr:$globalNumber", "Ayah $ayahInSurah · Translation", trUrl)
+                    ),
+                    artist = qari,
+                    startIndex = 0
+                )
+            } else {
+                playback.playUri(
+                    mediaId = "quran:$globalNumber",
+                    title = "Surah $surah · Ayah $ayahInSurah",
+                    artist = qari,
+                    uriString = arUrl,
+                    categoryId = "tilawat"
+                )
+            }
             saveLastRead(surah, ayahInSurah)
         } catch (t: Throwable) {
             _error.value = t.message ?: "Unable to play audio"
@@ -195,10 +209,11 @@ class QuranViewModel(
                 provider.ayahAudioUrl(qariId, a.globalNumber)
             )
             if (withTr) {
+                val surahNum = _content.value?.meta?.number ?: 1
                 items += Triple(
                     "quran-tr:${a.globalNumber}",
                     "Ayah ${a.numberInSurah} · Translation",
-                    provider.translationAudioUrl(trEdition, a.globalNumber)
+                    provider.translationAudioUrl(trEdition, surahNum, a.numberInSurah)
                 )
             }
         }

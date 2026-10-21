@@ -173,8 +173,17 @@ class AlQuranCloudProvider(
         return SurahContent(meta, ayahs)
     }
 
-    fun translationAudioUrl(editionId: String, globalAyahNumber: Int, bitrate: Int = 128): String =
-        "https://cdn.islamic.network/quran/audio/$bitrate/$editionId/$globalAyahNumber.mp3"
+    /**
+     * Translation audio via everyayah.com (Islamic Network CDN returns 403 for translation editions).
+     * Requires surah number + ayah-in-surah, not global ayah index.
+     */
+    fun translationAudioUrl(editionId: String, surah: Int, ayahInSurah: Int): String {
+        val ed = TranslationEditions.audioById(editionId)
+            ?: TranslationEditions.audioEditions.first()
+        val folder = ed.everyAyahFolder
+            ?: "English/Sahih_Intnl_Ibrahim_Walk_192kbps"
+        return TranslationEditions.everyAyahUrl(folder, surah, ayahInSurah)
+    }
 
     companion object {
         const val BASE = "https://api.alquran.cloud/v1"
