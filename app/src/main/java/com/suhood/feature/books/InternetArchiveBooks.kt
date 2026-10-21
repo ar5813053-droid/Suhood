@@ -221,6 +221,22 @@ object InternetArchiveBooks {
         }
     }
 
+    
+    /** Drop OCR garbage lines (too many digits/symbols, broken encoding). */
+    fun cleanOcrNoise(text: String): String {
+        val lines = text.lines()
+        val kept = lines.filter { line ->
+            val s = line.trim()
+            if (s.isEmpty()) return@filter true
+            if (s.length < 2) return@filter false
+            val letters = s.count { it.isLetter() }
+            val ratio = letters.toFloat() / s.length.coerceAtLeast(1)
+            // Keep lines with reasonable letter content
+            ratio >= 0.35f || s.any { it.code in 0x0600..0x06FF } // Arabic block
+        }
+        return kept.joinToString("\n").replace(Regex("\n{3,}"), "\n\n").trim()
+    }
+
     private fun formatList(raw: Any?): List<String> = when (raw) {
         is JSONArray -> (0 until raw.length()).map { raw.optString(it) }.filter { it.isNotBlank() }
         is String -> listOf(raw)

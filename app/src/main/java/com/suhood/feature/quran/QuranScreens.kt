@@ -22,6 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -193,188 +199,232 @@ object QuranScreens {
                     it.number.toString() == query.trim()
             }
         }
+        val appCtx = LocalContext.current.applicationContext as SuhoodApplication
+        val prefsRepo = remember { com.suhood.core.datastore.PreferencesRepository(appCtx) }
+        val dailyMin by prefsRepo.quranDailyMinutes.collectAsStateWithLifecycle(10)
+        val todayPages by prefsRepo.quranTodayPages.collectAsStateWithLifecycle(0)
+
         Column(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .background(colors.background)
         ) {
-            Text(
-                "QURAN",
-                style = SuhoodTypography.titleLarge,
-                color = colors.accentLavender,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            Text(
-                "The Holy Quran",
-                style = SuhoodTypography.headlineMedium,
-                color = colors.textPrimary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(Modifier.height(12.dp))
-            GlassSearchField(
-                query = query,
-                onQueryChange = { query = it },
-                placeholder = "Search the Quran",
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            // Quran Companion daily plan
-            val appCtx = LocalContext.current.applicationContext as SuhoodApplication
-            val prefsRepo = remember { com.suhood.core.datastore.PreferencesRepository(appCtx) }
-            val dailyMin by prefsRepo.quranDailyMinutes.collectAsStateWithLifecycle(10)
-            val todayPages by prefsRepo.quranTodayPages.collectAsStateWithLifecycle(0)
-            val todayDate by prefsRepo.quranTodayDate.collectAsStateWithLifecycle("")
-            val todayIso = remember {
-                java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-            }
-            val pagesDone = if (todayDate == todayIso) todayPages else 0
-            val targetPages = when (dailyMin) {
-                5 -> 2
-                20 -> 8
-                else -> 4
-            }
-            GlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                onClick = onMushaf,
-                contentPadding = PaddingValues(16.dp)
+            // Header
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Quran Companion",
+                    "SUHOOD · QURAN",
                     style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.accentLavender
                 )
-                Spacer(Modifier.height(4.dp))
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textSecondary)
+                }
+            }
+
+            // Hero
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    "Today · $pagesDone / $targetPages pages · ${dailyMin} min goal",
-                    style = SuhoodTypography.titleSmall,
+                    "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                    style = SuhoodTypography.arabicBody,
+                    color = colors.accentLavender,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The Holy Quran",
+                    style = SuhoodTypography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = colors.textPrimary
                 )
-                Spacer(Modifier.height(4.dp))
                 Text(
-                    "Continue reading · change goal in Settings",
-                    style = SuhoodTypography.bodySmall,
+                    "114 Surahs · Authentic Arabic text",
+                    style = SuhoodTypography.labelSmall,
                     color = colors.textMuted
                 )
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GlassButton(text = "Continue", onClick = onMushaf, modifier = Modifier.weight(1f))
+                Box(
+                    Modifier
+                        .width(160.dp)
+                        .height(1.dp)
+                        .background(colors.accentLavender.copy(alpha = 0.35f))
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+
+            GlassSearchField(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = "Search by surah name or number…",
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(Modifier.height(14.dp))
+
+            // Companion card
+            GlassCard(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                Text(
+                    "DAILY READING",
+                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = colors.accentLavender
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Today · $todayPages pages · ${dailyMin} min goal",
+                    style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary
+                )
+                Text(
+                    "Change goal in Settings · Quran Companion",
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textMuted
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     GlassButton(
-                        text = "Mark done",
+                        text = "Continue",
+                        onClick = onLastRead,
+                        primary = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    GlassButton(
+                        text = "Mushaf",
+                        onClick = onMushaf,
                         primary = false,
-                        onClick = {
-                            // Fire-and-forget local progress
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                prefsRepo.markQuranDayComplete(targetPages)
-                            }
-                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
+
+            // Quick nav 2x2
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    onClick = onLastRead
-                ) {
-                    Text("Last read", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
-                }
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    onClick = onMushaf
-                ) {
-                    Text("Mushaf", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
-                }
+                QuickNavTile(
+                    title = "Last Read",
+                    subtitle = "Resume reading",
+                    icon = Icons.Filled.Bookmark,
+                    onClick = onLastRead,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickNavTile(
+                    title = "Mushaf",
+                    subtitle = "Page view",
+                    icon = Icons.Filled.MenuBook,
+                    onClick = onMushaf,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    onClick = onBookmarks
-                ) {
-                    Text("Bookmarks", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
-                }
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    onClick = onJuz
-                ) {
-                    Text("Juz", style = SuhoodTypography.labelLarge, color = colors.textPrimary)
-                }
+                QuickNavTile(
+                    title = "Bookmarks",
+                    subtitle = "Saved ayahs",
+                    icon = Icons.Filled.BookmarkBorder,
+                    onClick = onBookmarks,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickNavTile(
+                    title = "Juz / Para",
+                    subtitle = "30 parts",
+                    icon = Icons.Filled.ViewModule,
+                    onClick = onJuz,
+                    modifier = Modifier.weight(1f)
+                )
             }
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                "ALL SURAHS",
+                style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
             Spacer(Modifier.height(8.dp))
+
             when {
-                loading && surahs.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = colors.accentLavender)
-                    }
+                loading && surahs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = colors.accentLavender)
                 }
-                error != null && surahs.isEmpty() -> {
-                    Column(Modifier.padding(24.dp)) {
-                        Text(error ?: "", color = colors.textSecondary)
-                        GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
-                    }
+                error != null && surahs.isEmpty() -> Column(
+                    Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(error ?: "Error", color = colors.error)
+                    Spacer(Modifier.height(12.dp))
+                    GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
                 }
-                else -> {
-                    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-                        items(filtered, key = { it.number }) { s ->
-                            GlassCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                onClick = { onSurah(s.number) }
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(filtered, key = { it.number }) { s ->
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            onClick = { onSurah(s.number) }
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Box(
+                                    Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(colors.accentLavender.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        Modifier
-                                            .size(34.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.surfaceSelected),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            "${s.number}",
-                                            style = SuhoodTypography.labelMedium,
-                                            color = colors.textPrimary
-                                        )
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(
-                                            s.nameArabic,
-                                            style = SuhoodTypography.arabicBody,
-                                            color = colors.textPrimary
-                                        )
-                                        Text(
-                                            "${s.nameEnglish}" +
-                                                if (s.nameTranslated.isNotBlank()) " (${s.nameTranslated})" else "",
-                                            style = SuhoodTypography.bodySmall,
-                                            color = colors.textSecondary
-                                        )
-                                    }
+                                    Text(
+                                        "${s.number}",
+                                        style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = colors.accentLavender
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        s.nameArabic,
+                                        style = SuhoodTypography.arabicBody,
+                                        color = colors.textPrimary
+                                    )
+                                    Text(
+                                        buildString {
+                                            append(s.nameEnglish)
+                                            if (s.nameTranslated.isNotBlank()) append(" · ${s.nameTranslated}")
+                                        },
+                                        style = SuhoodTypography.bodySmall,
+                                        color = colors.textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         "${s.ayahCount} verses",
                                         style = SuhoodTypography.labelSmall,
                                         color = colors.textMuted
                                     )
+                                    if (s.revelationType.isNotBlank()) {
+                                        Text(
+                                            s.revelationType,
+                                            style = SuhoodTypography.labelSmall,
+                                            color = colors.textMuted
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -385,6 +435,38 @@ object QuranScreens {
     }
 
     @Composable
+    private fun QuickNavTile(
+        title: String,
+        subtitle: String,
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        val colors = suhoodColors
+        GlassCard(
+            modifier = modifier,
+            contentPadding = PaddingValues(14.dp),
+            onClick = onClick
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(colors.accentLavender.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = colors.accentLavender, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(title, style = SuhoodTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                    Text(subtitle, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                }
+            }
+        }
+    }
+
     fun SurahDetail(surahId: Int, onBack: () -> Unit, onRead: () -> Unit) {
         LaunchedEffect(surahId) { onRead() }
     }
