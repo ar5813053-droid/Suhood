@@ -54,7 +54,7 @@ fun updateProvider(context: Context, providerClass: Class<out AppWidgetProvider>
 fun buildNextSalah(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_next_salah)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "salah"))
-    val snap = runCatching { runBlocking { WidgetBridge.loadSalah(context) } }.getOrNull()
+    val snap = runCatching { WidgetBridge.loadSalahSync(context) }.getOrNull()
     if (snap == null) {
         rv.setTextViewText(R.id.w_label, "NEXT SALAH")
         rv.setTextViewText(R.id.w_title, "Open Suhood")
@@ -63,6 +63,12 @@ fun buildNextSalah(context: Context): RemoteViews {
         return rv
     }
     val s = snap.smart
+    // Never leave placeholder dashes if we have a name
+    if (s.primaryName.isBlank() || s.primaryName == "—") {
+        rv.setTextViewText(R.id.w_title, "Open Suhood")
+        rv.setTextViewText(R.id.w_sub, "Set location in Settings")
+        return rv
+    }
     if (s.isActiveHighlight) {
         rv.setTextViewText(R.id.w_label, s.primaryName.uppercase())
         rv.setTextViewText(R.id.w_title, "Prayer time started")
@@ -113,7 +119,7 @@ fun buildIslamicDate(context: Context): RemoteViews {
 fun buildPrayerTracker(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_prayer_tracker)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "salah"))
-    val snap = runCatching { runBlocking { WidgetBridge.loadSalah(context) } }.getOrNull()
+    val snap = runCatching { WidgetBridge.loadSalahSync(context) }.getOrNull()
     val done = snap?.completedCount ?: 0
     rv.setTextViewText(R.id.w_label, "TODAY'S PRAYERS")
     rv.setTextViewText(R.id.w_title, "$done / 5")
@@ -143,7 +149,7 @@ fun buildPrayerTracker(context: Context): RemoteViews {
 
 fun buildQuranCompanion(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_quran_companion)
-    val q = runCatching { runBlocking { WidgetBridge.loadQuran(context) } }.getOrNull()
+    val q = runCatching { runBlocking(Dispatchers.IO) { WidgetBridge.loadQuran(context) } }.getOrNull()
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "mushaf"))
     rv.setTextViewText(R.id.w_label, "QURAN COMPANION")
     if (q == null) {
@@ -176,7 +182,7 @@ fun buildNasheedify(context: Context): RemoteViews {
 fun buildHabits(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_habit)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "journey"))
-    val habits = runCatching { runBlocking { WidgetBridge.loadHabits(context) } }.getOrElse { emptyList() }
+    val habits = runCatching { runBlocking(Dispatchers.IO) { WidgetBridge.loadHabits(context) } }.getOrElse { emptyList() }
     val done = habits.count { it.doneToday }
     rv.setTextViewText(R.id.w_label, "MY JOURNEY")
     rv.setTextViewText(
@@ -209,7 +215,7 @@ fun buildHabits(context: Context): RemoteViews {
 fun buildMushaf(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_mushaf)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "mushaf"))
-    val q = runCatching { runBlocking { WidgetBridge.loadQuran(context) } }.getOrNull()
+    val q = runCatching { runBlocking(Dispatchers.IO) { WidgetBridge.loadQuran(context) } }.getOrNull()
     rv.setTextViewText(R.id.w_label, "MUSHAF")
     rv.setTextViewText(R.id.w_page, (q?.lastPage ?: 1).toString())
     val line = if (q?.lastSurah != null) "Surah ${q.lastSurah} · Ayah ${q.lastAyah ?: 1}" else "Continue reading"
@@ -219,7 +225,7 @@ fun buildMushaf(context: Context): RemoteViews {
 
 fun buildPrayerMarker(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_prayer_marker)
-    val snap = runCatching { runBlocking { WidgetBridge.loadSalah(context) } }.getOrNull()
+    val snap = runCatching { WidgetBridge.loadSalahSync(context) }.getOrNull()
     val done = snap?.completedCount ?: 0
     rv.setTextViewText(R.id.w_label, "PRAYER MARKER")
     rv.setTextViewText(R.id.w_count, "$done/5")

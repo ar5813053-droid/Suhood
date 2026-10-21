@@ -16,8 +16,8 @@ class SmartNextSalahTest {
         dateLabel = "Test",
         times = times,
         method = PrayerTimesCalculator.Method.MWL,
-        latitude = 21.4,
-        longitude = 39.8
+        latitude = 28.6,
+        longitude = 77.2
     )
 
     private fun cal(h: Int, m: Int): Calendar =
@@ -34,46 +34,71 @@ class SmartNextSalahTest {
         minutesSinceMidnight = mins
     )
 
+    private fun standardDay() = listOf(
+        pt("Fajr", 5 * 60 + 23),
+        pt("Dhuhr", 13 * 60 + 11),
+        pt("Asr", 17 * 60 + 50),
+        pt("Maghrib", 19 * 60 + 42),
+        pt("Isha", 20 * 60 + 58)
+    )
+
     @Test
-    fun beforeDhuhr_nextIsDhuhr() {
-        val times = listOf(
-            pt("Fajr", 5 * 60),
-            pt("Dhuhr", 12 * 60 + 30),
-            pt("Asr", 15 * 60 + 45),
-            pt("Maghrib", 18 * 60),
-            pt("Isha", 19 * 60 + 30)
-        )
-        val s = SmartNextSalah.resolve(result(times), cal(10, 0))
-        assertEquals("Dhuhr", s.primaryName)
+    fun beforeFajr_nextIsFajr() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(4, 0))
+        assertEquals("Fajr", s.primaryName)
         assertFalse(s.isActiveHighlight)
     }
 
     @Test
-    fun atFajrStart_highlightAndNextDhuhr() {
-        val times = listOf(
-            pt("Fajr", 5 * 60),
-            pt("Dhuhr", 12 * 60 + 30),
-            pt("Asr", 15 * 60 + 45),
-            pt("Maghrib", 18 * 60),
-            pt("Isha", 19 * 60 + 30)
-        )
-        val s = SmartNextSalah.resolve(result(times), cal(5, 3))
+    fun fajrHighlight_nextDhuhr() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(5, 25))
         assertTrue(s.isActiveHighlight)
         assertEquals("Fajr", s.primaryName)
         assertEquals("Dhuhr", s.nextName)
     }
 
     @Test
-    fun afterIsha_rollsToFajr() {
-        val times = listOf(
-            pt("Fajr", 5 * 60),
-            pt("Dhuhr", 12 * 60 + 30),
-            pt("Asr", 15 * 60 + 45),
-            pt("Maghrib", 18 * 60),
-            pt("Isha", 19 * 60 + 30)
-        )
-        val s = SmartNextSalah.resolve(result(times), cal(22, 0))
+    fun afterFajrHighlight_nextDhuhr() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(5, 40))
+        assertFalse(s.isActiveHighlight)
+        assertEquals("Dhuhr", s.primaryName)
+    }
+
+    @Test
+    fun beforeMaghrib_nextIsMaghrib() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(19, 0))
+        assertEquals("Maghrib", s.primaryName)
+        assertFalse(s.isActiveHighlight)
+    }
+
+    @Test
+    fun atMaghrib_highlight_nextIsha() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(19, 45))
+        assertTrue(s.isActiveHighlight)
+        assertEquals("Maghrib", s.primaryName)
+        assertEquals("Isha", s.nextName)
+    }
+
+    @Test
+    fun afterMaghribHighlight_nextIsha() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(20, 0))
+        assertFalse(s.isActiveHighlight)
+        assertEquals("Isha", s.primaryName)
+    }
+
+    @Test
+    fun afterIsha_nextIsFajrTomorrow() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(22, 0))
         assertEquals("Fajr", s.primaryName)
         assertFalse(s.isActiveHighlight)
+        assertTrue(s.countdownSeconds > 0)
+    }
+
+    @Test
+    fun ishaHighlight_nextFajr() {
+        val s = SmartNextSalah.resolve(result(standardDay()), cal(21, 0))
+        assertTrue(s.isActiveHighlight)
+        assertEquals("Isha", s.primaryName)
+        assertEquals("Fajr", s.nextName)
     }
 }

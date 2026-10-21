@@ -61,20 +61,32 @@ object WidgetBridge {
 
     fun dao(context: Context) = app(context).database.dao()
 
+    
     suspend fun loadSalah(context: Context): SalahSnap = withContext(Dispatchers.IO) {
-        val prefs = PreferencesRepository(context)
-        val lat = prefs.latitude.first()
-        val lng = prefs.longitude.first()
-        val method = prefs.prayerMethod.first()
-        val label = prefs.locationLabel.first()
+        loadSalahSync(context)
+    }
+
+    /** Safe for AppWidgetProvider.onUpdate (main thread) — no DataStore. */
+    fun loadSalahSync(context: Context): SalahSnap {
+        val (result, label) = PrayerTimesCache.loadOrCalculate(context)
         val cal = Calendar.getInstance()
-        val result = PrayerTimesCalculator.calculate(lat, lng, method, cal)
-        val smart = SmartNextSalah.resolve(result, cal)
+        // Recompute for *today* if cache is stale or always refresh calculate with cached lat/lng
+        val refreshed = runCatching {
+            PrayerTimesCalculator.calculate(
+                latitude = result.latitude,
+                longitude = result.longitude,
+                method = result.method,
+                calendar = cal
+            )
+        }.getOrDefault(result)
+        val smart = SmartNextSalah.resolve(refreshed, cal)
         val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val logs = dao(context).getSalahForDate(today)
+        val logs = runCatching { kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            dao(context).getSalahForDate(today)
+        } }.getOrElse { emptyList() }
         val marked = logs.associate { it.prayerName to it.status }
         val completed = logs.count { it.status != SalahStatus.NOT_PRAYED.key }
-        SalahSnap(smart, marked, completed, label)
+        return SalahSnap(smart, marked, completed, label)
     }
 
     suspend fun loadQuran(context: Context): QuranSnap = withContext(Dispatchers.IO) {

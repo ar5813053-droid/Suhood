@@ -67,6 +67,7 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
 import com.suhood.core.prayer.SmartNextSalah
+import com.suhood.core.prayer.PrayerTimesCache
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircle
@@ -139,6 +140,14 @@ fun HomeScreen(
                 longitude = userLng,
                 method = prayerMethod,
                 calendar = cal
+            )
+            PrayerTimesCache.save(
+                context.applicationContext,
+                userLat,
+                userLng,
+                prayerMethod,
+                locLabel,
+                prayerResult
             )
             smart = SmartNextSalah.resolve(prayerResult, cal)
             delay(1000)
