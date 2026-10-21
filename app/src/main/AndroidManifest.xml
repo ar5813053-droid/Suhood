@@ -118,44 +118,44 @@
             </intent-filter>
         </receiver>
     
-        <receiver android:name=".widgets.NextSalahWidgetReceiver" android:exported="true" android:label="Suhood Next Salah">
+        <receiver android:name="com.suhood.widgets.NextSalahWidgetReceiver" android:exported="true" android:label="Suhood Next Salah">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_next_salah_info" />
         </receiver>
-        <receiver android:name=".widgets.DuaWidgetReceiver" android:exported="true" android:label="Suhood Dua of the Day">
+        <receiver android:name="com.suhood.widgets.DuaWidgetReceiver" android:exported="true" android:label="Suhood Dua of the Day">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dua_info" />
         </receiver>
-        <receiver android:name=".widgets.IslamicDateWidgetReceiver" android:exported="true" android:label="Suhood Islamic Date">
+        <receiver android:name="com.suhood.widgets.IslamicDateWidgetReceiver" android:exported="true" android:label="Suhood Islamic Date">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_islamic_date_info" />
         </receiver>
-        <receiver android:name=".widgets.PrayerTrackerWidgetReceiver" android:exported="true" android:label="Suhood Prayer Tracker">
+        <receiver android:name="com.suhood.widgets.PrayerTrackerWidgetReceiver" android:exported="true" android:label="Suhood Prayer Tracker">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_prayer_tracker_info" />
         </receiver>
-        <receiver android:name=".widgets.QuranCompanionWidgetReceiver" android:exported="true" android:label="Suhood Quran Companion">
+        <receiver android:name="com.suhood.widgets.QuranCompanionWidgetReceiver" android:exported="true" android:label="Suhood Quran Companion">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quran_companion_info" />
         </receiver>
-        <receiver android:name=".widgets.NasheedifyWidgetReceiver" android:exported="true" android:label="Suhood Nasheedify">
+        <receiver android:name="com.suhood.widgets.NasheedifyWidgetReceiver" android:exported="true" android:label="Suhood Nasheedify">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_nasheedify_info" />
         </receiver>
-        <receiver android:name=".widgets.HabitWidgetReceiver" android:exported="true" android:label="Suhood Habits">
+        <receiver android:name="com.suhood.widgets.HabitWidgetReceiver" android:exported="true" android:label="Suhood Habits">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_habit_info" />
         </receiver>
-        <receiver android:name=".widgets.MushafWidgetReceiver" android:exported="true" android:label="Suhood Mushaf">
+        <receiver android:name="com.suhood.widgets.MushafWidgetReceiver" android:exported="true" android:label="Suhood Mushaf">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_mushaf_info" />
         </receiver>
-        <receiver android:name=".widgets.PrayerMarkerWidgetReceiver" android:exported="true" android:label="Suhood Prayer Marker">
+        <receiver android:name="com.suhood.widgets.PrayerMarkerWidgetReceiver" android:exported="true" android:label="Suhood Prayer Marker">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_prayer_marker_info" />
         </receiver>
             <receiver
-            android:name=".widgets.WidgetRefreshReceiver"
+            android:name="com.suhood.widgets.WidgetRefreshReceiver"
             android:exported="false" />
     </application>
 </manifest>

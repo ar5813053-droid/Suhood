@@ -1,8 +1,6 @@
 package com.suhood.widgets
 
 import android.content.Context
-import android.content.Intent
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -12,9 +10,6 @@ import androidx.glance.GlanceTheme
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
-import androidx.glance.appwidget.SizeMode
-import androidx.glance.LocalSize
-import androidx.compose.ui.unit.DpSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -57,13 +52,19 @@ private fun formatCountdown(sec: Int): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
+private val BgProvider = ColorProvider(Bg)
+private val TextPriProvider = ColorProvider(TextPri)
+private val TextSecProvider = ColorProvider(TextSec)
+private val AccentProvider = ColorProvider(Accent)
+private val GreenProvider = ColorProvider(Green)
+
 class NextSalahWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val snap = runCatching { WidgetBridge.loadSalah(context) }.getOrNull()
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     if (snap == null) {
@@ -104,7 +105,7 @@ class DuaWidget : GlanceAppWidget() {
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("Dua of the Day", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
@@ -126,55 +127,51 @@ class DuaWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 class IslamicDateWidget : GlanceAppWidget() {
-    override val sizeMode: SizeMode = SizeMode.Responsive(
-        setOf(DpSize(110.dp, 110.dp), DpSize(180.dp, 180.dp), DpSize(250.dp, 200.dp))
-    )
-
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val d = WidgetBridge.dateLabels()
+        val d = runCatching { WidgetBridge.dateLabels() }.getOrNull()
         provideContent {
             GlanceTheme {
-                val size = LocalSize.current
-                val compact = size.width < 160.dp
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(if (compact) 10.dp else 14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(actionStartActivity(openAppComponent(context))),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        d.weekdayAr,
-                        style = TextStyle(
-                            color = ColorProvider(TextPri),
-                            fontSize = if (compact) 20.sp else 26.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                    if (d == null) {
+                        Text("Date unavailable", style = TextStyle(color = ColorProvider(TextSec), fontSize = 12.sp))
+                    } else {
+                        Text(
+                            d.weekdayAr,
+                            style = TextStyle(
+                                color = ColorProvider(TextPri),
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
                         )
-                    )
-                    Spacer(GlanceModifier.height(6.dp))
-                    Text(
-                        d.gregorianDay.toString(),
-                        style = TextStyle(
-                            color = ColorProvider(TextPri),
-                            fontSize = if (compact) 32.sp else 42.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                        Spacer(GlanceModifier.height(6.dp))
+                        Text(
+                            d.gregorianDay.toString(),
+                            style = TextStyle(
+                                color = ColorProvider(TextPri),
+                                fontSize = 40.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
                         )
-                    )
-                    Text(
-                        d.gregorianMonthEn,
-                        style = TextStyle(color = ColorProvider(TextSec), fontSize = if (compact) 11.sp else 13.sp)
-                    )
-                    Spacer(GlanceModifier.height(if (compact) 4.dp else 10.dp))
-                    Text(
-                        if (compact) "${d.hijriDay} ${d.hijriMonthAr}" else d.hijriLineAr,
-                        style = TextStyle(
-                            color = ColorProvider(Accent),
-                            fontSize = if (compact) 11.sp else 14.sp,
-                            textAlign = TextAlign.Center
+                        Text(
+                            d.gregorianMonthEn,
+                            style = TextStyle(color = ColorProvider(TextSec), fontSize = 12.sp)
                         )
-                    )
-                    if (!compact) {
+                        Spacer(GlanceModifier.height(10.dp))
+                        Text(
+                            d.hijriLineAr,
+                            style = TextStyle(
+                                color = ColorProvider(Accent),
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        )
                         Text(
                             d.hijriLineEn,
                             style = TextStyle(color = ColorProvider(TextSec), fontSize = 10.sp, textAlign = TextAlign.Center)
@@ -196,7 +193,7 @@ class PrayerTrackerWidget : GlanceAppWidget() {
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("Today's prayers", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
@@ -235,7 +232,7 @@ class QuranCompanionWidget : GlanceAppWidget() {
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(
                             actionStartActivity(
                                 openAppComponent(context),
@@ -271,7 +268,7 @@ class NasheedifyWidget : GlanceAppWidget() {
         val a = WidgetBridge.loadAudio(context)
         provideContent {
             GlanceTheme {
-                Column(modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)) {
+                Column(modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)) {
                     Text("Nasheedify", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     Text(a.title ?: "Nothing playing", style = TextStyle(color = ColorProvider(TextPri), fontSize = 15.sp, fontWeight = FontWeight.Bold))
                     Text(a.artist ?: "Open Audio to play", style = TextStyle(color = ColorProvider(TextSec), fontSize = 11.sp))
@@ -305,7 +302,7 @@ class HabitWidget : GlanceAppWidget() {
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("My Journey", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
@@ -340,7 +337,7 @@ class MushafWidget : GlanceAppWidget() {
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(14.dp)
                         .clickable(
                             actionStartActivity(
                                 openAppComponent(context),
@@ -372,7 +369,7 @@ class PrayerMarkerWidget : GlanceAppWidget() {
         val done = snap?.completedCount ?: 0
         provideContent {
             GlanceTheme {
-                Column(modifier = GlanceModifier.fillMaxSize().background(Bg).padding(12.dp)) {
+                Column(modifier = GlanceModifier.fillMaxSize().background(BgProvider).padding(12.dp)) {
                     Row(GlanceModifier.fillMaxWidth()) {
                         Text("Prayer marker", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                         Spacer(GlanceModifier.defaultWeight())

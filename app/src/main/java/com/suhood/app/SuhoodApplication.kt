@@ -27,7 +27,14 @@ class SuhoodApplication : Application() {
         private set
 
     override fun onCreate() {
+        // Refresh home-screen widgets once app process is up (Glance content needs Application).
+
         super.onCreate()
+        // Deferred so Room/DataStore are ready
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching { com.suhood.widgets.WidgetBridge.refreshAll(this) }
+            runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(this) }
+        }, 1500)
         preferencesRepository = PreferencesRepository(this)
         database = SuhoodDatabase.get(this)
         libraryRepository = LibraryRepository(database.dao())

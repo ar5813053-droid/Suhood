@@ -53,8 +53,11 @@ object WidgetBridge {
         val isPlaying: Boolean
     )
 
-    fun app(context: Context): SuhoodApplication =
-        context.applicationContext as SuhoodApplication
+    fun app(context: Context): SuhoodApplication {
+        val appCtx = context.applicationContext
+        return appCtx as? SuhoodApplication
+            ?: error("SuhoodApplication not ready (got ${appCtx.javaClass.name})")
+    }
 
     fun dao(context: Context) = app(context).database.dao()
 
