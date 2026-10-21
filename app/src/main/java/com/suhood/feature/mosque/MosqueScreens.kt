@@ -29,6 +29,7 @@ import com.suhood.core.network.HttpJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import kotlin.math.*
@@ -43,6 +44,14 @@ data class MosquePlace(
 )
 
 object OverpassMosques {
+    /** Public Overpass mirrors — rotate on 502/timeout. */
+    private val ENDPOINTS = listOf(
+        "https://overpass-api.de/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://z.overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter"
+    )
+
     /** Overpass API — OpenStreetMap amenity=place_of_worship + religion=muslim (or mosque). */
     fun nearby(lat: Double, lon: Double, radiusM: Int): List<MosquePlace> {
         val query = """
@@ -55,9 +64,24 @@ object OverpassMosques {
             );
             out center tags;
         """.trimIndent()
-        val url = "https://overpass-api.de/api/interpreter?data=" + URLEncoder.encode(query, "UTF-8")
-        val root = JSONObject(HttpJson.get(url, timeoutMs = 30_000))
-        val elements = root.optJSONArray("elements") ?: return emptyList()
+        val encoded = URLEncoder.encode(query, "UTF-8")
+        var lastError: Exception? = null
+        for (base in ENDPOINTS) {
+            try {
+                val url = "$base?data=$encoded"
+                val body = HttpJson.get(url, timeoutMs = 35_000)
+                val root = JSONObject(body)
+                val elements = root.optJSONArray("elements") ?: JSONArray()
+                return parseElements(elements, lat, lon)
+            } catch (e: Exception) {
+                lastError = e
+                // try next mirror
+            }
+        }
+        throw lastError ?: IllegalStateException("All Overpass mirrors failed")
+    }
+
+    private fun parseElements(elements: org.json.JSONArray, lat: Double, lon: Double): List<MosquePlace> {
         val list = mutableListOf<MosquePlace>()
         for (i in 0 until elements.length()) {
             val e = elements.getJSONObject(i)
@@ -116,7 +140,13 @@ fun FindMosqueScreen(onBack: () -> Unit) {
                 }
                 if (mosques.isEmpty()) error = "No mosques found in OpenStreetMap data for this radius. Try a larger radius."
             } catch (e: Exception) {
-                error = e.message ?: "Search failed"
+                error = when {
+                    e.message?.contains("502") == true || e.message?.contains("capacity", ignoreCase = true) == true ->
+                        "Map server is busy. Tap refresh in a few seconds — Suhood will try alternate servers."
+                    e.message?.contains("timeout", ignoreCase = true) == true ->
+                        "Request timed out. Check your connection and try again."
+                    else -> e.message ?: "Search failed"
+                }
                 mosques = emptyList()
             } finally {
                 loading = false

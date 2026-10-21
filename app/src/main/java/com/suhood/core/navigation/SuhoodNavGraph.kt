@@ -491,7 +491,7 @@ fun SuhoodNavGraph(
                 route = Routes.BOOKS_DETAIL,
                 arguments = listOf(navArgument("identifier") { type = NavType.StringType })
             ) { entry ->
-                val id = entry.arguments?.getString("identifier") ?: return@composable
+                val id = android.net.Uri.decode(entry.arguments?.getString("identifier") ?: return@composable)
                 BookDetailScreen(
                     identifier = id,
                     onBack = { navController.popBackStack() },
@@ -504,7 +504,7 @@ fun SuhoodNavGraph(
                 route = Routes.BOOKS_READER,
                 arguments = listOf(navArgument("identifier") { type = NavType.StringType })
             ) { entry ->
-                val id = entry.arguments?.getString("identifier") ?: return@composable
+                val id = android.net.Uri.decode(entry.arguments?.getString("identifier") ?: return@composable)
                 BookReaderScreen(identifier = id, onBack = { navController.popBackStack() })
             }
             composable(Routes.MOSQUE) {
