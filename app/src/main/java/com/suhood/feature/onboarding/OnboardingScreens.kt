@@ -448,6 +448,137 @@ private fun GreenTickIllustration() {
     }
 }
 
+
+@Composable
+private fun QuranGoalPage(
+    settingsViewModel: SettingsViewModel,
+    onContinue: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val colors = suhoodColors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var minutes by remember { mutableIntStateOf(10) }
+    var hour by remember { mutableIntStateOf(9) }
+    var remind by remember { mutableStateOf(true) }
+    val options = listOf(5, 10, 20)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 16.dp)
+    ) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Quran Companion",
+            style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "How much time would you like to spend with the Quran daily?",
+            style = SuhoodTypography.bodyMedium,
+            color = colors.textSecondary
+        )
+        Spacer(Modifier.height(18.dp))
+        options.forEach { m ->
+            val sel = minutes == m
+            GlassCard(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                onClick = { minutes = m },
+                selected = sel,
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                Text(
+                    "$m minutes",
+                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (sel) colors.accentLavender else colors.textPrimary
+                )
+                Text(
+                    when (m) {
+                        5 -> "About 2 Mushaf pages · gentle pace"
+                        10 -> "About 4 Mushaf pages · steady"
+                        else -> "About 8 Mushaf pages · focused"
+                    },
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textMuted
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Daily reminder", style = SuhoodTypography.titleSmall, color = colors.textMuted)
+        Spacer(Modifier.height(8.dp))
+        GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (remind) "Reminder on" else "Reminder off",
+                    style = SuhoodTypography.titleSmall,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                androidx.compose.material3.Switch(
+                    checked = remind,
+                    onCheckedChange = { remind = it }
+                )
+            }
+            if (remind) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Pick a time. Notification permission is requested on the next step.",
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textMuted
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(6, 9, 12, 18, 21).forEach { h ->
+                        val sel = hour == h
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (sel) colors.accentLavender.copy(alpha = 0.2f) else colors.surfaceElevated)
+                                .border(1.dp, if (sel) colors.accentLavender else colors.borderSubtle, RoundedCornerShape(12.dp))
+                                .clickable { hour = h }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                "%02d:00".format(h),
+                                color = if (sel) colors.accentLavender else colors.textSecondary,
+                                style = SuhoodTypography.labelMedium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        GlassButton(
+            text = "Continue",
+            onClick = {
+                scope.launch {
+                    settingsViewModel.setQuranCompanion(minutes, hour, 0, remind)
+                    QuranReminderScheduler.cachePrefs(context, hour, 0, remind)
+                    onContinue()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+        GlassButton(
+            text = "Skip for now",
+            onClick = {
+                scope.launch {
+                    settingsViewModel.setQuranCompanion(10, 9, 0, false)
+                    QuranReminderScheduler.cachePrefs(context, 9, 0, false)
+                    onSkip()
+                }
+            },
+            primary = false,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
 @Composable
 private fun PermissionsPage(
     onContinue: () -> Unit,
