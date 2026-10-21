@@ -106,22 +106,6 @@ fun FindMosqueScreen(onBack: () -> Unit) {
     var lon by remember { mutableDoubleStateOf(39.8262) }
     var hasLocation by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (ok) {
-            fetchDeviceLocation(context) { la, lo ->
-                lat = la; lon = lo; hasLocation = true
-                scope.launch { searchMosques() }
-            }
-        } else {
-            error = "Location permission denied. Showing results near Makkah default. You can still open maps manually."
-            scope.launch { searchMosques() }
-        }
-    }
-
     fun searchMosques() {
         scope.launch {
             loading = true
@@ -137,6 +121,22 @@ fun FindMosqueScreen(onBack: () -> Unit) {
             } finally {
                 loading = false
             }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (ok) {
+            fetchDeviceLocation(context) { la, lo ->
+                lat = la; lon = lo; hasLocation = true
+                searchMosques()
+            }
+        } else {
+            error = "Location permission denied. Showing results near Makkah default. You can still open maps manually."
+            searchMosques()
         }
     }
 
