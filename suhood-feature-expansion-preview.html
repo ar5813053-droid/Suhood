@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Suhood — Feature Expansion Preview</title>
+<style>
+:root {
+  --bg:#0B0A10; --elev:#14131B; --surf:#1B1924; --surf2:#24212F;
+  --accent:#B9A7FF; --strong:#9A82F5; --mint:#6FCF97; --text:#F6F4FB;
+  --muted:#AAA5B8; --border:#373242; --silver:#C8C5D0;
+}
+[data-theme="light"] {
+  --bg:#F5F3FA; --elev:#FFFFFF; --surf:#FFFFFF; --surf2:#EEEAF8;
+  --accent:#8066D9; --strong:#6B4FC7; --mint:#2E9E6A; --text:#211D2C;
+  --muted:#6A6578; --border:#D8D2E6; --silver:#5A5568;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; font-family: system-ui, -apple-system, sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh;
+}
+header {
+  position:sticky; top:0; z-index:10;
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:12px 16px; background:rgba(20,19,27,.92); backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+[data-theme="light"] header { background:rgba(255,255,255,.92); }
+header h1 { font-size:15px; margin:0; flex:1; }
+nav button, .chip {
+  border:1px solid var(--border); background:var(--surf); color:var(--text);
+  border-radius:999px; padding:6px 12px; font-size:12px; cursor:pointer;
+}
+nav button.active { border-color:var(--accent); color:var(--accent); }
+main { max-width:420px; margin:0 auto; padding:16px; }
+.screen { display:none; }
+.screen.active { display:block; }
+.card {
+  background:linear-gradient(145deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  border:1px solid var(--border); border-radius:18px; padding:14px; margin-bottom:12px;
+}
+.row { display:flex; gap:10px; align-items:center; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.tile {
+  background:var(--surf); border:1px solid var(--border); border-radius:16px;
+  padding:14px; min-height:88px; cursor:pointer;
+}
+.tile small { color:var(--muted); display:block; margin-top:4px; }
+.slider { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; }
+.slider .tile { min-width:88px; flex:0 0 88px; text-align:center; }
+.label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+.h { font-weight:700; margin:0 0 6px; }
+.muted { color:var(--muted); font-size:13px; }
+.bar { height:8px; background:var(--surf2); border-radius:99px; overflow:hidden; margin-top:8px; }
+.bar > i { display:block; height:100%; background:var(--accent); width:40%; }
+.badge { color:var(--mint); font-size:12px; }
+.note {
+  font-size:11px; color:var(--muted); border:1px dashed var(--border);
+  border-radius:12px; padding:10px; margin:12px 0;
+}
+.arabic { font-size:28px; direction:rtl; }
+.map {
+  height:160px; border-radius:16px; border:1px solid var(--border);
+  background: radial-gradient(circle at 40% 50%, #243044, #12141c);
+  display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px;
+}
+.reader {
+  line-height:1.55; font-size:16px; background:var(--elev);
+  border-radius:16px; padding:16px; border:1px solid var(--border);
+}
+.tts { display:flex; gap:8px; margin-top:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Suhood Feature Expansion (UI preview)</h1>
+  <nav>
+    <button class="active" data-go="home">Home+</button>
+    <button data-go="more">All Features</button>
+    <button data-go="books">Books</button>
+    <button data-go="detail">Book detail</button>
+    <button data-go="reader">Reader</button>
+    <button data-go="mosque">Mosque</button>
+    <button data-go="quest">Quest</button>
+  </nav>
+  <button class="chip" id="themeBtn">Theme</button>
+</header>
+<main>
+  <div class="note">Illustrative prototype only — sample titles, mosques, and XP are not live app data. Native Kotlin implementation uses Internet Archive, OpenStreetMap/Overpass, and local XP rules.</div>
+
+  <section id="home" class="screen active">
+    <p class="label">Home · Quick actions</p>
+    <div class="slider">
+      <div class="tile">Qibla</div>
+      <div class="tile">Focus</div>
+      <div class="tile">Tasbeeh</div>
+      <div class="tile">Duas</div>
+      <div class="tile">Worship</div>
+      <div class="tile">Alarm</div>
+      <div class="tile">Quran</div>
+      <div class="tile" style="border-color:var(--accent)">More</div>
+    </div>
+    <p class="muted">Nasheedify removed from Home slider · available under All Features → Audio</p>
+  </section>
+
+  <section id="more" class="screen">
+    <h2 class="h">All Features</h2>
+    <p class="label">Worship</p>
+    <div class="grid2">
+      <div class="tile">Salah<small>Prayer tracker</small></div>
+      <div class="tile">Quran<small>Mushaf</small></div>
+      <div class="tile">Tasbeeh<small>Dhikr</small></div>
+      <div class="tile">Worship Quest<small>XP & missions</small></div>
+    </div>
+    <p class="label">Explore</p>
+    <div class="grid2">
+      <div class="tile">Suhood Books<small>Free library</small></div>
+      <div class="tile">Find Mosque<small>Nearby</small></div>
+    </div>
+    <p class="label">Audio</p>
+    <div class="grid2">
+      <div class="tile">Nasheedify<small>Nasheeds & tilawat</small></div>
+      <div class="tile">Settings<small>Preferences</small></div>
+    </div>
+  </section>
+
+  <section id="books" class="screen">
+    <h2 class="h">Suhood Books</h2>
+    <input style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);background:var(--surf);color:var(--text)" placeholder="Search Islam, Seerah…" value="Islam"/>
+    <div class="card row"><div style="width:48px;height:64px;background:var(--surf2);border-radius:8px"></div><div><strong>Sample title (illustrative)</strong><div class="muted">Author · Internet Archive</div></div></div>
+    <div class="card row"><div style="width:48px;height:64px;background:var(--surf2);border-radius:8px"></div><div><strong>Another sample listing</strong><div class="muted">Public metadata only</div></div></div>
+  </section>
+
+  <section id="detail" class="screen">
+    <h2 class="h">Book details</h2>
+    <div class="card">
+      <strong>Sample book detail</strong>
+      <p class="muted">Description from source metadata. Formats listed from IA files. Restricted/lending items are not presented as free downloads.</p>
+      <button class="chip">Read / Open</button>
+      <button class="chip">Open on Internet Archive</button>
+    </div>
+  </section>
+
+  <section id="reader" class="screen">
+    <h2 class="h">Reader + TTS</h2>
+    <div class="reader">Sample extractable text layer would appear here. Font size controls and system TTS play/stop sit in the top bar of the native screen.</div>
+    <div class="tts">
+      <button class="chip">A−</button><button class="chip">A+</button><button class="chip">Speak</button>
+    </div>
+  </section>
+
+  <section id="mosque" class="screen">
+    <h2 class="h">Find Mosque</h2>
+    <div class="map">Map / list · OSM data</div>
+    <div class="card"><strong>Sample mosque name</strong><div class="muted">1.2 km · OpenStreetMap</div><span class="badge">Directions</span></div>
+    <div class="card"><strong>Another listing</strong><div class="muted">2.4 km</div></div>
+    <p class="muted">© OpenStreetMap contributors · coverage varies</p>
+  </section>
+
+  <section id="quest" class="screen">
+    <h2 class="h">Worship Quest</h2>
+    <div class="card">
+      <div class="arabic">مجتهد</div>
+      <div>Mujtahid — Striving</div>
+      <div class="badge">Tier 1 · 62 XP</div>
+      <div class="bar"><i style="width:24%"></i></div>
+      <div class="muted">12 / 50 XP to next tier · not a measure of faith</div>
+    </div>
+    <div class="card">
+      <strong>Salah consistency</strong>
+      <div class="muted">Record 20 completions this month</div>
+      <div class="bar"><i style="width:55%"></i></div>
+    </div>
+    <div class="card"><strong>Recent XP</strong><div class="muted">+3 Salah Dhuhr · +3 Salah Asr</div></div>
+  </section>
+</main>
+<script>
+const screens=[...document.querySelectorAll('.screen')];
+const buttons=[...document.querySelectorAll('nav button')];
+buttons.forEach(b=>b.addEventListener('click',()=>{
+  buttons.forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  screens.forEach(s=>s.classList.toggle('active', s.id===b.dataset.go));
+}));
+document.getElementById('themeBtn').onclick=()=>{
+  const root=document.documentElement;
+  root.setAttribute('data-theme', root.getAttribute('data-theme')==='light'?'':'light');
+};
+</script>
+</body>
+</html>

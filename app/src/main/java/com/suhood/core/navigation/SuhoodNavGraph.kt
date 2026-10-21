@@ -41,6 +41,12 @@ import com.suhood.feature.worship.WorshipScreens
 import com.suhood.app.SuhoodApplication
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suhood.feature.more.AllFeaturesScreen
+import com.suhood.feature.books.BooksDiscoverScreen
+import com.suhood.feature.books.BookDetailScreen
+import com.suhood.feature.books.BookReaderScreen
+import com.suhood.feature.mosque.FindMosqueScreen
+import com.suhood.feature.quest.WorshipQuestScreen
 
 @Composable
 fun SuhoodNavGraph(
@@ -468,6 +474,44 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_ACCESSIBILITY) {
                 SettingsScreens.Accessibility(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.ALL_FEATURES) {
+                AllFeaturesScreen(
+                    onNavigate = { route -> navController.navigate(route) { launchSingleTop = true } },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.BOOKS) {
+                BooksDiscoverScreen(
+                    onNavigate = { route -> navController.navigate(route) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Routes.BOOKS_DETAIL,
+                arguments = listOf(navArgument("identifier") { type = NavType.StringType })
+            ) { entry ->
+                val id = entry.arguments?.getString("identifier") ?: return@composable
+                BookDetailScreen(
+                    identifier = id,
+                    onBack = { navController.popBackStack() },
+                    onRead = { ident ->
+                        navController.navigate(Routes.BOOKS_READER.replace("{identifier}", ident))
+                    }
+                )
+            }
+            composable(
+                route = Routes.BOOKS_READER,
+                arguments = listOf(navArgument("identifier") { type = NavType.StringType })
+            ) { entry ->
+                val id = entry.arguments?.getString("identifier") ?: return@composable
+                BookReaderScreen(identifier = id, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.MOSQUE) {
+                FindMosqueScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.QUEST) {
+                WorshipQuestScreen(onBack = { navController.popBackStack() })
             }
         }
 

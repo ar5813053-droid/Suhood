@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Person
@@ -378,7 +379,7 @@ fun HomeScreen(
             Triple("Worship", Icons.Filled.SelfImprovement, colors.silverBright) to Routes.WORSHIP,
             Triple("Alarm", Icons.Filled.Alarm, colors.accentCoral) to Routes.ALARMS,
             Triple("Quran", Icons.Filled.MenuBook, colors.accentLavender) to Routes.QURAN,
-            Triple("Nasheed", Icons.Filled.SelfImprovement, colors.accentMint) to Routes.AUDIO
+            Triple("More", Icons.Filled.Apps, colors.accentMint) to Routes.ALL_FEATURES
         )
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val gap = 10.dp

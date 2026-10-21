@@ -13,6 +13,25 @@ object Routes {
     const val MUHASABAH = "muhasabah"
     const val AUDIO = "audio"
 
+
+    // All Features hub
+    const val ALL_FEATURES = "all_features"
+
+    // Suhood Books
+    const val BOOKS = "books"
+    const val BOOKS_SEARCH = "books/search"
+    const val BOOKS_DETAIL = "books/detail/{identifier}"
+    const val BOOKS_READER = "books/reader/{identifier}"
+    const val BOOKS_LIBRARY = "books/library"
+
+    // Find Mosque
+    const val MOSQUE = "mosque"
+    const val MOSQUE_DETAIL = "mosque/detail/{id}"
+
+    // Worship Quest
+    const val QUEST = "quest"
+    const val QUEST_HISTORY = "quest/history"
+
     // Nested (reachable from Home / deep links)
     const val WORSHIP = "worship"
     const val FOCUS = "focus"
