@@ -1,5 +1,8 @@
 package com.suhood.core.navigation
 
+import android.app.Activity
+import androidx.compose.runtime.LaunchedEffect
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -70,6 +73,19 @@ fun SuhoodNavGraph(
 
     val isNasheedifyRoute = currentRoute == Routes.AUDIO ||
         (currentRoute?.startsWith("audio/") == true)
+
+    
+    val activity = LocalContext.current as? Activity
+    LaunchedEffect(Unit) {
+        val intent = activity?.intent ?: return@LaunchedEffect
+        when (intent.getStringExtra("navigate")) {
+            "mushaf", "quran" -> navController.navigate(Routes.QURAN_MUSHAF) { launchSingleTop = true }
+            "salah" -> navController.navigate(Routes.SALAH) { launchSingleTop = true }
+            "audio" -> navController.navigate(Routes.AUDIO) { launchSingleTop = true }
+            "journey" -> navController.navigate(Routes.JOURNEY) { launchSingleTop = true }
+        }
+        intent.removeExtra("navigate")
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isNasheedifyRoute) {

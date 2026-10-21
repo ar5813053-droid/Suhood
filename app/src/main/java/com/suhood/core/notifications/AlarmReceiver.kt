@@ -74,6 +74,7 @@ class BootReceiver : BroadcastReceiver() {
             runCatching { com.suhood.core.prayer.FajrAutoScheduler.reschedule(context) }
             runCatching { QuranReminderScheduler.rescheduleFromPrefs(context) }
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(context) }
+            runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(context) }
         }
     }
 }

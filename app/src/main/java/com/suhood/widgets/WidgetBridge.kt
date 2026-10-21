@@ -106,31 +106,97 @@ object WidgetBridge {
         return list[idx]
     }
 
-    fun hijriGregorianLabels(): Pair<String, String> {
+    data class DateLabels(
+        val gregorianDay: Int,
+        val gregorianMonthEn: String,
+        val gregorianFull: String,
+        val weekdayAr: String,
+        val weekdayEn: String,
+        val hijriDay: Int,
+        val hijriMonthAr: String,
+        val hijriMonthEn: String,
+        val hijriYear: Int,
+        val hijriLineAr: String,
+        val hijriLineEn: String
+    )
+
+    fun dateLabels(): DateLabels {
         val cal = Calendar.getInstance()
-        val greg = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.US).format(cal.time)
-        return approximateHijri(cal) to greg
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val monthEn = SimpleDateFormat("MMMM", Locale.US).format(cal.time)
+        val full = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.US).format(cal.time)
+        val dow = cal.get(Calendar.DAY_OF_WEEK)
+        val weekdayAr = arrayOf(
+            "", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"
+        )[dow]
+        val weekdayEn = SimpleDateFormat("EEEE", Locale.US).format(cal.time)
+        val (hDay, hMonth, hYear) = approximateHijriParts(cal)
+        val monthsAr = arrayOf(
+            "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
+            "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
+        )
+        val monthsEn = arrayOf(
+            "Muharram", "Safar", "Rabiʿ I", "Rabiʿ II", "Jumada I", "Jumada II",
+            "Rajab", "Shaʿban", "Ramadan", "Shawwal", "Dhul-Qaʿdah", "Dhul-Hijjah"
+        )
+        val mi = (hMonth - 1).coerceIn(0, 11)
+        return DateLabels(
+            gregorianDay = day,
+            gregorianMonthEn = monthEn.uppercase(Locale.US),
+            gregorianFull = full,
+            weekdayAr = weekdayAr,
+            weekdayEn = weekdayEn,
+            hijriDay = hDay,
+            hijriMonthAr = monthsAr[mi],
+            hijriMonthEn = monthsEn[mi],
+            hijriYear = hYear,
+            hijriLineAr = "$hDay ${monthsAr[mi]} $hYear هـ",
+            hijriLineEn = "$hDay ${monthsEn[mi]} $hYear AH (approx.)"
+        )
     }
 
-    private fun approximateHijri(cal: Calendar): String {
+    private fun approximateHijriParts(cal: Calendar): Triple<Int, Int, Int> {
         val y = cal.get(Calendar.YEAR)
         val m = cal.get(Calendar.MONTH) + 1
         val d = cal.get(Calendar.DAY_OF_MONTH)
-        var jd = (1461 * (y + 4800 + (m - 14) / 12)) / 4 +
+        val jd = (1461 * (y + 4800 + (m - 14) / 12)) / 4 +
             (367 * (m - 2 - 12 * ((m - 14) / 12))) / 12 -
             (3 * ((y + 4900 + (m - 14) / 12) / 100)) / 4 + d - 32075
         val days = jd - 1948439 - 227014
         val year = ((30 * days + 10646) / 10631)
         val month = minOf(12, maxOf(1, ((days - (29 + ((year - 1) * 10631L) / 30)) / 29.5).toInt() + 1))
-        val day = minOf(30, maxOf(1, (days - ((year - 1) * 10631.0) / 30 - (month - 1) * 29.5).toInt() + 1))
-        val months = arrayOf(
-            "Muharram", "Safar", "Rabiʿ I", "Rabiʿ II", "Jumada I", "Jumada II",
-            "Rajab", "Shaʿban", "Ramadan", "Shawwal", "Dhul-Qaʿdah", "Dhul-Hijjah"
-        )
-        return "$day ${months[month - 1]} $year AH (approx.)"
+        val dayH = minOf(30, maxOf(1, (days - ((year - 1) * 10631.0) / 30 - (month - 1) * 29.5).toInt() + 1))
+        return Triple(dayH, month, year)
     }
 
-    fun refreshAll(context: Context) {
+    /** One-shot alarm at next prayer boundary — no constant polling. */
+    fun scheduleNextPrayerRefresh(context: Context) {
+        runCatching {
+            val snap = kotlinx.coroutines.runBlocking { loadSalah(context) }
+            val delaySec = when {
+                snap.smart.isActiveHighlight -> (10 * 60).coerceAtMost(snap.smart.countdownSeconds.coerceAtLeast(60))
+                else -> snap.smart.countdownSeconds.coerceIn(60, 15 * 60)
+            }
+            val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val pi = android.app.PendingIntent.getBroadcast(
+                context, 72001,
+                android.content.Intent(context, WidgetRefreshReceiver::class.java),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            val fireAt = System.currentTimeMillis() + delaySec * 1000L
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC, fireAt, pi)
+                } else {
+                    am.setExact(android.app.AlarmManager.RTC, fireAt, pi)
+                }
+            } catch (_: SecurityException) {
+                am.set(android.app.AlarmManager.RTC, fireAt, pi)
+            }
+        }
+    }
+
+        fun refreshAll(context: Context) {
         val mgr = AppWidgetManager.getInstance(context)
         listOf(
             NextSalahWidgetReceiver::class.java,

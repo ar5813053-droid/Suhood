@@ -12,7 +12,15 @@ import androidx.glance.GlanceTheme
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.SizeMode
+import androidx.glance.LocalSize
+import androidx.compose.ui.unit.DpSize
+import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
+import androidx.glance.LocalSize
+import androidx.compose.ui.unit.DpSize
+import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
@@ -42,6 +50,9 @@ private val Green = Color(0xFF6FCF97)
 
 private fun openAppComponent(context: Context) =
     android.content.ComponentName(context, MainActivity::class.java)
+
+private val NavKey = ActionParameters.Key<String>("navigate")
+private val PageKey = ActionParameters.Key<Int>("page")
 
 private fun formatCountdown(sec: Int): String {
     val h = sec / 3600
@@ -119,24 +130,60 @@ class DuaWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 class IslamicDateWidget : GlanceAppWidget() {
+    override val sizeMode: SizeMode = SizeMode.Responsive(
+        setOf(DpSize(110.dp, 110.dp), DpSize(180.dp, 180.dp), DpSize(250.dp, 200.dp))
+    )
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val (hijri, greg) = WidgetBridge.hijriGregorianLabels()
-        val cal = java.util.Calendar.getInstance()
-        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
-        val month = java.text.SimpleDateFormat("MMMM", java.util.Locale.US).format(cal.time).uppercase()
+        val d = WidgetBridge.dateLabels()
         provideContent {
             GlanceTheme {
+                val size = LocalSize.current
+                val compact = size.width < 160.dp
                 Column(
-                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
+                    modifier = GlanceModifier.fillMaxSize().background(Bg).padding(if (compact) 10.dp else 14.dp)
                         .clickable(actionStartActivity(openAppComponent(context))),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(day.toString(), style = TextStyle(color = ColorProvider(TextPri), fontSize = 36.sp, fontWeight = FontWeight.Bold))
-                    Text(month, style = TextStyle(color = ColorProvider(TextSec), fontSize = 12.sp))
-                    Spacer(GlanceModifier.height(8.dp))
-                    Text(hijri, style = TextStyle(color = ColorProvider(Accent), fontSize = 12.sp))
-                    Text(greg, style = TextStyle(color = ColorProvider(TextSec), fontSize = 10.sp))
+                    Text(
+                        d.weekdayAr,
+                        style = TextStyle(
+                            color = ColorProvider(TextPri),
+                            fontSize = if (compact) 20.sp else 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                    Spacer(GlanceModifier.height(6.dp))
+                    Text(
+                        d.gregorianDay.toString(),
+                        style = TextStyle(
+                            color = ColorProvider(TextPri),
+                            fontSize = if (compact) 32.sp else 42.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                    Text(
+                        d.gregorianMonthEn,
+                        style = TextStyle(color = ColorProvider(TextSec), fontSize = if (compact) 11.sp else 13.sp)
+                    )
+                    Spacer(GlanceModifier.height(if (compact) 4.dp else 10.dp))
+                    Text(
+                        if (compact) "${d.hijriDay} ${d.hijriMonthAr}" else d.hijriLineAr,
+                        style = TextStyle(
+                            color = ColorProvider(Accent),
+                            fontSize = if (compact) 11.sp else 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                    if (!compact) {
+                        Text(
+                            d.hijriLineEn,
+                            style = TextStyle(color = ColorProvider(TextSec), fontSize = 10.sp, textAlign = TextAlign.Center)
+                        )
+                    }
                 }
             }
         }
@@ -163,10 +210,20 @@ class PrayerTrackerWidget : GlanceAppWidget() {
                     Row {
                         listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha").forEach { name ->
                             val ok = snap?.marked?.get(name)?.let { it != SalahStatus.NOT_PRAYED.key } == true
-                            Text(if (ok) "●" else "○", style = TextStyle(color = ColorProvider(if (ok) Green else TextSec), fontSize = 14.sp))
-                            Spacer(GlanceModifier.width(6.dp))
+                            Text(
+                                if (ok) "●" else "○",
+                                style = TextStyle(color = ColorProvider(if (ok) Green else TextSec), fontSize = 16.sp),
+                                modifier = GlanceModifier.clickable(
+                                    actionRunCallback<TogglePrayerAction>(
+                                        actionParametersOf(TogglePrayerAction.PrayerKey to name)
+                                    )
+                                )
+                            )
+                            Spacer(GlanceModifier.width(8.dp))
                         }
                     }
+                    Spacer(GlanceModifier.height(4.dp))
+                    Text("Tap marks to cycle On time / Late / clear", style = TextStyle(color = ColorProvider(TextSec), fontSize = 10.sp))
                 }
             }
         }
@@ -183,7 +240,12 @@ class QuranCompanionWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openAppComponent(context)))
+                        .clickable(
+                            actionStartActivity(
+                                openAppComponent(context),
+                                actionParametersOf(NavKey to "mushaf", PageKey to (q?.lastPage ?: 1))
+                            )
+                        )
                 ) {
                     Text("Quran Companion", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     if (q == null) {
@@ -283,7 +345,12 @@ class MushafWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openAppComponent(context))),
+                        .clickable(
+                            actionStartActivity(
+                                openAppComponent(context),
+                                actionParametersOf(NavKey to "mushaf", PageKey to (q?.lastPage ?: 1))
+                            )
+                        ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
