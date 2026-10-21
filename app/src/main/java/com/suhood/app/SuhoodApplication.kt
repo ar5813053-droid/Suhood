@@ -57,20 +57,7 @@ class SuhoodApplication : Application() {
         }
     }
 
-    private fun createChannels()
-        // Seed prayer cache so widgets work before Home opens (no DataStore)
-        runCatching {
-            val lat = 21.4225
-            val lng = 39.8262
-            val result = com.suhood.core.prayer.PrayerTimesCalculator.calculate(lat, lng)
-            com.suhood.core.prayer.PrayerTimesCache.save(
-                this, lat, lng,
-                com.suhood.core.prayer.PrayerTimesCalculator.Method.MWL,
-                "Makkah (default)",
-                result
-            )
-            com.suhood.widgets.WidgetBridge.refreshAll(this)
-        } {
+    private fun createChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
             listOf(
