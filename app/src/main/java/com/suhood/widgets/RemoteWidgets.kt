@@ -1,5 +1,8 @@
 package com.suhood.widgets
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -12,7 +15,6 @@ import android.widget.RemoteViews
 import com.suhood.app.R
 import com.suhood.app.MainActivity
 import com.suhood.feature.salah.SalahStatus
-import kotlinx.coroutines.runBlocking
 
 private fun openApp(context: Context, navigate: String? = null): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
