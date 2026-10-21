@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.suhood.core.designsystem.components.GlassButton
+import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.components.GlassSegmentedControl
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
