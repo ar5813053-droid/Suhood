@@ -40,21 +40,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.Switch
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Switch
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Switch
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,7 +62,6 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.JuzIndex
-import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.VerifiedQaris
 
 object QuranScreens {
