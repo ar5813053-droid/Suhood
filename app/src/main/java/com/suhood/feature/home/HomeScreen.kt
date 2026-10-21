@@ -67,6 +67,15 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
 import com.suhood.core.prayer.SmartNextSalah
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.Divider
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material.icons.filled.WbSunny
+import com.suhood.core.prayer.PrayerPeriod
+import com.suhood.core.datastore.PreferencesRepository
 import com.suhood.feature.salah.SalahStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -105,6 +114,11 @@ fun HomeScreen(
     val salahLogs by vm.salahToday.collectAsState()
     val tasbeeh by vm.tasbeeh.collectAsState()
 
+    val prefsRepo = remember { PreferencesRepository(context.applicationContext) }
+    val userLat by prefsRepo.latitude.collectAsState(initial = 21.4225)
+    val userLng by prefsRepo.longitude.collectAsState(initial = 39.8262)
+    val prayerMethod by prefsRepo.prayerMethod.collectAsState(initial = PrayerTimesCalculator.Method.MWL)
+
     var prayerResult by remember {
         mutableStateOf(
             PrayerTimesCalculator.calculate(
@@ -117,17 +131,15 @@ fun HomeScreen(
     var smart by remember {
         mutableStateOf(SmartNextSalah.resolve(prayerResult))
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(userLat, userLng, prayerMethod) {
         while (true) {
             val cal = Calendar.getInstance()
-            // Refresh calculation around midnight and every minute for transition accuracy
-            if (cal.get(Calendar.SECOND) < 2) {
-                prayerResult = PrayerTimesCalculator.calculate(
-                    latitude = 21.4225,
-                    longitude = 39.8262,
-                    calendar = cal
-                )
-            }
+            prayerResult = PrayerTimesCalculator.calculate(
+                latitude = userLat,
+                longitude = userLng,
+                method = prayerMethod,
+                calendar = cal
+            )
             smart = SmartNextSalah.resolve(prayerResult, cal)
             delay(1000)
         }
@@ -187,57 +199,146 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Smart Next Salah bar (10-min green highlight after prayer start)
+        // Smart Next Salah bar — period theme + active green window
         val highlightGreen = Color(0xFF6FCF97)
+        val periodColor = SmartNextSalah.periodAccent(smart.period)
+        val barAccent = if (smart.isActiveHighlight) highlightGreen else periodColor
         GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (smart.isActiveHighlight)
-                        Modifier.border(1.5.dp, highlightGreen.copy(alpha = 0.65f), RoundedCornerShape(20.dp))
-                    else Modifier
+                .border(
+                    1.dp,
+                    barAccent.copy(alpha = if (smart.isActiveHighlight) 0.55f else 0.28f),
+                    RoundedCornerShape(22.dp)
                 ),
             onClick = { onNavigate(Routes.SALAH) },
             contentPadding = PaddingValues(18.dp)
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text(
-                        if (smart.isActiveHighlight) "Now  ${smart.primaryName}" else "Next  ${smart.primaryName}",
-                        style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (smart.isActiveHighlight) highlightGreen else colors.accentLavender
+            if (smart.isActiveHighlight) {
+                // Active prayer: green name + check + "Prayer time started" + Next Salah row
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            when (smart.period) {
+                                PrayerPeriod.FAJR -> Icons.Filled.WbSunny
+                                PrayerPeriod.DHUHR -> Icons.Filled.WbSunny
+                                PrayerPeriod.ASR -> Icons.Filled.WbTwilight
+                                PrayerPeriod.MAGHRIB -> Icons.Filled.WbTwilight
+                                PrayerPeriod.ISHA -> Icons.Filled.NightsStay
+                            },
+                            contentDescription = null,
+                            tint = highlightGreen,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                smart.primaryName,
+                                style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = highlightGreen
+                            )
+                            Text(
+                                "Prayer time started",
+                                style = SuhoodTypography.bodySmall,
+                                color = colors.textSecondary
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Prayer started",
+                        tint = highlightGreen,
+                        modifier = Modifier.size(26.dp)
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        smart.primaryTime.lowercase(),
-                        style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                        color = if (smart.isActiveHighlight) highlightGreen else colors.textPrimary
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    if (smart.isActiveHighlight && smart.nextHint != null) {
+                }
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = colors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Column {
                         Text(
-                            smart.nextHint!!,
-                            style = SuhoodTypography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            "Next Salah",
+                            style = SuhoodTypography.labelMedium,
+                            color = colors.textMuted
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            smart.nextName ?: "—",
+                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = colors.textPrimary
+                        )
+                    }
+                    Text(
+                        smart.nextTimeDisplay ?: smart.nextTime ?: "",
+                        style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.textPrimary
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    smart.dateLabel,
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textMuted
+                )
+            } else {
+                // Upcoming next prayer
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "${SmartNextSalah.periodLabel(smart.period)} · Next",
+                            style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = periodColor
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            smart.primaryName,
+                            style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = colors.textPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            smart.primaryTimeDisplay,
+                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.textSecondary
                         )
-                    } else {
+                        Spacer(Modifier.height(4.dp))
                         Text(
                             "in ${formatCountdown(smart.countdownSeconds)}",
                             style = SuhoodTypography.bodySmall,
-                            color = colors.textSecondary
+                            color = colors.textMuted
                         )
                     }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Suhood", style = SuhoodTypography.labelSmall, color = colors.textMuted)
-                    Text(hijri.split(" ").take(3).joinToString(" "), style = SuhoodTypography.labelSmall, color = colors.textSecondary)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            SmartNextSalah.periodLabel(smart.period),
+                            style = SuhoodTypography.labelSmall,
+                            color = periodColor
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            smart.dateLabel.split(",").firstOrNull()?.trim() ?: smart.dateLabel,
+                            style = SuhoodTypography.labelSmall,
+                            color = colors.textMuted
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
             Text(
                 "View all prayer times  →",
                 style = SuhoodTypography.labelMedium,
-                color = colors.accentLavender
+                color = periodColor
             )
         }
 

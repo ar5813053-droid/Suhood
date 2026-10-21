@@ -94,7 +94,7 @@ class SalahViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setStatus(prayerName: String, status: SalahStatus, dateIso: String = todayIso()) {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             dao.upsertSalahLog(
                 SalahLogEntity(
                     id = "$dateIso-$prayerName",
@@ -153,9 +153,14 @@ object SalahScreens {
             }
         )
         val logs by vm.observeToday().collectAsState()
+        // Optimistic local map so ticks feel instant (Room flow can lag a frame)
+        var localStatus by remember { mutableStateOf<Map<String, SalahStatus?>>(emptyMap()) }
+        LaunchedEffect(logs) {
+            localStatus = logs.associate { it.prayerName to SalahStatus.fromKey(it.status) }
+        }
         val byPrayer = logs.associateBy { it.prayerName }
         val colors = suhoodColors
-        // Cycle: none -> on time -> late -> not prayed -> none (jamaah optional via long path: we include on time + jamaah as "on")
+        // Cycle: none -> on time -> late -> not prayed -> none
         val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.LATE, SalahStatus.NOT_PRAYED)
         val prayerTimes = remember {
             // display-only placeholders; real times come from prayer calculator when wired
@@ -262,7 +267,7 @@ object SalahScreens {
             Spacer(Modifier.height(18.dp))
 
             PRAYER_NAMES.forEach { name ->
-                val status = byPrayer[name]?.let { SalahStatus.fromKey(it.status) }
+                val status = localStatus[name] ?: byPrayer[name]?.let { SalahStatus.fromKey(it.status) }
                 val chipLabel = status?.label ?: "Not marked"
                 val chipColor = when (status) {
                     SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender
@@ -282,8 +287,10 @@ object SalahScreens {
                         val cur = status
                         val idx = cycle.indexOf(cur).let { if (it < 0) 0 else it }
                         val next = cycle[(idx + 1) % cycle.size]
+                        // Optimistic UI
+                        localStatus = localStatus + (name to next)
                         if (next == null) {
-                            // "unmark" — store NOT_PRAYED only if user wants clear; use ON_TIME cycle: remove by setting NOT and we could delete
+                            // Clearing mark: remove log by writing a transient? keep as NOT_PRAYED for history honesty
                             vm.setStatus(name, SalahStatus.NOT_PRAYED)
                         } else {
                             vm.setStatus(name, next)
