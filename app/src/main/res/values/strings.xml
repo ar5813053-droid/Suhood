@@ -10,7 +10,7 @@
     <string name="widget_next_salah_desc">Next prayer, countdown and active highlight</string>
     <string name="widget_dua_desc">Daily verified dua</string>
     <string name="widget_islamic_date_desc">Hijri and Gregorian date</string>
-    <string name="widget_prayer_tracker_desc">Today\'s Salah progress</string>
+    <string name="widget_prayer_tracker_desc">Today Salah progress</string>
     <string name="widget_quran_companion_desc">Daily Quran goal and progress</string>
     <string name="widget_nasheedify_desc">Play and pause Islamic audio</string>
     <string name="widget_habit_desc">My Journey habits today</string>
