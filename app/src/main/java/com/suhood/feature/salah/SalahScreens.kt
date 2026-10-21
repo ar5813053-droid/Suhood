@@ -1,4 +1,26 @@
 package com.suhood.feature.salah
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 
 import android.app.Application
 import androidx.compose.foundation.background
@@ -132,76 +154,212 @@ object SalahScreens {
         )
         val logs by vm.observeToday().collectAsState()
         val byPrayer = logs.associateBy { it.prayerName }
-        var sheetPrayer by remember { mutableStateOf<String?>(null) }
         val colors = suhoodColors
-        val todayDone = logs.count { it.status != SalahStatus.NOT_PRAYED.key }
+        // Cycle: none -> on time -> late -> not prayed -> none (jamaah optional via long path: we include on time + jamaah as "on")
+        val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.LATE, SalahStatus.NOT_PRAYED)
+        val prayerTimes = remember {
+            // display-only placeholders; real times come from prayer calculator when wired
+            mapOf(
+                "Fajr" to "Fajr",
+                "Dhuhr" to "Dhuhr",
+                "Asr" to "Asr",
+                "Maghrib" to "Maghrib",
+                "Isha" to "Isha"
+            )
+        }
+        val icons = mapOf(
+            "Fajr" to Icons.Filled.WbSunny,
+            "Dhuhr" to Icons.Filled.LightMode,
+            "Asr" to Icons.Filled.WbTwilight,
+            "Maghrib" to Icons.Filled.WbTwilight,
+            "Isha" to Icons.Filled.NightsStay
+        )
+        val recorded = logs.count { it.status != SalahStatus.NOT_PRAYED.key }
+        val progress = recorded / 5f
 
         Column(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
         ) {
-            ScreenHeader(title = "Salah", onBack = onBack)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Mark each prayer. Unrecorded prayers are not counted in history percentages.",
-                style = SuhoodTypography.bodySmall,
-                color = colors.textMuted
-            )
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(colors.surface)
+                        .border(1.dp, colors.borderSubtle, CircleShape)
+                        .clickable(onClick = onBack),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = colors.textPrimary, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(14.dp))
                 Text(
-                    "$todayDone / 5 recorded today",
-                    style = SuhoodTypography.titleMedium,
+                    "Salah",
+                    style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 22.sp),
                     color = colors.textPrimary
                 )
-                Text(
-                    "Tap a prayer to set status",
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.textSecondary
-                )
             }
-            Spacer(Modifier.height(16.dp))
-            PRAYER_NAMES.forEach { name ->
-                val status = byPrayer[name]?.let { SalahStatus.fromKey(it.status) }
-                GlassCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    onClick = { sheetPrayer = name }
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(name, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+
+            Text(
+                "Tap a prayer to cycle its status. Unrecorded prayers aren't counted in history percentages.",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted,
+                lineHeight = 18.sp
+            )
+            Spacer(Modifier.height(18.dp))
+
+            // Ring card
+            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(22.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val animated by animateFloatAsState(progress, tween(1000), label = "salahRing")
+                    Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+                        Canvas(Modifier.size(84.dp)) {
+                            val stroke = 8.dp.toPx()
+                            drawCircle(color = colors.surfaceElevated, style = Stroke(stroke))
+                            drawArc(
+                                color = colors.accentLavender,
+                                startAngle = -90f,
+                                sweepAngle = 360f * animated,
+                                useCenter = false,
+                                style = Stroke(stroke, cap = StrokeCap.Round)
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "$recorded",
+                                style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
+                                color = colors.textPrimary
+                            )
+                            Text("OF 5", style = SuhoodTypography.labelSmall.copy(fontSize = 9.sp), color = colors.textMuted)
+                        }
+                    }
+                    Spacer(Modifier.width(18.dp))
+                    Column {
+                        Text("Today's prayers", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                        Spacer(Modifier.height(4.dp))
                         Text(
-                            status?.label ?: "Not marked",
-                            style = SuhoodTypography.labelMedium,
-                            color = if (status == null) colors.textMuted else colors.accentLavender
+                            when {
+                                recorded == 0 -> "Nothing recorded yet — tap below to begin."
+                                recorded == 5 -> "All five prayers recorded. May it be accepted."
+                                else -> "$recorded of 5 recorded so far today."
+                            },
+                            style = SuhoodTypography.bodySmall,
+                            color = colors.textSecondary,
+                            lineHeight = 18.sp
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onHistory) {
-                Text("History & summary", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                Text("Week · month · year · all time", style = SuhoodTypography.bodySmall, color = colors.textMuted)
-            }
-        }
 
-        sheetPrayer?.let { prayer ->
-            StatusSheet(
-                prayer = prayer,
-                onDismiss = { sheetPrayer = null },
-                onSelect = { st ->
-                    vm.setStatus(prayer, st)
-                    sheetPrayer = null
+            Spacer(Modifier.height(18.dp))
+
+            PRAYER_NAMES.forEach { name ->
+                val status = byPrayer[name]?.let { SalahStatus.fromKey(it.status) }
+                val chipLabel = status?.label ?: "Not marked"
+                val chipColor = when (status) {
+                    SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender
+                    SalahStatus.LATE -> colors.accentYellow
+                    SalahStatus.NOT_PRAYED -> colors.error
+                    null -> colors.textMuted
                 }
-            )
+                val chipBg = when (status) {
+                    SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender.copy(alpha = 0.15f)
+                    SalahStatus.LATE -> colors.accentYellow.copy(alpha = 0.15f)
+                    SalahStatus.NOT_PRAYED -> colors.error.copy(alpha = 0.14f)
+                    null -> colors.surfaceElevated
+                }
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    onClick = {
+                        val cur = status
+                        val idx = cycle.indexOf(cur).let { if (it < 0) 0 else it }
+                        val next = cycle[(idx + 1) % cycle.size]
+                        if (next == null) {
+                            // "unmark" — store NOT_PRAYED only if user wants clear; use ON_TIME cycle: remove by setting NOT and we could delete
+                            vm.setStatus(name, SalahStatus.NOT_PRAYED)
+                        } else {
+                            vm.setStatus(name, next)
+                        }
+                    },
+                    contentPadding = PaddingValues(15.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(
+                                    if (status != null && status != SalahStatus.NOT_PRAYED)
+                                        colors.accentLavender.copy(alpha = 0.16f)
+                                    else colors.surfaceElevated
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                icons[name] ?: Icons.Filled.LightMode,
+                                null,
+                                tint = if (status != null && status != SalahStatus.NOT_PRAYED) colors.accentLavender else colors.accentYellow,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(name, style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                            Text("Tap to cycle status", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                        }
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(chipBg)
+                                .border(
+                                    1.dp,
+                                    if (status == null) colors.borderSubtle else Color.Transparent,
+                                    RoundedCornerShape(999.dp)
+                                )
+                                .padding(horizontal = 13.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                chipLabel,
+                                style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp),
+                                color = chipColor
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onHistory,
+                contentPadding = PaddingValues(17.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(colors.accentLavender.copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.BarChart, null, tint = colors.accentLavender, modifier = Modifier.size(19.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("History & summary", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                        Text("Week · month · year · all time", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                    }
+                    Icon(Icons.Filled.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
+                }
+            }
         }
     }
 
