@@ -17,10 +17,6 @@ import androidx.glance.LocalSize
 import androidx.compose.ui.unit.DpSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.SizeMode
-import androidx.glance.LocalSize
-import androidx.compose.ui.unit.DpSize
-import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
