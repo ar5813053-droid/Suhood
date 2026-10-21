@@ -57,6 +57,25 @@ class SettingsViewModel(
         viewModelScope.launch { repo.setLocation(lat, lng, label) }
     }
 
+    val quranDailyMinutes = repo.quranDailyMinutes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 10)
+    val quranReminderEnabled = repo.quranReminderEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setQuranCompanion(minutes: Int, hour: Int, minute: Int, remind: Boolean) {
+        viewModelScope.launch {
+            repo.setQuranDailyMinutes(minutes)
+            repo.setQuranReminder(hour, minute, remind)
+            repo.setQuranCompanionSetupDone(true)
+        }
+    }
+
+    fun setQuranReminderOnly(hour: Int, minute: Int, enabled: Boolean) {
+        viewModelScope.launch {
+            repo.setQuranReminder(hour, minute, enabled)
+        }
+    }
+
     class Factory(private val repo: PreferencesRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =

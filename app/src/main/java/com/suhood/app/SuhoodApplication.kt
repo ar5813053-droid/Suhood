@@ -44,7 +44,8 @@ class SuhoodApplication : Application() {
                 CHANNEL_PRAYER to "Prayer reminders",
                 CHANNEL_FOCUS to "Focus sessions",
                 CHANNEL_ALARM to "Alarms",
-                CHANNEL_AUDIO to "Audio playback"
+                CHANNEL_AUDIO to "Audio playback",
+                CHANNEL_QURAN to "Quran Companion"
             ).forEach { (id, name) ->
                 val importance = if (id == CHANNEL_ALARM)
                     NotificationManager.IMPORTANCE_HIGH
@@ -61,5 +62,6 @@ class SuhoodApplication : Application() {
         const val CHANNEL_FOCUS = "focus"
         const val CHANNEL_ALARM = "alarm"
         const val CHANNEL_AUDIO = "audio"
+        const val CHANNEL_QURAN = "quran"
     }
 }

@@ -78,9 +78,13 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.feature.settings.SettingsViewModel
+import com.suhood.core.notifications.QuranReminderScheduler
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.PaddingValues
 
-private const val TOTAL_STEPS = 6 // 0-3 intro, 4 permissions, 5 jazakallah
+private const val TOTAL_STEPS = 7 // 0-3 intro, 4 quran goal, 5 permissions, 6 jazakallah
 
 @Composable
 fun OnboardingFlow(
@@ -124,11 +128,11 @@ fun OnboardingFlow(
             ) {
                 OnboardingProgress(step = step, total = TOTAL_STEPS, modifier = Modifier.weight(1f))
                 // Skip only before permissions; permissions page has its own Skip
-                if (step < 4) {
+                if (step < 5) {
                     Spacer(Modifier.width(12.dp))
                     GlassButton(
                         text = "Skip",
-                        onClick = { step = 4 }, // jump to permissions
+                        onClick = { step = 5 }, // jump to permissions
                         primary = false,
                         modifier = Modifier.height(36.dp)
                     )
@@ -163,15 +167,20 @@ fun OnboardingFlow(
                     )
                     2 -> LanguagePage()
                     3 -> AppearancePage(onSelect = { settingsViewModel.setThemeMode(it) })
-                    4 -> PermissionsPage(
+                    4 -> QuranGoalPage(
+                        settingsViewModel = settingsViewModel,
                         onContinue = { step = 5 },
                         onSkip = { step = 5 }
+                    )
+                    5 -> PermissionsPage(
+                        onContinue = { step = 6 },
+                        onSkip = { step = 6 }
                     )
                     else -> JazakallahPage(onFinished = onComplete)
                 }
             }
 
-            // Primary CTA — hidden on permissions (has own buttons) and jazakallah (auto-continues)
+            // Primary CTA — hidden on quran goal, permissions, jazakallah
             if (step < 4) {
                 val cta = when (step) {
                     0 -> "Get Started"
@@ -184,7 +193,7 @@ fun OnboardingFlow(
                         .fillMaxWidth()
                         .padding(bottom = 20.dp, top = 8.dp)
                 )
-            } else if (step == 5) {
+            } else if (step == 6) {
                 Spacer(Modifier.height(12.dp))
             }
         }

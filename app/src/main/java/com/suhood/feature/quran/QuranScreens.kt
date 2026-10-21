@@ -1,4 +1,7 @@
 package com.suhood.feature.quran
+import com.suhood.app.SuhoodApplication
+import kotlinx.coroutines.launch
+import androidx.compose.ui.text.font.FontWeight
 
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -219,6 +222,62 @@ object QuranScreens {
                 placeholder = "Search the Quran",
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
+
+            // Quran Companion daily plan
+            val appCtx = LocalContext.current.applicationContext as SuhoodApplication
+            val prefsRepo = remember { com.suhood.core.datastore.PreferencesRepository(appCtx) }
+            val dailyMin by prefsRepo.quranDailyMinutes.collectAsStateWithLifecycle(10)
+            val todayPages by prefsRepo.quranTodayPages.collectAsStateWithLifecycle(0)
+            val todayDate by prefsRepo.quranTodayDate.collectAsStateWithLifecycle("")
+            val todayIso = remember {
+                java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+            }
+            val pagesDone = if (todayDate == todayIso) todayPages else 0
+            val targetPages = when (dailyMin) {
+                5 -> 2
+                20 -> 8
+                else -> 4
+            }
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                onClick = onMushaf,
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                Text(
+                    "Quran Companion",
+                    style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.accentLavender
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Today · $pagesDone / $targetPages pages · ${dailyMin} min goal",
+                    style = SuhoodTypography.titleSmall,
+                    color = colors.textPrimary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Continue reading · change goal in Settings",
+                    style = SuhoodTypography.bodySmall,
+                    color = colors.textMuted
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlassButton(text = "Continue", onClick = onMushaf, modifier = Modifier.weight(1f))
+                    GlassButton(
+                        text = "Mark done",
+                        primary = false,
+                        onClick = {
+                            // Fire-and-forget local progress
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                prefsRepo.markQuranDayComplete(targetPages)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier
@@ -602,6 +661,17 @@ object QuranScreens {
         val vm = rememberVm()
         val page by vm.page.collectAsStateWithLifecycle()
         val pageNumber by vm.pageNumber.collectAsStateWithLifecycle()
+        val companionApp = LocalContext.current.applicationContext as SuhoodApplication
+        val companionPrefs = remember { com.suhood.core.datastore.PreferencesRepository(companionApp) }
+        var lastTrackedPage by remember { mutableIntStateOf(-1) }
+        LaunchedEffect(pageNumber) {
+            if (page != null && pageNumber != lastTrackedPage && lastTrackedPage != -1) {
+                companionPrefs.addQuranPagesRead(1)
+                companionPrefs.setQuranLastPage(pageNumber)
+            }
+            lastTrackedPage = pageNumber
+            companionPrefs.setQuranLastPage(pageNumber)
+        }
         val loading by vm.loading.collectAsStateWithLifecycle()
         val error by vm.error.collectAsStateWithLifecycle()
         val colors = suhoodColors

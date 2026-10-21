@@ -100,6 +100,13 @@
         <receiver
             android:name="com.suhood.core.prayer.SalahReminderReceiver"
             android:exported="false" />
+        <receiver
+            android:name="com.suhood.core.notifications.QuranReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.suhood.action.QURAN_DAILY_REMINDER" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name="com.suhood.core.notifications.BootReceiver"

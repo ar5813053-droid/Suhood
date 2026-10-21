@@ -27,6 +27,14 @@ class PreferencesRepository(private val context: Context) {
         val LNG = doublePreferencesKey("longitude")
         val PRAYER_METHOD = stringPreferencesKey("prayer_method")
         val LOCATION_LABEL = stringPreferencesKey("location_label")
+        val QURAN_DAILY_MINUTES = stringPreferencesKey("quran_daily_minutes") // "5"|"10"|"20"
+        val QURAN_REMINDER_HOUR = stringPreferencesKey("quran_reminder_hour")
+        val QURAN_REMINDER_MINUTE = stringPreferencesKey("quran_reminder_minute")
+        val QURAN_REMINDER_ENABLED = booleanPreferencesKey("quran_reminder_enabled")
+        val QURAN_COMPANION_SETUP = booleanPreferencesKey("quran_companion_setup")
+        val QURAN_TODAY_DATE = stringPreferencesKey("quran_today_date")
+        val QURAN_TODAY_PAGES = stringPreferencesKey("quran_today_pages")
+        val QURAN_LAST_PAGE = stringPreferencesKey("quran_last_page")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -47,6 +55,31 @@ class PreferencesRepository(private val context: Context) {
     }
 
     val onboardingCompleted: Flow<Boolean> = preferences.map { it.onboardingCompleted }
+
+    val quranDailyMinutes: Flow<Int> = context.dataStore.data.map {
+        (it[Keys.QURAN_DAILY_MINUTES] ?: "10").toIntOrNull() ?: 10
+    }
+    val quranReminderHour: Flow<Int> = context.dataStore.data.map {
+        (it[Keys.QURAN_REMINDER_HOUR] ?: "9").toIntOrNull() ?: 9
+    }
+    val quranReminderMinute: Flow<Int> = context.dataStore.data.map {
+        (it[Keys.QURAN_REMINDER_MINUTE] ?: "0").toIntOrNull() ?: 0
+    }
+    val quranReminderEnabled: Flow<Boolean> = context.dataStore.data.map {
+        it[Keys.QURAN_REMINDER_ENABLED] ?: false
+    }
+    val quranCompanionSetupDone: Flow<Boolean> = context.dataStore.data.map {
+        it[Keys.QURAN_COMPANION_SETUP] ?: false
+    }
+    val quranTodayPages: Flow<Int> = context.dataStore.data.map {
+        it[Keys.QURAN_TODAY_PAGES]?.toIntOrNull() ?: 0
+    }
+    val quranTodayDate: Flow<String> = context.dataStore.data.map {
+        it[Keys.QURAN_TODAY_DATE] ?: ""
+    }
+    val quranLastPage: Flow<Int> = context.dataStore.data.map {
+        it[Keys.QURAN_LAST_PAGE]?.toIntOrNull() ?: 1
+    }
 
     /** Default: Makkah approx if user has not set location. */
     val latitude: Flow<Double> = context.dataStore.data.map { it[Keys.LAT] ?: 21.4225 }
@@ -86,6 +119,50 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun setPrayerMethod(method: PrayerTimesCalculator.Method) {
         context.dataStore.edit { it[Keys.PRAYER_METHOD] = method.name }
+    }
+
+    suspend fun setQuranDailyMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.QURAN_DAILY_MINUTES] = minutes.toString() }
+    }
+
+    suspend fun setQuranReminder(hour: Int, minute: Int, enabled: Boolean) {
+        context.dataStore.edit {
+            it[Keys.QURAN_REMINDER_HOUR] = hour.coerceIn(0, 23).toString()
+            it[Keys.QURAN_REMINDER_MINUTE] = minute.coerceIn(0, 59).toString()
+            it[Keys.QURAN_REMINDER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setQuranCompanionSetupDone(done: Boolean) {
+        context.dataStore.edit { it[Keys.QURAN_COMPANION_SETUP] = done }
+    }
+
+    suspend fun setQuranLastPage(page: Int) {
+        context.dataStore.edit { it[Keys.QURAN_LAST_PAGE] = page.coerceIn(1, 604).toString() }
+    }
+
+    /** Record pages read today; resets count when the calendar day changes. */
+    suspend fun addQuranPagesRead(pages: Int) {
+        if (pages <= 0) return
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date())
+        context.dataStore.edit { prefs ->
+            val storedDate = prefs[Keys.QURAN_TODAY_DATE]
+            val current = if (storedDate == today) {
+                prefs[Keys.QURAN_TODAY_PAGES]?.toIntOrNull() ?: 0
+            } else 0
+            prefs[Keys.QURAN_TODAY_DATE] = today
+            prefs[Keys.QURAN_TODAY_PAGES] = (current + pages).toString()
+        }
+    }
+
+    suspend fun markQuranDayComplete(targetPages: Int) {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date())
+        context.dataStore.edit {
+            it[Keys.QURAN_TODAY_DATE] = today
+            it[Keys.QURAN_TODAY_PAGES] = targetPages.toString()
+        }
     }
 
     suspend fun resetDemoData() {

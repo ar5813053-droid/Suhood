@@ -1,4 +1,6 @@
 package com.suhood.feature.home
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
 
 import android.app.Application
 import android.icu.util.IslamicCalendar
@@ -63,6 +65,7 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
+import com.suhood.core.prayer.SmartNextSalah
 import com.suhood.feature.salah.SalahStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -101,23 +104,33 @@ fun HomeScreen(
     val salahLogs by vm.salahToday.collectAsState()
     val tasbeeh by vm.tasbeeh.collectAsState()
 
-    val prayerResult = remember {
-        PrayerTimesCalculator.calculate(
-            latitude = 21.4225,
-            longitude = 39.8262,
-            calendar = Calendar.getInstance()
+    var prayerResult by remember {
+        mutableStateOf(
+            PrayerTimesCalculator.calculate(
+                latitude = 21.4225,
+                longitude = 39.8262,
+                calendar = Calendar.getInstance()
+            )
         )
     }
-    var countdown by remember {
-        mutableIntStateOf(PrayerTimesCalculator.countdownSecondsToNext(prayerResult))
+    var smart by remember {
+        mutableStateOf(SmartNextSalah.resolve(prayerResult))
     }
     LaunchedEffect(Unit) {
         while (true) {
-            countdown = PrayerTimesCalculator.countdownSecondsToNext(prayerResult)
+            val cal = Calendar.getInstance()
+            // Refresh calculation around midnight and every minute for transition accuracy
+            if (cal.get(Calendar.SECOND) < 2) {
+                prayerResult = PrayerTimesCalculator.calculate(
+                    latitude = 21.4225,
+                    longitude = 39.8262,
+                    calendar = cal
+                )
+            }
+            smart = SmartNextSalah.resolve(prayerResult, cal)
             delay(1000)
         }
     }
-    val nextPrayer = prayerResult.times.firstOrNull { it.isNext } ?: prayerResult.times.first()
 
     val prayerDone = salahLogs.count { it.status != SalahStatus.NOT_PRAYED.key }
     val prayerPct = ((prayerDone * 100) / 5)
@@ -173,31 +186,46 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Next prayer hero card
+        // Smart Next Salah bar (10-min green highlight after prayer start)
+        val highlightGreen = Color(0xFF6FCF97)
         GlassCard(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (smart.isActiveHighlight)
+                        Modifier.border(1.5.dp, highlightGreen.copy(alpha = 0.65f), RoundedCornerShape(20.dp))
+                    else Modifier
+                ),
             onClick = { onNavigate(Routes.SALAH) },
             contentPadding = PaddingValues(18.dp)
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(
-                        "Next  ${nextPrayer.name}",
+                        if (smart.isActiveHighlight) "Now  ${smart.primaryName}" else "Next  ${smart.primaryName}",
                         style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = colors.accentLavender
+                        color = if (smart.isActiveHighlight) highlightGreen else colors.accentLavender
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        nextPrayer.time.lowercase(),
+                        smart.primaryTime.lowercase(),
                         style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                        color = colors.textPrimary
+                        color = if (smart.isActiveHighlight) highlightGreen else colors.textPrimary
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        "in ${formatCountdown(countdown)}",
-                        style = SuhoodTypography.bodySmall,
-                        color = colors.textSecondary
-                    )
+                    if (smart.isActiveHighlight && smart.nextHint != null) {
+                        Text(
+                            smart.nextHint!!,
+                            style = SuhoodTypography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = colors.textSecondary
+                        )
+                    } else {
+                        Text(
+                            "in ${formatCountdown(smart.countdownSeconds)}",
+                            style = SuhoodTypography.bodySmall,
+                            color = colors.textSecondary
+                        )
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Suhood", style = SuhoodTypography.labelSmall, color = colors.textMuted)
