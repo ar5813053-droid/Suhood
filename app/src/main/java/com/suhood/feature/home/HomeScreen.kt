@@ -68,7 +68,6 @@ import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
 import com.suhood.core.prayer.SmartNextSalah
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.foundation.layout.Divider
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.NightsStay
