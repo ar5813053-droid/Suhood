@@ -443,7 +443,7 @@ object JourneyScreens {
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(listOf(colors.accentLavender, colors.strongAccent)))
+                .background(Brush.linearGradient(listOf(colors.accentLavender, Color(0xFF9A82F5))))
                 .clickable(onClick = onClick)
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center
