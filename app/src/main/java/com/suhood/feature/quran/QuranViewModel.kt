@@ -114,19 +114,56 @@ class QuranViewModel(
     fun setTranslationTextEdition(id: String) {
         _translationTextId.value = id
         _showTranslation.value = true
+        // Keep translation *audio* language in sync with text language
+        val matched = TranslationEditions.audioForTextEdition(id)
+        if (matched != null) {
+            _translationAudioId.value = matched.id
+        }
+        // If user had audio on but this language has no audio, turn audio off
+        if (_playTranslationAudio.value && matched == null) {
+            _playTranslationAudio.value = false
+        }
         val surah = _content.value?.meta?.number ?: return
         viewModelScope.launch { openSurah(surah) }
     }
 
     fun setPlayTranslationAudio(enabled: Boolean) {
-        _playTranslationAudio.value = enabled
+        if (enabled) {
+            val matched = TranslationEditions.audioForTextEdition(_translationTextId.value)
+            if (matched == null) {
+                _error.value =
+                    "Translation audio is not available for this language yet. " +
+                        "Available audio: English, Urdu. Text translation still works."
+                _playTranslationAudio.value = false
+                return
+            }
+            _translationAudioId.value = matched.id
+            _playTranslationAudio.value = true
+        } else {
+            _playTranslationAudio.value = false
+        }
         runCatching { playback.stopAndClear() }
     }
 
     fun setTranslationAudioEdition(id: String) {
-        _translationAudioId.value = id
+        val ed = TranslationEditions.audioById(id) ?: return
+        _translationAudioId.value = ed.id
+        // Prefer a text edition in the same language so text matches audio
+        val sameLangText = TranslationEditions.textEditions.find { it.langCode == ed.langCode }
+        if (sameLangText != null && TranslationEditions.langCodeOfText(_translationTextId.value) != ed.langCode) {
+            _translationTextId.value = sameLangText.id
+            _showTranslation.value = true
+            val surah = _content.value?.meta?.number
+            if (surah != null) viewModelScope.launch { openSurah(surah) }
+        }
         runCatching { playback.stopAndClear() }
     }
+
+    /** Resolved audio folder language for UI (e.g. "Urdu"). */
+    fun translationAudioLanguageLabel(): String =
+        TranslationEditions.audioById(_translationAudioId.value)?.language
+            ?: TranslationEditions.audioForTextEdition(_translationTextId.value)?.language
+            ?: "—"
 
     fun setQari(id: String) {
         if (id.isBlank()) return
@@ -165,8 +202,11 @@ class QuranViewModel(
         val arUrl = provider.ayahAudioUrl(qariId, globalNumber)
         try {
             if (_playTranslationAudio.value) {
+                val matched = TranslationEditions.audioForTextEdition(_translationTextId.value)
+                val audioId = matched?.id ?: _translationAudioId.value
+                if (matched != null) _translationAudioId.value = matched.id
                 val trUrl = provider.translationAudioUrl(
-                    _translationAudioId.value, surah, ayahInSurah
+                    audioId, surah, ayahInSurah
                 )
                 playback.playQueueUris(
                     listOf(
@@ -200,7 +240,12 @@ class QuranViewModel(
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
         val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
         val withTr = _playTranslationAudio.value
-        val trEdition = _translationAudioId.value
+        // Always prefer audio matching the selected text language
+        val matchedAudio = TranslationEditions.audioForTextEdition(_translationTextId.value)
+        val trEdition = matchedAudio?.id ?: _translationAudioId.value
+        if (withTr && matchedAudio != null) {
+            _translationAudioId.value = matchedAudio.id
+        }
         val items = mutableListOf<Triple<String, String, String>>()
         for (a in ayahs) {
             items += Triple(

@@ -672,52 +672,74 @@ object QuranScreens {
                             singleLine = true
                         )
                         Spacer(Modifier.height(8.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Play translation audio", color = colors.textSecondary)
-                            Switch(
-                                checked = playTranslationAudio,
-                                onCheckedChange = { vm.setPlayTranslationAudio(it) }
-                            )
-                        }
-                        Spacer(Modifier.height(6.dp))
+                        val textLang = TranslationEditions.textById(translationTextId)
+                        val audioMatch = TranslationEditions.audioForTextEdition(translationTextId)
+                        val hasAudio = audioMatch != null
+
                         Text("Text language", style = SuhoodTypography.labelMedium, color = colors.accentLavender)
                         Spacer(Modifier.height(4.dp))
                         Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
                             TranslationEditions.searchText(translationSearch).forEach { ed ->
                                 val selected = ed.id == translationTextId
+                                val audioHint = if (TranslationEditions.hasAudioForText(ed.id)) " · audio" else ""
                                 Text(
-                                    "${ed.language} — ${ed.name}",
+                                    "${ed.language} — ${ed.name}$audioHint",
                                     style = SuhoodTypography.bodyMedium,
                                     color = if (selected) colors.silverBright else colors.textSecondary,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            vm.setTranslationTextEdition(ed.id)
-                                        }
+                                        .clickable { vm.setTranslationTextEdition(ed.id) }
                                         .padding(vertical = 6.dp)
                                 )
                             }
                         }
-                        if (playTranslationAudio) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("Translation audio voice", style = SuhoodTypography.labelMedium, color = colors.accentMint)
-                            Spacer(Modifier.height(4.dp))
-                            TranslationEditions.audioEditions.forEach { ed ->
-                                val selected = ed.id == translationAudioId
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Play translation audio", color = colors.textSecondary)
                                 Text(
-                                    "${ed.language} — ${ed.name}",
-                                    style = SuhoodTypography.bodyMedium,
-                                    color = if (selected) colors.accentMint else colors.textSecondary,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { vm.setTranslationAudioEdition(ed.id) }
-                                        .padding(vertical = 6.dp)
+                                    when {
+                                        !hasAudio -> "No verse audio for ${textLang?.language ?: "this language"} yet (text only). English & Urdu have audio."
+                                        playTranslationAudio -> "Audio language: ${audioMatch!!.language} — ${audioMatch.name}"
+                                        else -> "Will play ${audioMatch!!.language} after each Arabic ayah"
+                                    },
+                                    style = SuhoodTypography.labelSmall,
+                                    color = colors.textMuted
                                 )
                             }
+                            Switch(
+                                checked = playTranslationAudio && hasAudio,
+                                enabled = hasAudio,
+                                onCheckedChange = { vm.setPlayTranslationAudio(it) }
+                            )
+                        }
+                        if (hasAudio) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Audio voice (same language as text)",
+                                style = SuhoodTypography.labelMedium,
+                                color = colors.accentMint
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            // Only show audio voices for the selected text language
+                            TranslationEditions.audioEditions
+                                .filter { it.langCode == (textLang?.langCode ?: audioMatch?.langCode) }
+                                .forEach { ed ->
+                                    val selected = ed.id == translationAudioId
+                                    Text(
+                                        "${ed.language} — ${ed.name}",
+                                        style = SuhoodTypography.bodyMedium,
+                                        color = if (selected) colors.accentMint else colors.textSecondary,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { vm.setTranslationAudioEdition(ed.id) }
+                                            .padding(vertical = 6.dp)
+                                    )
+                                }
                         }
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = { showTranslationPicker = false }) {
