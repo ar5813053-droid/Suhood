@@ -40,8 +40,8 @@ private val TextSec = Color(0xFFAAA5B8)
 private val Accent = Color(0xFFB9A7FF)
 private val Green = Color(0xFF6FCF97)
 
-private fun openApp(context: Context): Intent =
-    Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+private fun openAppComponent(context: Context) =
+    android.content.ComponentName(context, MainActivity::class.java)
 
 private fun formatCountdown(sec: Int): String {
     val h = sec / 3600
@@ -57,7 +57,7 @@ class NextSalahWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context)))
+                        .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     if (snap == null) {
                         Text("Prayer times unavailable", style = TextStyle(color = ColorProvider(TextSec), fontSize = 12.sp))
@@ -98,7 +98,7 @@ class DuaWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context)))
+                        .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("Dua of the Day", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     Spacer(GlanceModifier.height(6.dp))
@@ -128,7 +128,7 @@ class IslamicDateWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context))),
+                        .clickable(actionStartActivity(openAppComponent(context))),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -154,7 +154,7 @@ class PrayerTrackerWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context)))
+                        .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("Today's prayers", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     Text("$done / 5", style = TextStyle(color = ColorProvider(TextPri), fontSize = 28.sp, fontWeight = FontWeight.Bold))
@@ -183,7 +183,7 @@ class QuranCompanionWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context)))
+                        .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("Quran Companion", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     if (q == null) {
@@ -248,7 +248,7 @@ class HabitWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context)))
+                        .clickable(actionStartActivity(openAppComponent(context)))
                 ) {
                     Text("My Journey", style = TextStyle(color = ColorProvider(Accent), fontSize = 11.sp))
                     Text(
@@ -283,7 +283,7 @@ class MushafWidget : GlanceAppWidget() {
             GlanceTheme {
                 Column(
                     modifier = GlanceModifier.fillMaxSize().background(Bg).padding(14.dp)
-                        .clickable(actionStartActivity(openApp(context))),
+                        .clickable(actionStartActivity(openAppComponent(context))),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
