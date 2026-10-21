@@ -12,13 +12,7 @@ import android.widget.RemoteViews
 import com.suhood.app.R
 import com.suhood.app.MainActivity
 import com.suhood.feature.salah.SalahStatus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-
-private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 private fun openApp(context: Context, navigate: String? = null): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
@@ -90,11 +84,17 @@ fun buildNextSalah(context: Context): RemoteViews {
 fun buildDua(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_dua)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, null))
-    val dua = WidgetBridge.duaOfDay()
+    val dua = runCatching { WidgetBridge.duaOfDay() }.getOrNull()
     rv.setTextViewText(R.id.w_label, "DUA OF THE DAY")
-    rv.setTextViewText(R.id.w_arabic, dua.arabic)
-    rv.setTextViewText(R.id.w_translation, dua.translation.take(140))
-    rv.setTextViewText(R.id.w_ref, dua.reference)
+    if (dua != null) {
+        rv.setTextViewText(R.id.w_arabic, dua.arabic.ifBlank { "—" })
+        rv.setTextViewText(R.id.w_translation, dua.translation.take(160).ifBlank { "—" })
+        rv.setTextViewText(R.id.w_ref, dua.reference.ifBlank { "" })
+    } else {
+        rv.setTextViewText(R.id.w_arabic, "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً")
+        rv.setTextViewText(R.id.w_translation, "Our Lord, give us good in this world and the Hereafter.")
+        rv.setTextViewText(R.id.w_ref, "Qur'an 2:201")
+    }
     return rv
 }
 
@@ -250,24 +250,28 @@ fun buildPrayerMarker(context: Context): RemoteViews {
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
+/**
+ * MUST run synchronously. AppWidgetProvider.onUpdate is killed if we only
+ * launch a coroutine without goAsync — that left widgets stuck on "—" placeholders.
+ */
 private fun providerUpdate(
     context: Context,
     appWidgetManager: AppWidgetManager,
     appWidgetIds: IntArray,
     build: (Context) -> RemoteViews
 ) {
-    // Build off main when possible
-    scope.launch {
-        val views = try {
-            build(context)
-        } catch (e: Exception) {
-            RemoteViews(context.packageName, R.layout.widget_error).apply {
-                setTextViewText(R.id.w_title, "Suhood")
-                setTextViewText(R.id.w_sub, e.message?.take(80) ?: "Tap to open app")
-                setOnClickPendingIntent(R.id.widget_root, openApp(context, null))
-            }
+    val views = try {
+        build(context)
+    } catch (e: Exception) {
+        android.util.Log.e("SuhoodWidget", "build failed", e)
+        RemoteViews(context.packageName, R.layout.widget_error).apply {
+            setTextViewText(R.id.w_title, "Suhood")
+            setTextViewText(R.id.w_sub, (e.message ?: "Tap to open").take(80))
+            setOnClickPendingIntent(R.id.widget_root, openApp(context, null))
         }
-        appWidgetIds.forEach { appWidgetManager.updateAppWidget(it, views) }
+    }
+    for (id in appWidgetIds) {
+        appWidgetManager.updateAppWidget(id, views)
     }
 }
 
