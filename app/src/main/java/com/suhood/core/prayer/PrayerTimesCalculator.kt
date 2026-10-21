@@ -79,12 +79,11 @@ object PrayerTimesCalculator {
 
         fun timeFor(angle: Double, afterNoon: Boolean): Double {
             val noon = fixHour(12 + tzOffsetHours - longitude / 15.0 - eqt)
-            val t = (1.0 / 15.0) * deg(
-                acos(
-                    (-sin(rad(angle)) - sin(rad(decl)) * sin(rad(latitude))) /
-                        (cos(rad(decl)) * cos(rad(latitude)))
-                )
-            )
+            val cosH = (
+                (-sin(rad(angle)) - sin(rad(decl)) * sin(rad(latitude))) /
+                    (cos(rad(decl)) * cos(rad(latitude)))
+            ).coerceIn(-1.0, 1.0)
+            val t = (1.0 / 15.0) * deg(acos(cosH))
             return if (afterNoon) noon + t else noon - t
         }
 
@@ -115,7 +114,8 @@ object PrayerTimesCalculator {
                 name = name,
                 time = formatHm(mins),
                 isNext = false,
-                isPassed = mins < nowMinutes
+                isPassed = mins <= nowMinutes, // started => passed for "next" purposes
+                minutesSinceMidnight = mins
             )
         }
 
@@ -152,12 +152,11 @@ object PrayerTimesCalculator {
 
     private fun asrTime(lat: Double, decl: Double, noon: Double, shadowFactor: Int): Double {
         val a = -deg(atan(1.0 / (shadowFactor + tan(rad(abs(lat - decl))))))
-        val t = (1.0 / 15.0) * deg(
-            acos(
-                (-sin(rad(a)) - sin(rad(decl)) * sin(rad(lat))) /
-                    (cos(rad(decl)) * cos(rad(lat)))
-            )
-        )
+        val cosH = (
+            (-sin(rad(a)) - sin(rad(decl)) * sin(rad(lat))) /
+                (cos(rad(decl)) * cos(rad(lat)))
+        ).coerceIn(-1.0, 1.0)
+        val t = (1.0 / 15.0) * deg(acos(cosH))
         return noon + t
     }
 

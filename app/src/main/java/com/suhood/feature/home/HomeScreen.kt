@@ -117,6 +117,7 @@ fun HomeScreen(
     val userLat by prefsRepo.latitude.collectAsState(initial = 21.4225)
     val userLng by prefsRepo.longitude.collectAsState(initial = 39.8262)
     val prayerMethod by prefsRepo.prayerMethod.collectAsState(initial = PrayerTimesCalculator.Method.MWL)
+    val locLabel by prefsRepo.locationLabel.collectAsState(initial = "Makkah (default)")
 
     var prayerResult by remember {
         mutableStateOf(
@@ -287,6 +288,11 @@ fun HomeScreen(
                     style = SuhoodTypography.labelSmall,
                     color = colors.textMuted
                 )
+                Text(
+                    locLabel,
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textMuted
+                )
             } else {
                 // Upcoming next prayer
                 Row(
@@ -327,6 +333,11 @@ fun HomeScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             smart.dateLabel.split(",").firstOrNull()?.trim() ?: smart.dateLabel,
+                            style = SuhoodTypography.labelSmall,
+                            color = colors.textMuted
+                        )
+                        Text(
+                            locLabel,
                             style = SuhoodTypography.labelSmall,
                             color = colors.textMuted
                         )

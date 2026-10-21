@@ -5,9 +5,11 @@ import java.util.UUID
 // ── Prayer (demo) ───────────────────────────────────────────────────────────
 data class PrayerTime(
     val name: String,
-    val time: String, // HH:mm display
+    val time: String, // HH:mm display (24h)
     val isNext: Boolean = false,
-    val isPassed: Boolean = false
+    val isPassed: Boolean = false,
+    /** Minutes from local midnight for accurate next-prayer logic. */
+    val minutesSinceMidnight: Int = 0
 )
 
 data class DemoPrayerSchedule(

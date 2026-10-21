@@ -179,6 +179,9 @@ interface SuhoodDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSalahLog(log: SalahLogEntity)
 
+    @Query("DELETE FROM salah_logs WHERE id = :id")
+    suspend fun deleteSalahLog(id: String)
+
     @Query("SELECT * FROM salah_logs WHERE dateIso = :dateIso")
     fun observeSalahForDate(dateIso: String): Flow<List<SalahLogEntity>>
 

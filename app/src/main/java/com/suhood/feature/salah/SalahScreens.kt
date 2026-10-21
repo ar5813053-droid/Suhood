@@ -111,6 +111,12 @@ class SalahViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
     }
+
+    fun clearStatus(prayerName: String, dateIso: String = todayIso()) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { dao.deleteSalahLog("$dateIso-$prayerName") }
+        }
+    }
 }
 
 object SalahStats {
@@ -159,14 +165,19 @@ object SalahScreens {
             }
         )
         val logs by vm.observeToday().collectAsState()
-        // Optimistic local map so ticks feel instant (Room flow can lag a frame)
+        // Local UI state is source of truth while interacting. Only merge non-empty DB emissions
+        // so transient empty Flow emissions cannot wipe the list (fixes flicker in the video).
         var localStatus by remember { mutableStateOf<Map<String, SalahStatus?>>(emptyMap()) }
+        var hasDbSnapshot by remember { mutableStateOf(false) }
         LaunchedEffect(logs) {
-            localStatus = logs.associate { it.prayerName to SalahStatus.fromKey(it.status) }
+            if (logs.isEmpty() && hasDbSnapshot) return@LaunchedEffect
+            if (logs.isNotEmpty()) {
+                localStatus = logs.associate { it.prayerName to SalahStatus.fromKey(it.status) }
+                hasDbSnapshot = true
+            }
         }
-        val byPrayer = logs.associateBy { it.prayerName }
         val colors = suhoodColors
-        // Cycle: none -> on time -> late -> not prayed -> none
+        // Cycle: unmarked -> on time -> late -> not prayed -> unmarked
         val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.LATE, SalahStatus.NOT_PRAYED)
         val prayerTimes = remember {
             // display-only placeholders; real times come from prayer calculator when wired
@@ -185,7 +196,10 @@ object SalahScreens {
             "Maghrib" to Icons.Filled.WbTwilight,
             "Isha" to Icons.Filled.NightsStay
         )
-        val recorded = logs.count { it.status != SalahStatus.NOT_PRAYED.key }
+        val recorded = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha").count { name ->
+            val s = localStatus[name]
+            s != null && s != SalahStatus.NOT_PRAYED
+        }
         val progress = recorded / 5f
 
         Column(
@@ -273,7 +287,7 @@ object SalahScreens {
             Spacer(Modifier.height(18.dp))
 
             PRAYER_NAMES.forEach { name ->
-                val status = localStatus[name] ?: byPrayer[name]?.let { SalahStatus.fromKey(it.status) }
+                val status = localStatus[name]
                 val chipLabel = status?.label ?: "Not marked"
                 val chipColor = when (status) {
                     SalahStatus.ON_TIME, SalahStatus.JAMA_AH -> colors.accentLavender
@@ -293,11 +307,14 @@ object SalahScreens {
                         val cur = status
                         val idx = cycle.indexOf(cur).let { if (it < 0) 0 else it }
                         val next = cycle[(idx + 1) % cycle.size]
-                        // Optimistic UI
-                        localStatus = localStatus + (name to next)
+                        // Instant UI update — never wait for Room
+                        localStatus = if (next == null) {
+                            localStatus - name
+                        } else {
+                            localStatus + (name to next)
+                        }
                         if (next == null) {
-                            // Clearing mark: remove log by writing a transient? keep as NOT_PRAYED for history honesty
-                            vm.setStatus(name, SalahStatus.NOT_PRAYED)
+                            vm.clearStatus(name)
                         } else {
                             vm.setStatus(name, next)
                         }
