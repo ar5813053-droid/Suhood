@@ -256,7 +256,7 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, null, tint = colors.accentLavender, modifier = Modifier.size(36.dp))
+                    Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentLavender, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(rank.arabic, style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)

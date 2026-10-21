@@ -39,7 +39,8 @@ object InternetArchiveBooks {
         val out = mutableListOf<IaBook>()
         for (i in 0 until docs.length()) {
             val d = docs.getJSONObject(i)
-            val id = d.optString("identifier").ifBlank { continue }
+            val id = d.optString("identifier")
+            if (id.isBlank()) continue
             out += IaBook(
                 identifier = id,
                 title = firstString(d, "title").ifBlank { id },

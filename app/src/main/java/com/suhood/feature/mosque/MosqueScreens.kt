@@ -114,15 +114,15 @@ fun FindMosqueScreen(onBack: () -> Unit) {
         if (ok) {
             fetchDeviceLocation(context) { la, lo ->
                 lat = la; lon = lo; hasLocation = true
-                scope.launch { search() }
+                scope.launch { searchMosques() }
             }
         } else {
             error = "Location permission denied. Showing results near Makkah default. You can still open maps manually."
-            scope.launch { search() }
+            scope.launch { searchMosques() }
         }
     }
 
-    fun search() {
+    fun searchMosques() {
         scope.launch {
             loading = true
             error = null
@@ -146,7 +146,7 @@ fun FindMosqueScreen(onBack: () -> Unit) {
         if (fine || coarse) {
             fetchDeviceLocation(context) { la, lo ->
                 lat = la; lon = lo; hasLocation = true
-                search()
+                searchMosques()
             }
         } else {
             permissionLauncher.launch(
@@ -166,7 +166,7 @@ fun FindMosqueScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { search() }) {
+                    IconButton(onClick = { searchMosques() }) {
                         Icon(Icons.Filled.Refresh, null, tint = colors.textPrimary)
                     }
                 },
@@ -185,7 +185,7 @@ fun FindMosqueScreen(onBack: () -> Unit) {
                 listOf(1, 3, 5, 10).forEach { km ->
                     FilterChip(
                         selected = radiusKm == km,
-                        onClick = { radiusKm = km; search() },
+                        onClick = { radiusKm = km; searchMosques() },
                         label = { Text("${km} km") }
                     )
                 }
