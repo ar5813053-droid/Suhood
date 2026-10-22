@@ -4,6 +4,7 @@
     android:minHeight="160dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_prayer_marker"
+    android:previewLayout="@layout/widget_prayer_marker"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_prayer_marker_desc" />

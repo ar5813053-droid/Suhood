@@ -1,5 +1,8 @@
 package com.suhood.widgets
 
+import java.util.Calendar
+import java.util.Locale
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
@@ -326,4 +329,82 @@ class MushafWidgetReceiver : AppWidgetProvider() {
 class PrayerMarkerWidgetReceiver : AppWidgetProvider() {
     override fun onUpdate(c: Context, m: AppWidgetManager, ids: IntArray) =
         providerUpdate(c, m, ids, ::buildPrayerMarker)
+}
+
+
+fun buildCalendar(context: Context): RemoteViews {
+    val rv = RemoteViews(context.packageName, R.layout.widget_calendar)
+    rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "salah"))
+    val cal = Calendar.getInstance()
+    val monthTitle = String.format(
+        Locale.US, "%tB %tY", cal, cal
+    )
+    rv.setTextViewText(R.id.w_month_title, monthTitle)
+    val d = runCatching { WidgetBridge.dateLabels() }.getOrNull()
+    rv.setTextViewText(R.id.w_hijri_mini, d?.hijriLineEn ?: d?.hijriLineAr ?: "")
+
+    // Build current week (Sun–Sat) with today numbers
+    val today = cal.get(Calendar.DAY_OF_MONTH)
+    val dow = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun
+    val start = cal.clone() as Calendar
+    start.add(Calendar.DAY_OF_MONTH, -(dow - Calendar.SUNDAY))
+    val dayIds = intArrayOf(R.id.n0, R.id.n1, R.id.n2, R.id.n3, R.id.n4, R.id.n5, R.id.n6)
+    val labelIds = intArrayOf(R.id.d0, R.id.d1, R.id.d2, R.id.d3, R.id.d4, R.id.d5, R.id.d6)
+    val labels = arrayOf("S", "M", "T", "W", "T", "F", "S")
+    for (i in 0..6) {
+        val dayCal = start.clone() as Calendar
+        dayCal.add(Calendar.DAY_OF_MONTH, i)
+        val dayNum = dayCal.get(Calendar.DAY_OF_MONTH)
+        rv.setTextViewText(labelIds[i], labels[i])
+        rv.setTextViewText(dayIds[i], dayNum.toString())
+        if (dayNum == today && dayCal.get(Calendar.MONTH) == cal.get(Calendar.MONTH)) {
+            rv.setTextColor(dayIds[i], 0xFFB9A7FF.toInt())
+            rv.setTextColor(labelIds[i], 0xFFB9A7FF.toInt())
+        } else {
+            rv.setTextColor(dayIds[i], 0xFFF5F6F7.toInt())
+            rv.setTextColor(labelIds[i], 0xFFA8ADB5.toInt())
+        }
+    }
+    return rv
+}
+
+fun buildRank(context: Context): RemoteViews {
+    val rv = RemoteViews(context.packageName, R.layout.widget_rank)
+    rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "quest"))
+    val store = runCatching { com.suhood.feature.quest.QuestStore(context) }.getOrNull()
+    val xp = store?.totalXp ?: 0
+    val tier = xp / com.suhood.feature.quest.QuestRules.TIER_XP
+    val into = xp % com.suhood.feature.quest.QuestRules.TIER_XP
+    val remain = com.suhood.feature.quest.QuestRules.TIER_XP - into
+    val rank = com.suhood.feature.quest.Ranks.forTier(tier)
+    rv.setTextViewText(R.id.w_xp, xp.toString())
+    rv.setTextViewText(R.id.w_rank_ar, rank.arabic)
+    rv.setTextViewText(R.id.w_rank_en, "${rank.latin} · Tier $tier")
+    rv.setTextViewText(R.id.w_remain, "$remain XP to next tier")
+    rv.setProgressBar(R.id.w_bar, com.suhood.feature.quest.QuestRules.TIER_XP, into, false)
+    val pct = ((into * 100) / com.suhood.feature.quest.QuestRules.TIER_XP).coerceIn(0, 100)
+    rv.setProgressBar(R.id.w_ring, 100, pct, false)
+    return rv
+}
+
+class CalendarWidgetReceiver : AppWidgetProvider() {
+    override fun onUpdate(c: Context, m: AppWidgetManager, ids: IntArray) =
+        providerUpdate(c, m, ids, ::buildCalendar)
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        val m = AppWidgetManager.getInstance(context)
+        val ids = m.getAppWidgetIds(android.content.ComponentName(context, CalendarWidgetReceiver::class.java))
+        if (ids.isNotEmpty()) onUpdate(context, m, ids)
+    }
+}
+
+class RankWidgetReceiver : AppWidgetProvider() {
+    override fun onUpdate(c: Context, m: AppWidgetManager, ids: IntArray) =
+        providerUpdate(c, m, ids, ::buildRank)
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        val m = AppWidgetManager.getInstance(context)
+        val ids = m.getAppWidgetIds(android.content.ComponentName(context, RankWidgetReceiver::class.java))
+        if (ids.isNotEmpty()) onUpdate(context, m, ids)
+    }
 }

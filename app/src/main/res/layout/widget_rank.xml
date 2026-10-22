@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/widget_glass"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+    <FrameLayout android:layout_width="72dp" android:layout_height="72dp">
+        <ProgressBar android:id="@+id/w_ring"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="72dp" android:layout_height="72dp"
+            android:indeterminate="false" android:max="100" android:progress="40"
+            android:progressDrawable="@drawable/widget_ring_progress"
+            android:background="@android:color/transparent" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:orientation="vertical">
+            <TextView android:id="@+id/w_xp" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="@color/widget_text" android:textSize="16sp" android:textStyle="bold"
+                android:text="0" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="@color/widget_text_sec" android:textSize="9sp" android:text="XP" />
+        </LinearLayout>
+    </FrameLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="12dp">
+        <TextView android:id="@+id/w_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/widget_lavender" android:textSize="10sp" android:letterSpacing="0.08"
+            android:text="WORSHIP QUEST" />
+        <TextView android:id="@+id/w_rank_ar" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/widget_text" android:textSize="18sp" android:textStyle="bold"
+            android:textDirection="rtl" android:text="مبتدئ" />
+        <TextView android:id="@+id/w_rank_en" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/widget_text_sec" android:textSize="12sp" android:text="Beginner · Tier 0" />
+        <TextView android:id="@+id/w_remain" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/widget_green" android:textSize="11sp"
+            android:layout_marginTop="4dp" android:text="50 XP to next tier" />
+        <ProgressBar android:id="@+id/w_bar" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="6dp"
+            android:progressTint="@color/widget_lavender" android:progressBackgroundTint="@color/widget_border"
+            android:max="50" android:progress="0" />
+    </LinearLayout>
+</LinearLayout>

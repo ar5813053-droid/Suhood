@@ -69,6 +69,12 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             )
         ),
         FeatureSection(
+            "Home screen",
+            listOf(
+                FeatureItem("Widgets", "Glass widgets · pin to home", Icons.Filled.Widgets, Routes.WIDGETS)
+            )
+        ),
+        FeatureSection(
             "Personalisation",
             listOf(
                 FeatureItem("Alarms", "Adhan & reminders", Icons.Filled.Alarm, Routes.ALARMS),

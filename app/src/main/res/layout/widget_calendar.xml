@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/widget_glass"
+    android:orientation="vertical"
+    android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/w_month_title" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:textColor="@color/widget_text" android:textSize="13sp"
+            android:textStyle="bold" android:text="October 2026" />
+        <TextView android:id="@+id/w_hijri_mini" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/widget_lavender" android:textSize="11sp" android:textDirection="rtl"
+            android:text="—" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="10dp"
+        android:weightSum="7">
+        <TextView android:id="@+id/d0" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="S" />
+        <TextView android:id="@+id/d1" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="M" />
+        <TextView android:id="@+id/d2" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="T" />
+        <TextView android:id="@+id/d3" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="W" />
+        <TextView android:id="@+id/d4" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="T" />
+        <TextView android:id="@+id/d5" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="F" />
+        <TextView android:id="@+id/d6" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text_sec"
+            android:textSize="10sp" android:text="S" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:weightSum="7">
+        <TextView android:id="@+id/n0" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n1" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n2" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n3" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n4" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n5" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+        <TextView android:id="@+id/n6" android:layout_width="0dp" android:layout_height="28dp"
+            android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_text"
+            android:textSize="12sp" android:textStyle="bold" android:text="—" />
+    </LinearLayout>
+</LinearLayout>

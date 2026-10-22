@@ -42,6 +42,7 @@ import com.suhood.app.SuhoodApplication
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suhood.feature.more.AllFeaturesScreen
+import com.suhood.feature.more.WidgetsScreen
 import com.suhood.feature.books.BooksDiscoverScreen
 import com.suhood.feature.books.BookDetailScreen
 import com.suhood.feature.books.BookReaderScreen
@@ -89,6 +90,8 @@ fun SuhoodNavGraph(
             "salah" -> navController.navigate(Routes.SALAH) { launchSingleTop = true }
             "audio" -> navController.navigate(Routes.AUDIO) { launchSingleTop = true }
             "journey" -> navController.navigate(Routes.JOURNEY) { launchSingleTop = true }
+            "quest" -> navController.navigate(Routes.QUEST) { launchSingleTop = true }
+            "widgets" -> navController.navigate(Routes.WIDGETS) { launchSingleTop = true }
         }
         intent.removeExtra("navigate")
     }
@@ -474,6 +477,9 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_ACCESSIBILITY) {
                 SettingsScreens.Accessibility(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.WIDGETS) {
+                WidgetsScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.ALL_FEATURES) {
                 AllFeaturesScreen(

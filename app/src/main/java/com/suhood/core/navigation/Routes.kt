@@ -16,6 +16,7 @@ object Routes {
 
     // All Features hub
     const val ALL_FEATURES = "all_features"
+    const val WIDGETS = "widgets"
 
     // Suhood Books
     const val BOOKS = "books"

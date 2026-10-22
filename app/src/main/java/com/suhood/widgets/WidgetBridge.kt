@@ -223,6 +223,8 @@ object WidgetBridge {
         runCatching { updateProvider(context, HabitWidgetReceiver::class.java, ::buildHabits) }
         runCatching { updateProvider(context, MushafWidgetReceiver::class.java, ::buildMushaf) }
         runCatching { updateProvider(context, PrayerMarkerWidgetReceiver::class.java, ::buildPrayerMarker) }
+        runCatching { updateProvider(context, CalendarWidgetReceiver::class.java, ::buildCalendar) }
+        runCatching { updateProvider(context, RankWidgetReceiver::class.java, ::buildRank) }
     }
 
     suspend fun markPrayer(context: Context, prayer: String, statusKey: String) {

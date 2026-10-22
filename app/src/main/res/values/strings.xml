@@ -16,5 +16,7 @@
     <string name="widget_habit_desc">My Journey habits today</string>
     <string name="widget_mushaf_desc">Continue Quran reading</string>
     <string name="widget_prayer_marker_desc">Mark Fajr to Isha</string>
+    <string name="widget_calendar_desc">Transparent week calendar with Hijri date</string>
+    <string name="widget_rank_desc">Worship Quest rank, XP and tier progress</string>
 
 </resources>

@@ -4,6 +4,7 @@
     android:minHeight="140dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_mushaf"
+    android:previewLayout="@layout/widget_mushaf"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_mushaf_desc" />
