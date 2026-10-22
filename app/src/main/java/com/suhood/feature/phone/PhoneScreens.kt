@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.suhood.core.designsystem.components.GlassCard
+import com.suhood.core.designsystem.theme.suhoodColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -345,6 +346,7 @@ private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearan
 @Composable
 fun CallAppearanceStudio(prefs: PhonePrefs, onBack: () -> Unit) {
     val colors = suhoodColors
+    val context = LocalContext.current
     var selected by remember { mutableStateOf(prefs.incomingTheme) }
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
@@ -446,7 +448,7 @@ fun CallAppearanceStudio(prefs: PhonePrefs, onBack: () -> Unit) {
                             prefs.incomingTheme = theme
                             prefs.dialPadTheme = theme
                             prefs.ongoingTheme = theme
-                            Toast.makeText(LocalContext.current, "Applied ${theme.label}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Applied ${theme.label}", Toast.LENGTH_SHORT).show()
                         }) { Text("Apply") }
                     }
                 }
