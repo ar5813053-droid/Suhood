@@ -98,14 +98,28 @@ private fun CallUi(number: String, initialState: Int, onFinish: () -> Unit) {
                         Icon(Icons.Filled.Call, null, tint = Color(0xFF08090B), modifier = Modifier.size(32.dp))
                     }
                 } else {
-                    IconButton(onClick = { muted = !muted }) {
+                    var speaker by remember { mutableStateOf(false) }
+                    var onHold by remember { mutableStateOf(false) }
+                    IconButton(onClick = {
+                        muted = !muted
+                        CallSession.setMuted(muted)
+                    }) {
                         Icon(if (muted) Icons.Filled.MicOff else Icons.Filled.Mic, null, tint = theme.text)
+                    }
+                    IconButton(onClick = {
+                        onHold = !onHold
+                        if (onHold) CallSession.hold() else CallSession.unhold()
+                    }) {
+                        Icon(if (onHold) Icons.Filled.PlayArrow else Icons.Filled.Pause, null, tint = theme.text)
                     }
                     IconButton(onClick = { CallSession.disconnect(); onFinish() }, modifier = Modifier.size(72.dp).clip(CircleShape).background(Color(0xFFCE1126))) {
                         Icon(Icons.Filled.CallEnd, null, tint = Color.White, modifier = Modifier.size(32.dp))
                     }
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Filled.VolumeUp, null, tint = theme.text)
+                    IconButton(onClick = {
+                        speaker = !speaker
+                        CallSession.setSpeaker(speaker)
+                    }) {
+                        Icon(if (speaker) Icons.Filled.VolumeUp else Icons.Filled.PhoneInTalk, null, tint = theme.text)
                     }
                 }
             }

@@ -340,73 +340,122 @@ private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearan
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallAppearanceStudio(prefs: PhonePrefs, onClose: () -> Unit) {
-    var category by remember { mutableStateOf("All") }
+fun CallAppearanceStudio(prefs: PhonePrefs, onBack: () -> Unit) {
+    val colors = suhoodColors
     var selected by remember { mutableStateOf(prefs.incomingTheme) }
-    val cats = listOf("All", "Incoming", "Patterns", "Architecture", "Flags", "Landscapes", "Seasonal", "Minimal")
-    val themes = CallThemeId.entries.filter { category == "All" || it.category == category }
-    val preview = CallThemes.colors(selected)
-    Surface(Modifier.fillMaxSize(), color = Color(0xF008090B)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-                Column(Modifier.weight(1f)) {
-                    Text("Call Appearance Studio", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("Preview · apply · original Suhood themes", color = Color(0xFFA8ADB5), fontSize = 11.sp)
-                }
-            }
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                cats.forEach { c -> FilterChip(selected = category == c, onClick = { category = c }, label = { Text(c) }) }
-            }
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("All") }
+    val categories = listOf("All") + CallThemes.allCategories()
+    val filtered = CallThemeId.entries.filter {
+        (category == "All" || it.category == category) &&
+            (query.isBlank() || it.label.contains(query, true) || it.category.contains(query, true))
+    }
+    Scaffold(
+        containerColor = Color(0xFF08090B),
+        topBar = {
+            TopAppBar(
+                title = { Text("Call Appearance Studio", color = Color.White, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF08090B))
+            )
+        }
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)) {
+            // Live preview
+            val c = CallThemes.colors(selected)
             Box(
-                Modifier.fillMaxWidth().height(180.dp).padding(16.dp).clip(RoundedCornerShape(20.dp))
-                    .background(Brush.verticalGradient(listOf(preview.background, preview.surface)))
-                    .border(0.5.dp, Color.White.copy(0.12f), RoundedCornerShape(20.dp)).padding(20.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.verticalGradient(listOf(c.background, c.surface, c.accent.copy(alpha = 0.35f))))
+                    .border(0.5.dp, Color.White.copy(0.12f), RoundedCornerShape(20.dp))
+                    .padding(16.dp)
             ) {
                 Column {
-                    Text("Incoming call", color = preview.secondary, fontSize = 12.sp)
-                    Text("Aisha Khan", color = preview.text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                    Text(PhoneNumberUtils.display("+966501234567", prefs.numeralStyle), color = preview.secondary)
-                    Spacer(Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Box(Modifier.size(52.dp).clip(CircleShape).background(Color(0xFFCE1126)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.CallEnd, null, tint = Color.White)
-                        }
-                        Box(Modifier.size(52.dp).clip(CircleShape).background(preview.accent), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.Call, null, tint = Color(0xFF08090B))
-                        }
-                    }
+                    Text("Incoming preview", color = c.secondary, fontSize = 12.sp)
+                    Text("Amina · ${PhoneNumberUtils.display("+1 555 0100", prefs.numeralStyle)}", color = c.text, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(selected.label, color = c.accent, fontSize = 13.sp)
                 }
             }
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(themes, key = { it.name }) { theme ->
-                    val c = CallThemes.colors(theme)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search themes…") },
+                singleLine = true
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                categories.forEach { cat ->
+                    FilterChip(
+                        selected = category == cat,
+                        onClick = { category = cat },
+                        label = { Text(cat) }
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                items(filtered, key = { it.name }) { theme ->
+                    val tc = CallThemes.colors(theme)
+                    val isFav = theme.name in prefs.favoriteThemes
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surface)
-                            .border(if (selected == theme) 1.5.dp else 0.5.dp, if (selected == theme) c.accent else Color.White.copy(0.08f), RoundedCornerShape(14.dp))
-                            .clickable { selected = theme }.padding(12.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(tc.surface)
+                            .border(
+                                if (selected == theme) 1.5.dp else 0.5.dp,
+                                if (selected == theme) tc.accent else Color.White.copy(0.08f),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .clickable { selected = theme }
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(c.background, c.accent.copy(alpha = 0.5f)))))
+                        Box(
+                            Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Brush.linearGradient(listOf(tc.background, tc.accent.copy(alpha = 0.55f))))
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(theme.label, color = Color.White, fontWeight = FontWeight.Medium)
                             Text(theme.category, color = Color(0xFFA8ADB5), fontSize = 11.sp)
+                        }
+                        IconButton(onClick = { prefs.toggleFavoriteTheme(theme) }) {
+                            Icon(
+                                if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                null,
+                                tint = if (isFav) Color(0xFFFF8A80) else Color.White
+                            )
                         }
                         TextButton(onClick = {
                             selected = theme
                             prefs.incomingTheme = theme
                             prefs.dialPadTheme = theme
                             prefs.ongoingTheme = theme
+                            Toast.makeText(LocalContext.current, "Applied ${theme.label}", Toast.LENGTH_SHORT).show()
                         }) { Text("Apply") }
                     }
                 }
             }
+            Text(PhoneAssetManifest.NOTE, color = Color(0xFFA8ADB5), fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
         }
     }
 }
+
 
 fun setPhoneLauncherEnabled(context: Context, enabled: Boolean) {
     val pm = context.packageManager

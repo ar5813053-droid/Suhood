@@ -8,17 +8,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Mosque
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.VolunteerActivism
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +76,7 @@ object SettingsScreens {
             Row("Focus", Routes.SETTINGS_FOCUS, Icons.Filled.Timer),
             Row("Audio", Routes.SETTINGS_AUDIO, Icons.Filled.MusicNote),
             Row("Accessibility", Routes.SETTINGS_ACCESSIBILITY, Icons.Filled.Accessibility),
+            Row("Suhood Phone", Routes.SETTINGS_PHONE, Icons.Filled.Call),
             Row("Privacy", Routes.SETTINGS_PRIVACY, Icons.Filled.PrivacyTip),
             Row("Permissions", Routes.SETTINGS_PERMISSIONS, Icons.Filled.Security),
             Row("Tip the developer", Routes.SETTINGS_TIP, Icons.Filled.VolunteerActivism),

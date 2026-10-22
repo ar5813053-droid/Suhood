@@ -141,6 +141,7 @@ object Routes {
     const val SETTINGS_ABOUT = "settings/about"
     const val SETTINGS_TIP = "settings/tip"
     const val SETTINGS_PERMISSIONS = "settings/permissions"
+    const val SETTINGS_PHONE = "settings/phone"
 }
 
 /** Bottom navigation destinations only. */

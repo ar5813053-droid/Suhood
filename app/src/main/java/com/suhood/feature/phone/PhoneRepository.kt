@@ -90,10 +90,51 @@ class PhoneRepository(private val context: Context) {
         if (!PhoneNumberUtils.isValidForDial(number)) return false
         if (PhonePrefs(context).isBlocked(number)) return false
         return try {
-            val action = if (hasCallPermission()) Intent.ACTION_CALL else Intent.ACTION_DIAL
-            context.startActivity(Intent(action, Uri.parse("tel:$number")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+            val prefs = PhonePrefs(context)
+            if (hasCallPermission()) {
+                val tm = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+                val uri = Uri.fromParts("tel", number, null)
+                val extras = android.os.Bundle()
+                val simId = prefs.preferredSimId
+                if (simId >= 0 && android.os.Build.VERSION.SDK_INT >= 23) {
+                    extras.putParcelable(
+                        TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE,
+                        tm?.callCapablePhoneAccounts?.getOrNull(simId)
+                    )
+                }
+                tm?.placeCall(uri, extras)
+                    ?: context.startActivity(
+                        Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                    )
+            } else {
+                context.startActivity(
+                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                )
+            }
             true
-        } catch (_: Exception) { false }
+        } catch (_: Exception) {
+            try {
+                context.startActivity(
+                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                )
+                true
+            } catch (_: Exception) { false }
+        }
+    }
+
+    fun listSims(): List<Pair<Int, String>> {
+        return try {
+            val tm = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return emptyList()
+            tm.callCapablePhoneAccounts.mapIndexed { i, h ->
+                i to (h.id ?: "SIM ${i + 1}")
+            }
+        } catch (_: Exception) { emptyList() }
     }
 
     fun isDefaultDialer(): Boolean {
