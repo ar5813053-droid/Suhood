@@ -282,7 +282,7 @@ private fun ContactsScreen(prefs: PhonePrefs, repo: PhoneRepository) {
 @Composable
 private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearance: () -> Unit) {
     val context = LocalContext.current
-    var enabled by remember { mutableStateOf(prefs.enabled) }
+    var enabled by remember { mutableStateOf(prefs.phoneEnabled) }
     var numerals by remember { mutableStateOf(prefs.numeralStyle) }
     var quiet by remember { mutableStateOf(prefs.quietHoursEnabled) }
     val roleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -294,7 +294,7 @@ private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearan
                     Text("Separate launcher icon for the dialer", color = Color(0xFFA8ADB5), fontSize = 12.sp)
                 }
                 Switch(checked = enabled, onCheckedChange = {
-                    enabled = it; prefs.enabled = it
+                    enabled = it; prefs.phoneEnabled = it
                     setPhoneLauncherEnabled(context, it)
                 })
             }

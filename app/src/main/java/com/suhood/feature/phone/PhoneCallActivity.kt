@@ -14,6 +14,9 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -55,9 +58,10 @@ private fun CallUi(number: String, initialState: Int, onFinish: () -> Unit) {
     LaunchedEffect(Unit) {
         while (true) {
             delay(500)
-            val s = CallSession.active?.state
-            if (s != null) state = s
-            if (s == null || s == Call.STATE_DISCONNECTED) {
+            val s = CallSession.state
+            val hasCall = CallSession.currentCall != null
+            state = s
+            if (!hasCall || s == Call.STATE_DISCONNECTED) {
                 onFinish()
                 break
             }
@@ -119,7 +123,7 @@ private fun CallUi(number: String, initialState: Int, onFinish: () -> Unit) {
                         speaker = !speaker
                         CallSession.setSpeaker(speaker)
                     }) {
-                        Icon(if (speaker) Icons.Filled.VolumeUp else Icons.Filled.PhoneInTalk, null, tint = theme.text)
+                        Icon(if (speaker) Icons.Filled.VolumeUp else Icons.Filled.Phone, null, tint = theme.text)
                     }
                 }
             }

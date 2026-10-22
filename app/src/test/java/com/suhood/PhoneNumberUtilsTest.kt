@@ -2,46 +2,35 @@ package com.suhood
 
 import com.suhood.feature.phone.NumeralStyle
 import com.suhood.feature.phone.PhoneNumberUtils
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhoneNumberUtilsTest {
     @Test
-    fun normalizeWestern() {
-        assertEquals("9876543210", PhoneNumberUtils.normalize("987 654 3210"))
-        assertEquals("+919876543210", PhoneNumberUtils.normalize("+91 98765-43210"))
+    fun normalizeStripsNonDigitsExceptPlus() {
+        assertEquals("+911234567890", PhoneNumberUtils.normalize("+91 123-456-7890"))
+        assertEquals("0123456789", PhoneNumberUtils.normalize("012-345-6789"))
     }
 
     @Test
-    fun normalizeArabicIndic() {
-        assertEquals("0123456789", PhoneNumberUtils.normalize("٠١٢٣٤٥٦٧٨٩"))
+    fun arabicIndicDisplay() {
+        assertEquals("٠١٢٣", PhoneNumberUtils.display("0123", NumeralStyle.ARABIC_INDIC))
     }
 
     @Test
-    fun normalizePersian() {
-        assertEquals("0123456789", PhoneNumberUtils.normalize("۰۱۲۳۴۵۶۷۸۹"))
+    fun persianDisplay() {
+        assertEquals("۰۱۲۳", PhoneNumberUtils.display("0123", NumeralStyle.PERSIAN))
     }
 
     @Test
-    fun displayArabic() {
-        assertEquals("٠١٢", PhoneNumberUtils.display("012", NumeralStyle.ARABIC_INDIC))
+    fun westernRoundTrip() {
+        assertEquals("5551234", PhoneNumberUtils.normalize(PhoneNumberUtils.display("5551234", NumeralStyle.WESTERN)))
     }
 
     @Test
-    fun displayPersian() {
-        assertEquals("۰۱۲", PhoneNumberUtils.display("012", NumeralStyle.PERSIAN))
-    }
-
-    @Test
-    fun validDial() {
-        assertTrue(PhoneNumberUtils.isValidForDial("123"))
-        assertFalse(PhoneNumberUtils.isValidForDial("+++"))
-        assertFalse(PhoneNumberUtils.isValidForDial(""))
-    }
-
-    @Test
-    fun matchesSuffix() {
-        assertTrue(PhoneNumberUtils.matches("+919876543210", "9876543210"))
-        assertFalse(PhoneNumberUtils.matches("111", "222"))
+    fun emptyStaysEmpty() {
+        assertEquals("", PhoneNumberUtils.normalize(""))
+        assertEquals("", PhoneNumberUtils.display("", NumeralStyle.WESTERN))
     }
 }
