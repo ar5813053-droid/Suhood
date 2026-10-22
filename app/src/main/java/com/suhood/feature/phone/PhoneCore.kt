@@ -216,6 +216,15 @@ class PhonePrefs(context: Context) {
         get() = p.getString("ringtone_title", null)
         set(v) = p.edit().putString("ringtone_title", v).apply()
 
+    fun contactEmoji(number: String): String? =
+        p.getString("emoji_" + PhoneNumberUtils.normalize(number), null)
+
+    fun setContactEmoji(number: String, emoji: String?) {
+        val key = "emoji_" + PhoneNumberUtils.normalize(number)
+        if (emoji.isNullOrBlank()) p.edit().remove(key).apply()
+        else p.edit().putString(key, emoji).apply()
+    }
+
     var customWallpaperUri: String?
         get() = p.getString("custom_wp", null)
         set(v) = p.edit().putString("custom_wp", v).apply()

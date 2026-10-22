@@ -609,7 +609,9 @@ private fun ContactsPane(
                         Modifier.size(44.dp).clip(CircleShape).background(Surface2),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(c.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontWeight = FontWeight.SemiBold)
+                        val em = prefs.contactEmoji(c.number)
+                        if (!em.isNullOrBlank()) Text(em, fontSize = 22.sp)
+                        else Text(c.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
@@ -641,8 +643,10 @@ private fun ContactDetailScreen(
         }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(24.dp))
+            val em = prefs.contactEmoji(contact.number)
             Box(Modifier.size(96.dp).clip(CircleShape).background(Surface2), contentAlignment = Alignment.Center) {
-                Text(contact.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontSize = 40.sp)
+                if (!em.isNullOrBlank()) Text(em, fontSize = 48.sp)
+                else Text(contact.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontSize = 40.sp)
             }
             Spacer(Modifier.height(16.dp))
             Text(contact.name, color = Label, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
@@ -679,11 +683,89 @@ private fun ContactDetailScreen(
 @Composable
 private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved: () -> Unit) {
     val context = LocalContext.current
+    val prefs = remember { PhonePrefs(context) }
     var first by remember { mutableStateOf("") }
     var last by remember { mutableStateOf("") }
     var company by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var avatarEmoji by remember { mutableStateOf<String?>(null) }
+    var avatarUri by remember { mutableStateOf<String?>(null) }
+    var showAvatarSheet by remember { mutableStateOf(false) }
+
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            avatarUri = uri.toString()
+            avatarEmoji = null
+            showAvatarSheet = false
+        }
+    }
+
+    val emojiList = remember {
+        listOf(
+            "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","😘","😗","😙","😚",
+            "🙂","🤗","🤩","🤔","🤨","😐","😑","😶","🙄","😏","😣","😥","😮","🤐","😯","😪","😫",
+            "🥱","😴","😌","😛","😜","😝","🤤","😒","😓","😔","😕","🙃","🤑","😲","☹️","🙁","😖",
+            "😞","😟","😤","😢","😭","😦","😧","😨","😩","🤯","😬","😰","😱","🥵","🥶","😳","🤪",
+            "😵","🥴","😠","😡","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳","🥺","🤠","🤡","🤥",
+            "🤫","🤭","🧐","🤓","😈","👿","👹","👺","💀","👻","👽","🤖","💩","😺","😸","😹","😻",
+            "😼","😽","🙀","😿","😾","🙈","🙉","🙊","💋","💌","💘","💝","💖","💗","💓","💞","💕",
+            "💟","❣️","💔","❤️","🧡","💛","💚","💙","💜","🤎","🖤","🤍","💯","💢","💥","💫","💦",
+            "🌟","⭐","🌙","☀️","🌸","🌺","🌹","🥀","🌿","🍀","🕌","🕋","🌙","⭐","🤲","🙏","☪️"
+        )
+    }
+
+    if (showAvatarSheet) {
+        AlertDialog(
+            onDismissRequest = { showAvatarSheet = false },
+            title = { Text("Profile photo", color = Label) },
+            text = {
+                Column {
+                    Text("Choose an image from files, or pick an emoji instead of a photo.", color = Label2, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { pickImage.launch(arrayOf("image/*")) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Surface2),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Upload from files") }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Emojis", color = Label3, fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier.height(220.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(emojiList) { e ->
+                            Box(
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (avatarEmoji == e) Color(0x330A84FF) else Color.Transparent)
+                                    .clickable {
+                                        avatarEmoji = e
+                                        avatarUri = null
+                                        showAvatarSheet = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(e, fontSize = 22.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAvatarSheet = false }) { Text("Close", color = Blue) }
+            },
+            containerColor = Surface
+        )
+    }
+
     Column(Modifier.fillMaxSize().background(PhoneBg).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("Cancel", color = Blue) }
@@ -695,6 +777,8 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
                 }
                 val ok = repo.addContact(first, last, company, phone, email)
                 if (ok) {
+                    val n = PhoneNumberUtils.normalize(phone)
+                    if (n.isNotBlank() && avatarEmoji != null) prefs.setContactEmoji(n, avatarEmoji)
                     Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
                     onSaved()
                 } else {
@@ -704,10 +788,25 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
         }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(16.dp))
-            Box(Modifier.size(88.dp).clip(CircleShape).background(Surface2), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Person, null, tint = Label3, modifier = Modifier.size(48.dp))
+            Box(
+                Modifier
+                    .size(88.dp)
+                    .clip(CircleShape)
+                    .background(Surface2)
+                    .clickable { showAvatarSheet = true },
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    avatarEmoji != null -> Text(avatarEmoji!!, fontSize = 44.sp)
+                    else -> Icon(Icons.Filled.Person, null, tint = Label3, modifier = Modifier.size(48.dp))
+                }
             }
-            Text("Add Photo", color = Blue, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+            Text(
+                "Add Photo",
+                color = Blue,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(8.dp).clickable { showAvatarSheet = true }
+            )
         }
         Spacer(Modifier.height(12.dp))
         FieldBlock {
