@@ -84,11 +84,22 @@ object PrayerTimesCache {
     }
 
     fun loadOrCalculate(context: Context): Pair<PrayerTimesCalculator.Result, String> {
-        loadResult(context)?.let { return it }
-        // Fallback: Makkah defaults — never block on DataStore
+        val cached = loadResult(context)
+        if (cached != null) {
+            // Always recompute times with fixed engine + device timezone (avoid stale wrong AM/PM cache)
+            val (old, label) = cached
+            val fresh = PrayerTimesCalculator.calculate(
+                latitude = old.latitude,
+                longitude = old.longitude,
+                method = old.method
+            )
+            save(context, old.latitude, old.longitude, old.method, label, fresh)
+            return fresh to label
+        }
         val lat = 21.4225
         val lng = 39.8262
         val result = PrayerTimesCalculator.calculate(lat, lng, PrayerTimesCalculator.Method.MWL)
+        save(context, lat, lng, PrayerTimesCalculator.Method.MWL, "Makkah (default)", result)
         return result to "Makkah (default)"
     }
 }

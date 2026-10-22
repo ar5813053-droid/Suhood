@@ -1,4 +1,17 @@
 package com.suhood.feature.home
+
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.suhood.core.prayer.LocationHelper
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 
@@ -121,6 +134,34 @@ fun HomeScreen(
     val userLng by prefsRepo.longitude.collectAsState(initial = 39.8262)
     val prayerMethod by prefsRepo.prayerMethod.collectAsState(initial = PrayerTimesCalculator.Method.MWL)
     val locLabel by prefsRepo.locationLabel.collectAsState(initial = "Makkah (default)")
+    val scope = rememberCoroutineScope()
+
+    // Auto-detect device location for accurate Salah times
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (ok) {
+            scope.launch {
+                LocationHelper.refreshAndPersist(context.applicationContext, prefsRepo)
+                com.suhood.widgets.WidgetBridge.refreshAll(context.applicationContext)
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        if (LocationHelper.hasLocationPermission(context)) {
+            LocationHelper.refreshAndPersist(context.applicationContext, prefsRepo)
+            com.suhood.widgets.WidgetBridge.refreshAll(context.applicationContext)
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     var prayerResult by remember {
         mutableStateOf(

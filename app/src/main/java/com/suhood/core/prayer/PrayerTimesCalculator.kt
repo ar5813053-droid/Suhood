@@ -10,6 +10,7 @@ import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
@@ -73,8 +74,12 @@ object PrayerTimesCalculator {
         val q = fixAngle(280.459 + 0.98564736 * d)
         val L = fixAngle(q + 1.915 * sin(rad(g)) + 0.020 * sin(rad(2 * g)))
         val e = 23.439 - 0.00000036 * d
-        val ra = deg(atan(cos(rad(e)) * tan(rad(L)))) / 15.0
-        val eqt = q / 15.0 - fixHour(ra)
+        // Right ascension must use atan2 so RA stays in the correct quadrant.
+        // Using atan alone flipped solar noon into the night (e.g. Dhuhr ~02:35 AM).
+        val ra = fixHour(deg(atan2(cos(rad(e)) * sin(rad(L)), cos(rad(L)))) / 15.0)
+        var eqt = q / 15.0 - ra
+        // Normalize equation of time to [-12, 12] hours
+        eqt = fixHour(eqt + 12.0) - 12.0
         val decl = deg(asin(sin(rad(e)) * sin(rad(L))))
 
         fun timeFor(angle: Double, afterNoon: Boolean): Double {
@@ -109,7 +114,7 @@ object PrayerTimesCalculator {
 
         val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val formatted = names.map { (name, t) ->
-            val mins = (fixHour(t) * 60).toInt()
+            val mins = kotlin.math.round(fixHour(t) * 60.0).toInt()
             PrayerTime(
                 name = name,
                 time = formatHm(mins),

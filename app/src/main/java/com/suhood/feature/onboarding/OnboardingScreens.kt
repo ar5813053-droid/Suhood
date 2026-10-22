@@ -1,5 +1,9 @@
 package com.suhood.feature.onboarding
 
+import com.suhood.core.prayer.LocationHelper
+import com.suhood.core.datastore.PreferencesRepository
+import kotlinx.coroutines.launch
+
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Intent
@@ -40,6 +44,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MusicNote
@@ -81,7 +86,6 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.feature.settings.SettingsViewModel
 import com.suhood.core.notifications.QuranReminderScheduler
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.layout.PaddingValues
 
@@ -616,6 +620,24 @@ private fun PermissionsPage(
             } else true
         )
     }
+    var locationGranted by remember {
+        mutableStateOf(LocationHelper.hasLocationPermission(context))
+    }
+    val scope = rememberCoroutineScope()
+    val prefsRepo = remember { PreferencesRepository(context.applicationContext) }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        locationGranted = ok
+        if (ok) {
+            scope.launch {
+                LocationHelper.refreshAndPersist(context.applicationContext, prefsRepo)
+            }
+        }
+    }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -660,6 +682,22 @@ private fun PermissionsPage(
         )
         Spacer(Modifier.height(28.dp))
 
+        PermissionCard(
+            icon = Icons.Filled.LocationOn,
+            title = "Location for Salah times",
+            body = "Used only to calculate accurate local prayer times for your city. Never shared. You can set a city manually later in Settings.",
+            enabled = locationGranted,
+            onClick = {
+                if (locationGranted) return@PermissionCard
+                locationLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+        )
+        Spacer(Modifier.height(12.dp))
         PermissionCard(
             icon = Icons.Filled.Notifications,
             title = "Notifications",

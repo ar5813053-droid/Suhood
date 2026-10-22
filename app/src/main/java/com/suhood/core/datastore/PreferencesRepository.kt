@@ -11,7 +11,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.model.UserPreferences
 import com.suhood.core.prayer.PrayerTimesCalculator
+import com.suhood.core.prayer.PrayerTimesCache
+import com.suhood.widgets.WidgetBridge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "suhood_prefs")
@@ -115,10 +120,24 @@ class PreferencesRepository(private val context: Context) {
             it[Keys.LNG] = lng
             it[Keys.LOCATION_LABEL] = label
         }
+        withContext(Dispatchers.IO) {
+            val method = prayerMethod.first()
+            val result = PrayerTimesCalculator.calculate(lat, lng, method)
+            PrayerTimesCache.save(context, lat, lng, method, label, result)
+            WidgetBridge.refreshAll(context)
+        }
     }
 
     suspend fun setPrayerMethod(method: PrayerTimesCalculator.Method) {
         context.dataStore.edit { it[Keys.PRAYER_METHOD] = method.name }
+        withContext(Dispatchers.IO) {
+            val lat = latitude.first()
+            val lng = longitude.first()
+            val label = locationLabel.first()
+            val result = PrayerTimesCalculator.calculate(lat, lng, method)
+            PrayerTimesCache.save(context, lat, lng, method, label, result)
+            WidgetBridge.refreshAll(context)
+        }
     }
 
     suspend fun setQuranDailyMinutes(minutes: Int) {

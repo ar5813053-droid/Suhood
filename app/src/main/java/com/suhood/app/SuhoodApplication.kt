@@ -44,13 +44,16 @@ class SuhoodApplication : Application() {
         createChannels()
         // Seed prayer cache so widgets work before Home opens (no DataStore)
         runCatching {
-            val lat = 21.4225
-            val lng = 39.8262
+            // Prefer last-known device location so widgets/Home use real local times
+            val loc = com.suhood.core.prayer.LocationHelper.lastKnownLocation(this)
+            val lat = loc?.latitude ?: 21.4225
+            val lng = loc?.longitude ?: 39.8262
+            val label = if (loc != null) "Device location" else "Makkah (default)"
             val result = com.suhood.core.prayer.PrayerTimesCalculator.calculate(lat, lng)
             com.suhood.core.prayer.PrayerTimesCache.save(
                 this, lat, lng,
                 com.suhood.core.prayer.PrayerTimesCalculator.Method.MWL,
-                "Makkah (default)",
+                label,
                 result
             )
             com.suhood.widgets.WidgetBridge.refreshAll(this)
