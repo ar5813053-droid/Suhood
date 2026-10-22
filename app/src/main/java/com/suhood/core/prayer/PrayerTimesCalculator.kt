@@ -57,8 +57,9 @@ object PrayerTimesCalculator {
         calendar: Calendar = Calendar.getInstance(),
         timeZoneId: String? = null
     ): Result {
-        val tz = timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
         val cal = calendar.clone() as Calendar
+        // Prefer explicit zone, else the calendar's zone (not always device default — fixes CI & tests)
+        val tz = timeZoneId?.let { TimeZone.getTimeZone(it) } ?: cal.timeZone
         cal.timeZone = tz
 
         val year = cal.get(Calendar.YEAR)

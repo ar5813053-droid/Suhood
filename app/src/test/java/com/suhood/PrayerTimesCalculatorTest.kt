@@ -24,7 +24,9 @@ class PrayerTimesCalculatorTest {
     @Test
     fun delhiTimesAreDaytimeNotNight() {
         val cal = calAt(12, 0)
-        val r = PrayerTimesCalculator.calculate(28.6139, 77.2090, calendar = cal)
+        val r = PrayerTimesCalculator.calculate(
+            28.6139, 77.2090, calendar = cal, timeZoneId = "Asia/Kolkata"
+        )
         val map = r.times.associate { it.name to it.minutesSinceMidnight }
         // Dhuhr must be around midday (11:00–14:00), not 2 AM
         val dhuhr = map["Dhuhr"]!!
@@ -48,7 +50,9 @@ class PrayerTimesCalculatorTest {
     @Test
     fun afternoonShowsAsrOrDhuhrNotFajr() {
         val cal = calAt(15, 30) // 3:30 PM IST
-        val r = PrayerTimesCalculator.calculate(28.6139, 77.2090, calendar = cal)
+        val r = PrayerTimesCalculator.calculate(
+            28.6139, 77.2090, calendar = cal, timeZoneId = "Asia/Kolkata"
+        )
         val smart = SmartNextSalah.resolve(r, cal)
         // Should not primary be Fajr in the afternoon
         assertTrue(
@@ -60,7 +64,9 @@ class PrayerTimesCalculatorTest {
     @Test
     fun afterMaghribNextIsIshaOrFajr() {
         val cal = calAt(20, 30)
-        val r = PrayerTimesCalculator.calculate(28.6139, 77.2090, calendar = cal)
+        val r = PrayerTimesCalculator.calculate(
+            28.6139, 77.2090, calendar = cal, timeZoneId = "Asia/Kolkata"
+        )
         val smart = SmartNextSalah.resolve(r, cal)
         assertTrue(
             "Got ${smart.primaryName}",
