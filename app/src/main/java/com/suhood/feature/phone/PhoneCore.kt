@@ -104,6 +104,10 @@ class PhonePrefs(context: Context) {
     private val p: SharedPreferences =
         context.applicationContext.getSharedPreferences("suhood_phone_prefs", Context.MODE_PRIVATE)
 
+    var setupComplete: Boolean
+        get() = p.getBoolean("setup_complete", false)
+        set(v) = p.edit().putBoolean("setup_complete", v).apply()
+
     var phoneEnabled: Boolean
         get() = p.getBoolean("phone_enabled", true)
         set(v) = p.edit().putBoolean("phone_enabled", v).apply()

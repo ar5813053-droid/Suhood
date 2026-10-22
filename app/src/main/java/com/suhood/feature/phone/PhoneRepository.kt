@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CallLog
 import android.provider.ContactsContract
+import android.content.ContentProviderOperation
+import android.content.ContentUris
 import android.telecom.TelecomManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -135,6 +137,66 @@ class PhoneRepository(private val context: Context) {
                 i to (h.id ?: "SIM ${i + 1}")
             }
         } catch (_: Exception) { emptyList() }
+    }
+
+
+    fun hasWriteContactsPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED
+
+    fun addContact(firstName: String, lastName: String, company: String, phone: String, email: String): Boolean {
+        if (!hasWriteContactsPermission()) return false
+        val display = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { phone }
+        val ops = ArrayList<ContentProviderOperation>()
+        ops += ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+            .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+            .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+            .build()
+        ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, display)
+            .build()
+        if (phone.isNotBlank()) {
+            ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                .build()
+        }
+        if (email.isNotBlank()) {
+            ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_HOME)
+                .build()
+        }
+        if (company.isNotBlank()) {
+            ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Organization.COMPANY, company)
+                .build()
+        }
+        return try {
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            true
+        } catch (_: Exception) { false }
+    }
+
+    fun deleteContacts(ids: Collection<String>): Int {
+        if (!hasWriteContactsPermission() || ids.isEmpty()) return 0
+        var n = 0
+        for (id in ids) {
+            try {
+                val uri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, id.toLongOrNull() ?: continue)
+                n += context.contentResolver.delete(uri, null, null)
+            } catch (_: Exception) {}
+        }
+        return n
     }
 
     fun isDefaultDialer(): Boolean {
