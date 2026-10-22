@@ -13,8 +13,8 @@ android {
         applicationId = "com.suhood.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0-phase1"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -23,13 +23,35 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // CI generates keystore; local falls back to debug for installable builds
+            val store = System.getenv("SUHOOD_KEYSTORE_PATH")
+            val storePass = System.getenv("SUHOOD_KEYSTORE_PASSWORD")
+            val keyAliasEnv = System.getenv("SUHOOD_KEY_ALIAS")
+            val keyPass = System.getenv("SUHOOD_KEY_PASSWORD")
+            if (store != null && storePass != null && keyAliasEnv != null && keyPass != null) {
+                storeFile = file(store)
+                storePassword = storePass
+                keyAlias = keyAliasEnv
+                keyPassword = keyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (System.getenv("SUHOOD_KEYSTORE_PATH") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false

@@ -1,4 +1,4 @@
-name: Build Suhood Debug APK
+name: Build Suhood APK
 
 on:
   push:
@@ -43,21 +43,45 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon test --stacktrace
 
-      - name: Build debug APK
+      - name: Generate CI release keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$HOME/suhood-release.jks" \
+            -storepass suhoodci \
+            -keypass suhoodci \
+            -alias suhood \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Suhood CI, OU=Mobile, O=Suhood, L=City, ST=State, C=US"
+          echo "SUHOOD_KEYSTORE_PATH=$HOME/suhood-release.jks" >> $GITHUB_ENV
+          echo "SUHOOD_KEYSTORE_PASSWORD=suhoodci" >> $GITHUB_ENV
+          echo "SUHOOD_KEY_ALIAS=suhood" >> $GITHUB_ENV
+          echo "SUHOOD_KEY_PASSWORD=suhoodci" >> $GITHUB_ENV
+
+      - name: Build release APK
+        run: ./gradlew --no-daemon assembleRelease --stacktrace
+        env:
+          SUHOOD_KEYSTORE_PATH: ${{ env.SUHOOD_KEYSTORE_PATH }}
+          SUHOOD_KEYSTORE_PASSWORD: ${{ env.SUHOOD_KEYSTORE_PASSWORD }}
+          SUHOOD_KEY_ALIAS: ${{ env.SUHOOD_KEY_ALIAS }}
+          SUHOOD_KEY_PASSWORD: ${{ env.SUHOOD_KEY_PASSWORD }}
+
+      - name: Build debug APK (fallback install path)
         run: ./gradlew --no-daemon assembleDebug --stacktrace
 
-      - name: Verify APK exists
+      - name: Verify APKs
         run: |
-          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          if [ -z "$APK_PATH" ]; then
-            echo "APK not found under app/build/outputs/apk/debug"
-            find app/build -type f -name "*.apk" 2>/dev/null || true
-            exit 1
-          fi
-          echo "Found APK: $APK_PATH"
-          ls -lh "$APK_PATH"
+          find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
+          test -n "$(find app/build/outputs/apk/release -name '*.apk' | head -1)"
 
-      - name: Upload debug APK artifact
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: suhood-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: suhood-debug-apk

@@ -219,7 +219,7 @@ object SettingsScreens {
             Spacer(Modifier.height(16.dp))
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text("Suhood", style = SuhoodTypography.headlineSmall, color = colors.textPrimary)
-                Text("Version 1.0.0", style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                Text("Version 1.1.0", style = SuhoodTypography.bodySmall, color = colors.textMuted)
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Help Muslims spend less time distracted and more time reconnecting with Allah.\n\nFree. Non-commercial. No ads. No subscriptions.",

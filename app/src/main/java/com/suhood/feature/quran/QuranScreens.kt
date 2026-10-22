@@ -878,8 +878,12 @@ object QuranScreens {
         val loading by vm.loading.collectAsStateWithLifecycle()
         val error by vm.error.collectAsStateWithLifecycle()
         val colors = suhoodColors
+        val app = LocalContext.current.applicationContext as SuhoodApplication
+        val playback by app.playbackController.state.collectAsStateWithLifecycle()
+        var showTr by remember { mutableStateOf(false) }
         LaunchedEffect(startPage) { vm.openPage(startPage) }
 
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(
                 Modifier
@@ -972,6 +976,46 @@ object QuranScreens {
                             )
                         }
                     }
+                }
+            }
+        }
+
+            // Mushaf playback bar — same engine as Surah reader
+            GlassCard(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GlassIconButton(
+                        icon = Icons.Filled.Translate,
+                        contentDescription = "Translation audio",
+                        onClick = {
+                            showTr = !showTr
+                            vm.setPlayTranslationAudio(showTr)
+                        }
+                    )
+                    GlassIconButton(
+                        icon = if (playback.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = "Play page",
+                        onClick = {
+                            if (playback.isPlaying) {
+                                app.playbackController.togglePlayPause()
+                            } else {
+                                vm.playCurrentPage()
+                            }
+                        }
+                    )
+                    Text(
+                        if (showTr) "AR+TR" else "Arabic",
+                        style = SuhoodTypography.labelSmall,
+                        color = colors.textSecondary
+                    )
                 }
             }
         }

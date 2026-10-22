@@ -272,6 +272,43 @@ class QuranViewModel(
     }
 
 
+    
+    /** Play all ayahs on the current Mushaf page (Arabic, optional translation audio). */
+    fun playCurrentPage(startIndex: Int = 0) {
+        val ayahs = _page.value?.ayahs
+        if (ayahs.isNullOrEmpty()) {
+            _error.value = "Page not loaded yet"
+            return
+        }
+        val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
+        val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
+        val withTr = _playTranslationAudio.value
+        val matchedAudio = TranslationEditions.audioForTextEdition(_translationTextId.value)
+        val trEdition = matchedAudio?.id ?: _translationAudioId.value
+        val items = mutableListOf<Triple<String, String, String>>()
+        for (a in ayahs) {
+            items += Triple(
+                "quran:${a.globalNumber}",
+                "Surah ${a.surahNumber} · ${a.numberInSurah}",
+                provider.ayahAudioUrl(qariId, a.globalNumber)
+            )
+            if (withTr) {
+                items += Triple(
+                    "quran-tr:${a.globalNumber}",
+                    "Surah ${a.surahNumber} · ${a.numberInSurah} · TR",
+                    provider.translationAudioUrl(trEdition, a.surahNumber, a.numberInSurah)
+                )
+            }
+        }
+        val factor = if (withTr) 2 else 1
+        val idx = (startIndex.coerceIn(0, ayahs.lastIndex) * factor).coerceIn(0, items.lastIndex)
+        runCatching {
+            playback.playQueueUris(items, artist = qari, startIndex = idx)
+        }.onFailure {
+            _error.value = it.message ?: "Unable to play page"
+        }
+    }
+
     fun translatorNote(): String = provider.translatorAttribution()
 
     fun openPage(page: Int) {
