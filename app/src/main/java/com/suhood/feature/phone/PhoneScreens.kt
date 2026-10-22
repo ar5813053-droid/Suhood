@@ -350,9 +350,6 @@ private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearan
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun CallAppearanceStudio(prefs: PhonePrefs, onBack: () -> Unit) {
     val context = LocalContext.current
     var category by remember { mutableStateOf("All") }
