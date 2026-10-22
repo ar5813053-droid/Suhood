@@ -288,7 +288,7 @@ private fun RecentsPane(repo: PhoneRepository, prefs: PhonePrefs) {
     val filtered = when (filter) {
         "Missed" -> logs.filter { it.type == android.provider.CallLog.Calls.MISSED_TYPE }
         "Outgoing" -> logs.filter { it.type == android.provider.CallLog.Calls.OUTGOING_TYPE }
-        "Incoming" -> logs.filter { !it.type == android.provider.CallLog.Calls.OUTGOING_TYPE && !it.type == android.provider.CallLog.Calls.MISSED_TYPE }
+        "Incoming" -> logs.filter { it.type != android.provider.CallLog.Calls.OUTGOING_TYPE && it.type != android.provider.CallLog.Calls.MISSED_TYPE }
         else -> logs
     }
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 96.dp)) {
