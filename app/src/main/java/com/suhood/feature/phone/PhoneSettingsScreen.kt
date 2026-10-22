@@ -3,15 +3,19 @@ package com.suhood.feature.phone
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,17 +24,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhoneSettingsScreen(onBack: () -> Unit, onOpenPhone: () -> Unit, onOpenAppearance: () -> Unit) {
+fun PhoneSettingsScreen(
+    onBack: () -> Unit,
+    onOpenPhone: () -> Unit,
+    onOpenAppearance: () -> Unit
+) {
     val colors = suhoodColors
     val context = LocalContext.current
     val prefs = remember { PhonePrefs(context) }
@@ -54,10 +62,20 @@ fun PhoneSettingsScreen(onBack: () -> Unit, onOpenPhone: () -> Unit, onOpenAppea
         containerColor = colors.background,
         topBar = {
             TopAppBar(
-                title = { Text("Suhood Phone", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+                title = {
+                    Text(
+                        "Suhood Phone",
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = colors.textPrimary)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = colors.textPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
@@ -65,40 +83,63 @@ fun PhoneSettingsScreen(onBack: () -> Unit, onOpenPhone: () -> Unit, onOpenAppea
         }
     ) { pad ->
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(pad)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+            PhonePanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Call, null, tint = colors.accentLavender)
+                    Icon(Icons.Filled.Call, contentDescription = null, tint = colors.accentLavender)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Enable Suhood Phone", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                        Text("Shows a separate Phone launcher icon", color = colors.textMuted, style = SuhoodTypography.labelSmall)
+                        Text(
+                            "Enable Suhood Phone",
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            "Shows a separate Phone launcher icon",
+                            color = colors.textMuted,
+                            style = SuhoodTypography.labelSmall
+                        )
                     }
-                    Switch(checked = enabled, onCheckedChange = {
-                        enabled = it
-                        prefs.phoneEnabled = it
-                        setPhoneLauncherEnabled(context, it)
-                    })
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = {
+                            enabled = it
+                            prefs.phoneEnabled = it
+                            setPhoneLauncherEnabled(context, it)
+                        }
+                    )
                 }
             }
 
-            GlassCard(Modifier = Modifier.fillMaxWidth().clickable { onOpenPhone() }) {
+            PhonePanel(onClick = onOpenPhone) {
                 Text("Open Suhood Phone", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                Text("Dialer, contacts, recents", color = colors.textMuted, style = SuhoodTypography.labelSmall)
+                Text(
+                    "Dialer, contacts, recents",
+                    color = colors.textMuted,
+                    style = SuhoodTypography.labelSmall
+                )
             }
 
-            GlassCard(Modifier = Modifier.fillMaxWidth().clickable { onOpenAppearance() }) {
-                Text("Call Appearance Studio", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                Text("Themes, flags, numerals — offline originals", color = colors.textMuted, style = SuhoodTypography.labelSmall)
+            PhonePanel(onClick = onOpenAppearance) {
+                Text(
+                    "Call Appearance Studio",
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary
+                )
+                Text(
+                    "Themes, flags, numerals — offline originals",
+                    color = colors.textMuted,
+                    style = SuhoodTypography.labelSmall
+                )
             }
 
-            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+            PhonePanel {
                 Text("Default Phone app", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
                 Text(
                     if (isDefault) "Suhood is the default dialer"
@@ -108,40 +149,62 @@ fun PhoneSettingsScreen(onBack: () -> Unit, onOpenPhone: () -> Unit, onOpenAppea
                 )
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = { requestDefaultDialer(context, roleLauncher) }) {
-                    Text(if (isDefault) "Open default-app settings" else "Request default Phone role")
+                    Text(
+                        if (isDefault) "Open default-app settings"
+                        else "Request default Phone role"
+                    )
                 }
             }
 
-            GlassCard(Modifier = Modifier.fillMaxWidth()) {
+            PhonePanel {
                 Text("Permissions", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                Text("Contacts, call log, phone — used only on-device", color = colors.textMuted, style = SuhoodTypography.labelSmall)
+                Text(
+                    "Contacts, call log, phone — used only on-device",
+                    color = colors.textMuted,
+                    style = SuhoodTypography.labelSmall
+                )
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = {
-                    permLauncher.launch(
-                        arrayOf(
-                            Manifest.permission.READ_CONTACTS,
-                            Manifest.permission.READ_CALL_LOG,
-                            Manifest.permission.CALL_PHONE,
-                            Manifest.permission.READ_PHONE_STATE
+                Button(
+                    onClick = {
+                        permLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.READ_CONTACTS,
+                                Manifest.permission.READ_CALL_LOG,
+                                Manifest.permission.CALL_PHONE,
+                                Manifest.permission.READ_PHONE_STATE
+                            )
                         )
-                    )
-                }) { Text("Grant phone permissions") }
+                    }
+                ) {
+                    Text("Grant phone permissions")
+                }
             }
 
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text("Dial pad numerals", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+            PhonePanel {
+                Text("Dial-pad numerals", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+                Text(
+                    "Visual only — calls still use standard digits",
+                    color = colors.textMuted,
+                    style = SuhoodTypography.labelSmall
+                )
+                Spacer(Modifier.height(8.dp))
                 NumeralStyle.entries.forEach { style ->
                     Row(
-                        Modifier.fillMaxWidth().clickable {
-                            numeral = style
-                            prefs.numeralStyle = style
-                        }.padding(vertical = 6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                numeral = style
+                                prefs.numeralStyle = style
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = numeral == style, onClick = {
-                            numeral = style
-                            prefs.numeralStyle = style
-                        })
+                        RadioButton(
+                            selected = numeral == style,
+                            onClick = {
+                                numeral = style
+                                prefs.numeralStyle = style
+                            }
+                        )
                         Text(
                             when (style) {
                                 NumeralStyle.WESTERN -> "Western 0123456789"
@@ -155,51 +218,90 @@ fun PhoneSettingsScreen(onBack: () -> Unit, onOpenPhone: () -> Unit, onOpenAppea
             }
 
             if (sims.size > 1) {
-                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                PhonePanel {
                     Text("Preferred SIM", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                    Row(Modifier.fillMaxWidth().clickable {
-                        simId = -1
-                        prefs.preferredSimId = -1
-                    }, verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = simId < 0, onClick = {
-                            simId = -1
-                            prefs.preferredSimId = -1
-                        })
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                simId = -1
+                                prefs.preferredSimId = -1
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = simId < 0,
+                            onClick = {
+                                simId = -1
+                                prefs.preferredSimId = -1
+                            }
+                        )
                         Text("System default", color = colors.textPrimary)
                     }
                     sims.forEach { (idx, label) ->
-                        Row(Modifier.fillMaxWidth().clickable {
-                            simId = idx
-                            prefs.preferredSimId = idx
-                        }, verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = simId == idx, onClick = {
-                                simId = idx
-                                prefs.preferredSimId = idx
-                            })
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    simId = idx
+                                    prefs.preferredSimId = idx
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = simId == idx,
+                                onClick = {
+                                    simId = idx
+                                    prefs.preferredSimId = idx
+                                }
+                            )
                             Text(label, color = colors.textPrimary)
                         }
                     }
                 }
             }
 
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
+            PhonePanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Quiet hours", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
                         Text(
-                            "Silence unknown incoming calls ${prefs.quietStartHour}:00–${prefs.quietEndHour}:00 (not a reject)",
+                            "Silence unknown incoming ${prefs.quietStartHour}:00–${prefs.quietEndHour}:00",
                             color = colors.textMuted,
                             style = SuhoodTypography.labelSmall
                         )
                     }
-                    Switch(checked = quiet, onCheckedChange = {
-                        quiet = it
-                        prefs.quietHoursEnabled = it
-                    })
+                    Switch(
+                        checked = quiet,
+                        onCheckedChange = {
+                            quiet = it
+                            prefs.quietHoursEnabled = it
+                        }
+                    )
                 }
             }
 
-            Text(PhoneAssetManifest.NOTE, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+            Text(
+                PhoneAssetManifest.NOTE,
+                style = SuhoodTypography.labelSmall,
+                color = colors.textMuted
+            )
         }
     }
+}
+
+@Composable
+private fun PhonePanel(
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+    val base = Modifier
+        .fillMaxWidth()
+        .clip(shape)
+        .background(Color(0xFF141519))
+        .border(0.5.dp, Color(0x33FFFFFF), shape)
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .padding(16.dp)
+    Column(modifier = base, content = content)
 }
