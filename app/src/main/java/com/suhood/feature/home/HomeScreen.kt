@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Person
