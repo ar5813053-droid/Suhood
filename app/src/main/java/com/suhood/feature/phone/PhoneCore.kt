@@ -2,7 +2,9 @@ package com.suhood.feature.phone
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
+import com.suhood.app.R
 
 enum class NumeralStyle { WESTERN, ARABIC_INDIC, PERSIAN }
 
@@ -36,7 +38,6 @@ object PhoneNumberUtils {
     fun isValidForDial(normalized: String): Boolean =
         normalized.isNotBlank() && normalized.any { it.isDigit() }
 
-    /** Compare two numbers ignoring spaces and leading zeros after country code heuristic. */
     fun matches(a: String, b: String): Boolean {
         val na = normalize(a).filter { it.isDigit() || it == '+' }
         val nb = normalize(b).filter { it.isDigit() || it == '+' }
@@ -49,22 +50,22 @@ object PhoneNumberUtils {
 }
 
 enum class CallThemeId(val label: String, val category: String) {
-    MIDNIGHT_CRESCENT("Midnight Crescent", "Incoming"),
-    SILVER_GLASS("Silver Glass", "Incoming"),
-    EMERALD_HERITAGE("Emerald Heritage", "Incoming"),
-    SACRED_GEOMETRY("Sacred Geometry", "Patterns"),
-    ISLAMIC_ARCH("Islamic Arch", "Architecture"),
-    PALESTINE_SOLIDARITY("Palestine Solidarity", "Flags"),
-    MASJID_SERENITY("Masjid Serenity", "Architecture"),
+    KAABA_NIGHT("Kaaba Night", "Sacred Mosques"),
+    MOSQUE_NIGHT("Mosque Night", "Sacred Mosques"),
+    MOSQUE_DUSK("Mosque Dusk", "Sacred Mosques"),
+    MADINAH_GLOW("Madinah Glow", "Sacred Mosques"),
     DESERT_NIGHT("Desert Night", "Landscapes"),
-    MODERN_ARABESQUE("Modern Arabesque", "Patterns"),
-    MINIMAL_MONOCHROME("Minimal Monochrome", "Minimal"),
-    RAMADAN_NIGHT("Ramadan Night", "Seasonal"),
-    HERITAGE_MOSAIC("Heritage Mosaic", "Patterns"),
-    SAUDI_GREEN("Saudi Green", "Flags"),
-    PAKISTAN_CRESCENT("Pakistan Crescent", "Flags"),
-    INDIA_TRICOLOUR("India Tricolour Glass", "Flags"),
-    IRAN_GEOMETRIC("Iran Geometric", "Flags")
+    TAJ_INDIA("Taj · India", "Architecture"),
+    LUXURY_SILVER("Black & Silver Luxury", "Islamic Luxury"),
+    GEOMETRY("Sacred Geometry", "Patterns"),
+    PALESTINE_FLAG("Palestine Flag", "Flags"),
+    SAUDI_FLAG("Saudi Arabia Flag", "Flags"),
+    PAKISTAN_FLAG("Pakistan Flag", "Flags"),
+    INDIA_FLAG("India Flag", "Flags"),
+    IRAN_FLAG("Iran Flag", "Flags"),
+    INDIA_PALESTINE("India–Palestine", "Flags"),
+    SILVER_GLASS("Silver Glass", "Minimal"),
+    EMERALD_GLASS("Emerald Glass", "Minimal")
 }
 
 data class CallThemeColors(
@@ -72,27 +73,28 @@ data class CallThemeColors(
     val surface: Color,
     val accent: Color,
     val text: Color,
-    val secondary: Color
+    val secondary: Color,
+    @DrawableRes val wallpaperRes: Int?
 )
 
 object CallThemes {
     fun colors(id: CallThemeId): CallThemeColors = when (id) {
-        CallThemeId.MIDNIGHT_CRESCENT -> CallThemeColors(Color(0xFF08090B), Color(0xFF111316), Color(0xFFC7CBD1), Color(0xFFF5F6F7), Color(0xFFA8ADB5))
-        CallThemeId.SILVER_GLASS -> CallThemeColors(Color(0xFF0C0D10), Color(0xFF1A1C20), Color(0xFFE4E6EA), Color(0xFFF5F6F7), Color(0xFFA8ADB5))
-        CallThemeId.EMERALD_HERITAGE -> CallThemeColors(Color(0xFF06140F), Color(0xFF0E2219), Color(0xFF2ECC71), Color(0xFFF5F6F7), Color(0xFFA8D5B5))
-        CallThemeId.SACRED_GEOMETRY -> CallThemeColors(Color(0xFF0A0B12), Color(0xFF16182A), Color(0xFFB9A7FF), Color(0xFFF5F6F7), Color(0xFFAAA5B8))
-        CallThemeId.ISLAMIC_ARCH -> CallThemeColors(Color(0xFF101218), Color(0xFF1C2030), Color(0xFFD4AF37), Color(0xFFF5F6F7), Color(0xFFC7CBD1))
-        CallThemeId.PALESTINE_SOLIDARITY -> CallThemeColors(Color(0xFF0A0A0A), Color(0xFF151515), Color(0xFF009736), Color(0xFFF5F6F7), Color(0xFFCE1126))
-        CallThemeId.MASJID_SERENITY -> CallThemeColors(Color(0xFF0B1218), Color(0xFF152028), Color(0xFF7EB8D4), Color(0xFFF5F6F7), Color(0xFFA8ADB5))
-        CallThemeId.DESERT_NIGHT -> CallThemeColors(Color(0xFF120E0A), Color(0xFF1E1812), Color(0xFFE0A96D), Color(0xFFF5F6F7), Color(0xFFC7B299))
-        CallThemeId.MODERN_ARABESQUE -> CallThemeColors(Color(0xFF0D0D12), Color(0xFF1A1A24), Color(0xFF9A82F5), Color(0xFFF5F6F7), Color(0xFFAAA5B8))
-        CallThemeId.MINIMAL_MONOCHROME -> CallThemeColors(Color(0xFF000000), Color(0xFF141414), Color(0xFFFFFFFF), Color(0xFFF5F6F7), Color(0xFF888888))
-        CallThemeId.RAMADAN_NIGHT -> CallThemeColors(Color(0xFF0A0F1A), Color(0xFF152030), Color(0xFFE0C36A), Color(0xFFF5F6F7), Color(0xFFB9A7FF))
-        CallThemeId.HERITAGE_MOSAIC -> CallThemeColors(Color(0xFF101018), Color(0xFF1C1C28), Color(0xFF4ECDC4), Color(0xFFF5F6F7), Color(0xFFC7CBD1))
-        CallThemeId.SAUDI_GREEN -> CallThemeColors(Color(0xFF004D28), Color(0xFF0A3D28), Color(0xFFFFFFFF), Color(0xFFF5F6F7), Color(0xFFC7CBD1))
-        CallThemeId.PAKISTAN_CRESCENT -> CallThemeColors(Color(0xFF01411C), Color(0xFF0A2E1A), Color(0xFFFFFFFF), Color(0xFFF5F6F7), Color(0xFFC7CBD1))
-        CallThemeId.INDIA_TRICOLOUR -> CallThemeColors(Color(0xFF0B0B0B), Color(0xFF1A1A1A), Color(0xFFFF9933), Color(0xFFF5F6F7), Color(0xFF138808))
-        CallThemeId.IRAN_GEOMETRIC -> CallThemeColors(Color(0xFF0A1A12), Color(0xFF142820), Color(0xFFDA0000), Color(0xFFF5F6F7), Color(0xFFFFFFFF))
+        CallThemeId.KAABA_NIGHT -> CallThemeColors(Color(0xFF08090B), Color(0xCC111316), Color(0xFFC7CBD1), Color(0xFFF5F6F7), Color(0xFFA8ADB5), R.drawable.wp_kaaba_night)
+        CallThemeId.MOSQUE_NIGHT -> CallThemeColors(Color(0xFF08090B), Color(0xCC111316), Color(0xFF7EB8D4), Color(0xFFF5F6F7), Color(0xFFA8ADB5), R.drawable.wp_mosque_night)
+        CallThemeId.MOSQUE_DUSK -> CallThemeColors(Color(0xFF120E0A), Color(0xCC1E1812), Color(0xFFE0A96D), Color(0xFFF5F6F7), Color(0xFFC7B299), R.drawable.wp_mosque_dusk)
+        CallThemeId.MADINAH_GLOW -> CallThemeColors(Color(0xFF0B1218), Color(0xCC152028), Color(0xFFD4AF37), Color(0xFFF5F6F7), Color(0xFFC7CBD1), R.drawable.wp_madinah_style)
+        CallThemeId.DESERT_NIGHT -> CallThemeColors(Color(0xFF120E0A), Color(0xCC1E1812), Color(0xFFE0A96D), Color(0xFFF5F6F7), Color(0xFFC7B299), R.drawable.wp_desert_night)
+        CallThemeId.TAJ_INDIA -> CallThemeColors(Color(0xFF0A0B12), Color(0xCC16182A), Color(0xFFB9A7FF), Color(0xFFF5F6F7), Color(0xFFAAA5B8), R.drawable.wp_taj_india)
+        CallThemeId.LUXURY_SILVER -> CallThemeColors(Color(0xFF08090B), Color(0xCC111316), Color(0xFFC7CBD1), Color(0xFFF5F6F7), Color(0xFFA8ADB5), R.drawable.wp_luxury_silver)
+        CallThemeId.GEOMETRY -> CallThemeColors(Color(0xFF0A0B12), Color(0xCC16182A), Color(0xFFB9A7FF), Color(0xFFF5F6F7), Color(0xFFAAA5B8), R.drawable.wp_geometry)
+        CallThemeId.PALESTINE_FLAG -> CallThemeColors(Color(0xFF0A0A0A), Color(0xCC151515), Color(0xFF009736), Color(0xFFF5F6F7), Color(0xFFCE1126), R.drawable.wp_flag_palestine)
+        CallThemeId.SAUDI_FLAG -> CallThemeColors(Color(0xFF06140F), Color(0xCC0E2219), Color(0xFF2ECC71), Color(0xFFF5F6F7), Color(0xFFA8D5B5), R.drawable.wp_flag_saudi)
+        CallThemeId.PAKISTAN_FLAG -> CallThemeColors(Color(0xFF04140A), Color(0xCC0A2214), Color(0xFF2ECC71), Color(0xFFF5F6F7), Color(0xFFFFFFFF), R.drawable.wp_flag_pakistan)
+        CallThemeId.INDIA_FLAG -> CallThemeColors(Color(0xFF0B0A10), Color(0xCC14131B), Color(0xFFFF9933), Color(0xFFF5F6F7), Color(0xFF138808), R.drawable.wp_flag_india)
+        CallThemeId.IRAN_FLAG -> CallThemeColors(Color(0xFF0A1A12), Color(0xCC142820), Color(0xFFDA0000), Color(0xFFF5F6F7), Color(0xFFFFFFFF), R.drawable.wp_flag_iran)
+        CallThemeId.INDIA_PALESTINE -> CallThemeColors(Color(0xFF0A0A0A), Color(0xCC151515), Color(0xFF009736), Color(0xFFF5F6F7), Color(0xFFFF9933), R.drawable.wp_india_palestine)
+        CallThemeId.SILVER_GLASS -> CallThemeColors(Color(0xFF0C0D10), Color(0xCC1A1C20), Color(0xFFE4E6EA), Color(0xFFF5F6F7), Color(0xFFA8ADB5), null)
+        CallThemeId.EMERALD_GLASS -> CallThemeColors(Color(0xFF06140F), Color(0xCC0E2219), Color(0xFF2ECC71), Color(0xFFF5F6F7), Color(0xFFA8D5B5), null)
     }
 
     fun allCategories(): List<String> = CallThemeId.entries.map { it.category }.distinct()
@@ -100,20 +102,20 @@ object CallThemes {
 
 class PhonePrefs(context: Context) {
     private val p: SharedPreferences =
-        context.applicationContext.getSharedPreferences("suhood_phone", Context.MODE_PRIVATE)
+        context.applicationContext.getSharedPreferences("suhood_phone_prefs", Context.MODE_PRIVATE)
 
     var phoneEnabled: Boolean
         get() = p.getBoolean("phone_enabled", true)
         set(v) = p.edit().putBoolean("phone_enabled", v).apply()
 
     var numeralStyle: NumeralStyle
-        get() = runCatching { NumeralStyle.valueOf(p.getString("numerals", NumeralStyle.WESTERN.name)!!) }
+        get() = runCatching { NumeralStyle.valueOf(p.getString("numeral", NumeralStyle.WESTERN.name)!!) }
             .getOrDefault(NumeralStyle.WESTERN)
-        set(v) = p.edit().putString("numerals", v.name).apply()
+        set(v) = p.edit().putString("numeral", v.name).apply()
 
     var incomingTheme: CallThemeId
-        get() = runCatching { CallThemeId.valueOf(p.getString("theme_in", CallThemeId.MIDNIGHT_CRESCENT.name)!!) }
-            .getOrDefault(CallThemeId.MIDNIGHT_CRESCENT)
+        get() = runCatching { CallThemeId.valueOf(p.getString("theme_in", CallThemeId.KAABA_NIGHT.name)!!) }
+            .getOrDefault(CallThemeId.KAABA_NIGHT)
         set(v) = p.edit().putString("theme_in", v.name).apply()
 
     var dialPadTheme: CallThemeId
@@ -122,8 +124,8 @@ class PhonePrefs(context: Context) {
         set(v) = p.edit().putString("theme_pad", v.name).apply()
 
     var ongoingTheme: CallThemeId
-        get() = runCatching { CallThemeId.valueOf(p.getString("theme_on", CallThemeId.EMERALD_HERITAGE.name)!!) }
-            .getOrDefault(CallThemeId.EMERALD_HERITAGE)
+        get() = runCatching { CallThemeId.valueOf(p.getString("theme_on", CallThemeId.MOSQUE_NIGHT.name)!!) }
+            .getOrDefault(CallThemeId.MOSQUE_NIGHT)
         set(v) = p.edit().putString("theme_on", v.name).apply()
 
     var favoriteThemes: Set<String>
@@ -137,13 +139,12 @@ class PhonePrefs(context: Context) {
     }
 
     fun blocked(): MutableSet<String> =
-        p.getStringSet("blocked", emptySet())?.map { PhoneNumberUtils.normalize(it) }?.toMutableSet()
-            ?: mutableSetOf()
+        (p.getStringSet("blocked", emptySet()) ?: emptySet()).toMutableSet()
 
     fun block(number: String) {
         val n = PhoneNumberUtils.normalize(number)
         if (n.isBlank()) return
-        val s = blocked(); s += n; p.edit().putStringSet("blocked", s).apply()
+        val s = blocked(); s.add(n); p.edit().putStringSet("blocked", s).apply()
     }
 
     fun unblock(number: String) {
@@ -175,36 +176,31 @@ class PhonePrefs(context: Context) {
         return if (s <= e) hour in s until e else hour >= s || hour < e
     }
 
-    var appLockEnabled: Boolean
-        get() = p.getBoolean("app_lock", false)
-        set(v) = p.edit().putBoolean("app_lock", v).apply()
-
-    var appLockPin: String
-        get() = p.getString("app_lock_pin", "") ?: ""
-        set(v) = p.edit().putString("app_lock_pin", v).apply()
-
-    /** Preferred subscription id for dual-SIM dial, -1 = system default */
     var preferredSimId: Int
         get() = p.getInt("sim_id", -1)
         set(v) = p.edit().putInt("sim_id", v).apply()
 
-    /** Per-contact theme overrides: normalized number -> theme name */
+    /** Per-contact theme override: key = normalized number */
     fun contactTheme(number: String): CallThemeId? {
-        val key = "ct_${PhoneNumberUtils.normalize(number)}"
+        val key = "ct_" + PhoneNumberUtils.normalize(number)
         val name = p.getString(key, null) ?: return null
         return runCatching { CallThemeId.valueOf(name) }.getOrNull()
     }
 
-    fun setContactTheme(number: String, theme: CallThemeId?) {
-        val key = "ct_${PhoneNumberUtils.normalize(number)}"
-        if (theme == null) p.edit().remove(key).apply()
-        else p.edit().putString(key, theme.name).apply()
+    fun setContactTheme(number: String, id: CallThemeId?) {
+        val key = "ct_" + PhoneNumberUtils.normalize(number)
+        if (id == null) p.edit().remove(key).apply()
+        else p.edit().putString(key, id.name).apply()
     }
+
+    /** Gallery URI for custom wallpaper (string) */
+    var customWallpaperUri: String?
+        get() = p.getString("custom_wp", null)
+        set(v) = p.edit().putString("custom_wp", v).apply()
 }
 
 object PhoneAssetManifest {
     const val NOTE =
-        "Themes are original Suhood Hybrid Glass colours and geometric motifs. " +
-            "Flag themes use public national colours as abstract gradients only — not official emblems. " +
-            "No third-party wallpapers bundled. No Quranic text on call controls."
+        "Wallpapers: Unsplash photos (Unsplash License) + original flag/geometry illustrations. " +
+            "See docs/PHONE_ASSETS.md for attribution. Offline after install."
 }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.telecom.TelecomManager
 import android.provider.CallLog
 import android.provider.Settings
 import android.widget.Toast
@@ -14,6 +15,11 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -344,116 +350,130 @@ private fun PhoneMoreScreen(prefs: PhonePrefs, repo: PhoneRepository, onAppearan
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun CallAppearanceStudio(prefs: PhonePrefs, onBack: () -> Unit) {
-    val colors = suhoodColors
     val context = LocalContext.current
-    var selected by remember { mutableStateOf(prefs.incomingTheme) }
-    var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
-    val categories = listOf("All") + CallThemes.allCategories()
-    val filtered = CallThemeId.entries.filter {
-        (category == "All" || it.category == category) &&
-            (query.isBlank() || it.label.contains(query, true) || it.category.contains(query, true))
+    var query by remember { mutableStateOf("") }
+    var incoming by remember { mutableStateOf(prefs.incomingTheme) }
+    var ongoing by remember { mutableStateOf(prefs.ongoingTheme) }
+    var favs by remember { mutableStateOf(prefs.favoriteThemes) }
+    val categories = listOf("All") + CallThemes.allCategories() + listOf("Favourites")
+    val themes = CallThemeId.entries.filter { id ->
+        val catOk = when (category) {
+            "All" -> true
+            "Favourites" -> id.name in favs
+            else -> id.category == category
+        }
+        val qOk = query.isBlank() || id.label.contains(query, true) || id.category.contains(query, true)
+        catOk && qOk
     }
     Scaffold(
         containerColor = Color(0xFF08090B),
         topBar = {
             TopAppBar(
-                title = { Text("Call Appearance Studio", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Call Appearance Studio", color = Color(0xFFF5F6F7), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color(0xFFF5F6F7))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF08090B))
             )
         }
     ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)) {
-            // Live preview
-            val c = CallThemes.colors(selected)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.verticalGradient(listOf(c.background, c.surface, c.accent.copy(alpha = 0.35f))))
-                    .border(0.5.dp, Color.White.copy(0.12f), RoundedCornerShape(20.dp))
-                    .padding(16.dp)
-            ) {
-                Column {
-                    Text("Incoming preview", color = c.secondary, fontSize = 12.sp)
-                    Text("Amina · ${PhoneNumberUtils.display("+1 555 0100", prefs.numeralStyle)}", color = c.text, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(selected.label, color = c.accent, fontSize = 13.sp)
-                }
-            }
-            Spacer(Modifier.height(12.dp))
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(pad)
+                .padding(horizontal = 12.dp)
+        ) {
+            Text("Incoming: ${incoming.label}  ·  Ongoing: ${ongoing.label}", color = Color(0xFFA8ADB5), fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search themes…") },
+                placeholder = { Text("Search themes") },
                 singleLine = true
             )
             Spacer(Modifier.height(8.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                categories.forEach { cat ->
+                categories.forEach { c ->
                     FilterChip(
-                        selected = category == cat,
-                        onClick = { category = cat },
-                        label = { Text(cat) }
+                        selected = category == c,
+                        onClick = { category = c },
+                        label = { Text(c) }
                     )
                 }
             }
             Spacer(Modifier.height(8.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(filtered, key = { it.name }) { theme ->
-                    val tc = CallThemes.colors(theme)
-                    val isFav = theme.name in prefs.favoriteThemes
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(tc.surface)
-                            .border(
-                                if (selected == theme) 1.5.dp else 0.5.dp,
-                                if (selected == theme) tc.accent else Color.White.copy(0.08f),
-                                RoundedCornerShape(14.dp)
-                            )
-                            .clickable { selected = theme }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Brush.linearGradient(listOf(tc.background, tc.accent.copy(alpha = 0.55f))))
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(theme.label, color = Color.White, fontWeight = FontWeight.Medium)
-                            Text(theme.category, color = Color(0xFFA8ADB5), fontSize = 11.sp)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                items(themes, key = { it.name }) { id ->
+                    val colors = CallThemes.colors(id)
+                    val isFav = id.name in favs
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(colors.background)
+                            ) {
+                                colors.wallpaperRes?.let { res ->
+                                    Image(
+                                        painter = painterResource(res),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(id.label, color = Color(0xFFF5F6F7), fontWeight = FontWeight.SemiBold)
+                                Text(id.category, color = Color(0xFFA8ADB5), fontSize = 12.sp)
+                                Text(
+                                    if (colors.wallpaperRes != null) "HD wallpaper" else "Glass gradient",
+                                    color = Color(0xFF6A6E76),
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
-                        IconButton(onClick = { prefs.toggleFavoriteTheme(theme) }) {
-                            Icon(
-                                if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                null,
-                                tint = if (isFav) Color(0xFFFF8A80) else Color.White
-                            )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                incoming = id
+                                prefs.incomingTheme = id
+                                Toast.makeText(context, "Incoming theme applied", Toast.LENGTH_SHORT).show()
+                            }) { Text("Incoming") }
+                            Button(onClick = {
+                                ongoing = id
+                                prefs.ongoingTheme = id
+                                Toast.makeText(context, "Ongoing theme applied", Toast.LENGTH_SHORT).show()
+                            }) { Text("Ongoing") }
+                            TextButton(onClick = {
+                                context.startActivity(PhoneCallActivity.previewIntent(context, id))
+                            }) { Text("Preview") }
+                            IconButton(onClick = {
+                                prefs.toggleFavoriteTheme(id)
+                                favs = prefs.favoriteThemes
+                            }) {
+                                Icon(
+                                    if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                    null,
+                                    tint = if (isFav) Color(0xFFCE1126) else Color(0xFFA8ADB5)
+                                )
+                            }
                         }
-                        TextButton(onClick = {
-                            selected = theme
-                            prefs.incomingTheme = theme
-                            prefs.dialPadTheme = theme
-                            prefs.ongoingTheme = theme
-                            Toast.makeText(context, "Applied ${theme.label}", Toast.LENGTH_SHORT).show()
-                        }) { Text("Apply") }
                     }
                 }
+                item {
+                    Text(PhoneAssetManifest.NOTE, color = Color(0xFF6A6E76), fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
+                }
             }
-            Text(PhoneAssetManifest.NOTE, color = Color(0xFFA8ADB5), fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
         }
     }
 }
@@ -471,15 +491,57 @@ fun setPhoneLauncherEnabled(context: Context, enabled: Boolean) {
 
 fun requestDefaultDialer(context: Context, launcher: ManagedActivityResultLauncher<Intent, ActivityResult>) {
     try {
+        // Ensure Phone launcher component is enabled so the app is role-eligible
+        setPhoneLauncherEnabled(context, true)
+        PhonePrefs(context).phoneEnabled = true
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val rm = context.getSystemService(RoleManager::class.java)
-            if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
+            if (rm != null) {
+                if (!rm.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                    Toast.makeText(context, "Phone role is not available on this device", Toast.LENGTH_LONG).show()
+                    openDefaultAppsSettings(context, launcher)
+                    return
+                }
+                if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
+                    Toast.makeText(context, "Suhood is already the default Phone app", Toast.LENGTH_SHORT).show()
+                    openDefaultAppsSettings(context, launcher)
+                    return
+                }
                 launcher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
                 return
             }
         }
+        // Pre-Q / fallback
+        @Suppress("DEPRECATION")
+        val change = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
+            putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, context.packageName)
+        }
+        if (change.resolveActivity(context.packageManager) != null) {
+            launcher.launch(change)
+        } else {
+            openDefaultAppsSettings(context, launcher)
+        }
+    } catch (e: Exception) {
+        Toast.makeText(
+            context,
+            "Could not open Phone role request: ${e.message ?: "error"}",
+            Toast.LENGTH_LONG
+        ).show()
+        openDefaultAppsSettings(context, launcher)
+    }
+}
+
+fun openDefaultAppsSettings(context: Context, launcher: ManagedActivityResultLauncher<Intent, ActivityResult>) {
+    try {
         launcher.launch(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
     } catch (_: Exception) {
-        Toast.makeText(context, "Open system settings to change default Phone app", Toast.LENGTH_LONG).show()
+        try {
+            context.startActivity(
+                Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
+            Toast.makeText(context, "Open Settings → Apps → Default apps → Phone app", Toast.LENGTH_LONG).show()
+        }
     }
 }

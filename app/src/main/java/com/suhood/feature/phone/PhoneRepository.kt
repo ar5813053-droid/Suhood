@@ -138,6 +138,10 @@ class PhoneRepository(private val context: Context) {
     }
 
     fun isDefaultDialer(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (rm != null && rm.isRoleHeld(android.app.role.RoleManager.ROLE_DIALER)) return true
+        }
         val tm = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return false
         return tm.defaultDialerPackage == context.packageName
     }

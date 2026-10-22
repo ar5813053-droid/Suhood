@@ -1,13 +1,23 @@
 package com.suhood.feature.phone
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
+import android.os.Build
 import android.telecom.Call
 import android.telecom.InCallService
 import android.telecom.VideoProfile
+import androidx.core.app.NotificationCompat
+import com.suhood.app.R
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * System InCallService UI bridge. Only active when Suhood Phone is the default dialer.
- * Surfaces the current [Call] to [CallSession] and opens [PhoneCallActivity].
+ * System InCallService. Only bound when Suhood is the default dialer.
+ * Opens [PhoneCallActivity] and posts a full-screen notification for lock-screen.
  */
 class SuhoodInCallService : InCallService() {
 
@@ -15,6 +25,7 @@ class SuhoodInCallService : InCallService() {
         override fun onStateChanged(call: Call, state: Int) {
             CallSession.onState(state)
             if (state == Call.STATE_DISCONNECTED || state == Call.STATE_DISCONNECTING) {
+                cancelNotification()
                 CallSession.clear()
             }
         }
@@ -24,59 +35,132 @@ class SuhoodInCallService : InCallService() {
         super.onCallAdded(call)
         call.registerCallback(callback)
         CallSession.bind(call, this)
-        val i = Intent(this, PhoneCallActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        }
-        startActivity(i)
+        val details = call.details
+        val number = details?.handle?.schemeSpecificPart ?: ""
+        val name = details?.callerDisplayName?.toString()?.ifBlank { null } ?: number.ifBlank { "Unknown" }
+        CallSession.setIdentity(number, name)
+        showIncomingUi(number, name, call.state)
     }
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
         call.unregisterCallback(callback)
-        if (CallSession.currentCall === call) CallSession.clear()
+        cancelNotification()
+        CallSession.clear()
+    }
+
+    private fun showIncomingUi(number: String, name: String, state: Int) {
+        val intent = Intent(this, PhoneCallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(PhoneCallActivity.EXTRA_NUMBER, number)
+            putExtra(PhoneCallActivity.EXTRA_NAME, name)
+        }
+        startActivity(intent)
+        if (state == Call.STATE_RINGING) {
+            postFullScreenNotification(number, name)
+        }
+    }
+
+    private fun postFullScreenNotification(number: String, name: String) {
+        val nm = getSystemService(NotificationManager::class.java) ?: return
+        val channelId = "suhood_incoming_call"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                channelId,
+                "Incoming calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Full-screen incoming call UI"
+                setSound(null, null)
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(ch)
+        }
+        val fullScreen = PendingIntent.getActivity(
+            this, 1,
+            Intent(this, PhoneCallActivity::class.java).apply {
+                putExtra(PhoneCallActivity.EXTRA_NUMBER, number)
+                putExtra(PhoneCallActivity.EXTRA_NAME, name)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notif = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(name)
+            .setContentText(number.ifBlank { "Incoming call" })
+            .setCategory(Notification.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setOngoing(true)
+            .setFullScreenIntent(fullScreen, true)
+            .setContentIntent(fullScreen)
+            .build()
+        nm.notify(NOTIF_ID, notif)
+    }
+
+    private fun cancelNotification() {
+        getSystemService(NotificationManager::class.java)?.cancel(NOTIF_ID)
+    }
+
+    companion object {
+        private const val NOTIF_ID = 71001
     }
 }
 
 object CallSession {
-    @Volatile var currentCall: Call? = null
-        private set
-    @Volatile var service: InCallService? = null
-        private set
-    @Volatile var state: Int = Call.STATE_NEW
-        private set
+    private val _state = MutableStateFlow(Call.STATE_NEW)
+    val state: StateFlow<Int> = _state.asStateFlow()
 
-    fun bind(call: Call, svc: InCallService) {
-        currentCall = call
+    private val _number = MutableStateFlow("")
+    val number: StateFlow<String> = _number.asStateFlow()
+
+    private val _displayName = MutableStateFlow("")
+    val displayName: StateFlow<String> = _displayName.asStateFlow()
+
+    @Volatile private var call: Call? = null
+    @Volatile private var service: InCallService? = null
+
+    fun bind(c: Call, svc: InCallService) {
+        call = c
         service = svc
-        state = call.state
+        _state.value = c.state
+    }
+
+    fun setIdentity(number: String, name: String) {
+        _number.value = number
+        _displayName.value = name
+    }
+
+    fun onState(state: Int) {
+        _state.value = state
     }
 
     fun clear() {
-        currentCall = null
+        call = null
         service = null
-        state = Call.STATE_NEW
+        _state.value = Call.STATE_NEW
+        _number.value = ""
+        _displayName.value = ""
     }
 
-    fun onState(s: Int) { state = s }
-
     fun answer() {
-        currentCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
+        call?.answer(VideoProfile.STATE_AUDIO_ONLY)
     }
 
     fun reject() {
-        currentCall?.reject(false, null)
+        call?.reject(false, null)
     }
 
     fun disconnect() {
-        currentCall?.disconnect()
+        call?.disconnect()
     }
 
     fun hold() {
-        currentCall?.hold()
+        call?.hold()
     }
 
     fun unhold() {
-        currentCall?.unhold()
+        call?.unhold()
     }
 
     fun setMuted(muted: Boolean) {
@@ -84,12 +168,14 @@ object CallSession {
     }
 
     fun setSpeaker(on: Boolean) {
-        // Audio routing via InCallService setAudioRoute when available
-        runCatching {
-            val svc = service ?: return
-            val route = if (on) android.telecom.CallAudioState.ROUTE_SPEAKER
-            else android.telecom.CallAudioState.ROUTE_EARPIECE
-            svc.setAudioRoute(route)
+        val svc = service ?: return
+        try {
+            if (on) {
+                svc.setAudioRoute(android.telecom.CallAudioState.ROUTE_SPEAKER)
+            } else {
+                svc.setAudioRoute(android.telecom.CallAudioState.ROUTE_EARPIECE)
+            }
+        } catch (_: Exception) {
         }
     }
 }
