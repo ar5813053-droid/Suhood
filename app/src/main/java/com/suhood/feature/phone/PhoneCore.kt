@@ -194,6 +194,24 @@ class PhonePrefs(context: Context) {
     }
 
     /** Gallery URI for custom wallpaper (string) */
+    var callButtonStyle: CallButtonStyle
+        get() = runCatching { CallButtonStyle.valueOf(p.getString("btn_style", CallButtonStyle.IOS_GLASS.name)!!) }
+            .getOrDefault(CallButtonStyle.IOS_GLASS)
+        set(v) = p.edit().putString("btn_style", v.name).apply()
+
+    /** Asset file name under phone_wallpapers/ */
+    var wallpaperAsset: String?
+        get() = p.getString("wp_asset", null)
+        set(v) = p.edit().putString("wp_asset", v).apply()
+
+    var ringtoneUri: String?
+        get() = p.getString("ringtone_uri", null)
+        set(v) = p.edit().putString("ringtone_uri", v).apply()
+
+    var ringtoneTitle: String?
+        get() = p.getString("ringtone_title", null)
+        set(v) = p.edit().putString("ringtone_title", v).apply()
+
     var customWallpaperUri: String?
         get() = p.getString("custom_wp", null)
         set(v) = p.edit().putString("custom_wp", v).apply()
@@ -203,4 +221,18 @@ object PhoneAssetManifest {
     const val NOTE =
         "Wallpapers: Unsplash photos (Unsplash License) + original flag/geometry illustrations. " +
             "See docs/PHONE_ASSETS.md for attribution. Offline after install."
+}
+
+
+enum class CallButtonStyle { IOS_GLASS, PILL_RED, CIRCLE_CLASSIC, MINIMAL_DOTS }
+
+object PhoneWallpapers {
+    private const val DIR = "phone_wallpapers"
+    fun list(context: android.content.Context): List<String> {
+        return try {
+            context.assets.list(DIR)?.filter { it.endsWith(".jpg") || it.endsWith(".png") }?.sorted().orEmpty()
+        } catch (_: Exception) { emptyList() }
+    }
+    fun open(context: android.content.Context, fileName: String): java.io.InputStream? =
+        runCatching { context.assets.open("$DIR/$fileName") }.getOrNull()
 }

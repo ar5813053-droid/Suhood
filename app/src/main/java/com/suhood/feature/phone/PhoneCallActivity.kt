@@ -124,19 +124,33 @@ fun CallUiScreen(
             ?: if (state == Call.STATE_RINGING || preview) prefs.incomingTheme else prefs.ongoingTheme
     }
     val theme = CallThemes.colors(themeId)
+    val assetWp = prefs.wallpaperAsset
 
     var muted by remember { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
+    var showKeypad by remember { mutableStateOf(false) }
     var onHold by remember { mutableStateOf(false) }
     var speaker by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(theme.background)) {
-        theme.wallpaperRes?.let { res ->
-            Image(
-                painter = painterResource(res),
+        if (assetWp != null) {
+            coil.compose.AsyncImage(
+                model = coil.request.ImageRequest.Builder(context)
+                    .data("file:///android_asset/phone_wallpapers/$assetWp")
+                    .build(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+        } else {
+            theme.wallpaperRes?.let { res ->
+                Image(
+                    painter = painterResource(res),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
         // Dark gradient for readability
         Box(

@@ -58,6 +58,17 @@ class SuhoodInCallService : InCallService() {
         startActivity(intent)
         if (state == Call.STATE_RINGING) {
             postFullScreenNotification(number, name)
+
+        // Custom ringtone if set
+        try {
+            val prefs = PhonePrefs(this)
+            val uriStr = prefs.ringtoneUri
+            if (uriStr != null && state == Call.STATE_RINGING) {
+                val r = android.media.RingtoneManager.getRingtone(this, android.net.Uri.parse(uriStr))
+                r?.play()
+            }
+        } catch (_: Exception) {}
+
         }
     }
 
