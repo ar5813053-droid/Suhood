@@ -1,5 +1,8 @@
 package com.suhood.feature.phone
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+
+
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.ComponentName
@@ -531,7 +534,7 @@ private fun RecentsPane(repo: PhoneRepository, prefs: PhonePrefs) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ContactsPane(
     contacts: List<PhoneContact>,
