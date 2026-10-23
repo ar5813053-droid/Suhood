@@ -658,50 +658,115 @@ private fun ContactsPane(
                 }
             )
         }
-        LazyColumn(Modifier.padding(top = 8.dp)) {
-            items(filtered, key = { it.id + it.number }) { c ->
-                val selected = c.id in selectedIds
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(if (selected) Color(0x330A84FF) else Color.Transparent)
-                        .combinedClickable(
-                            onClick = {
-                                if (selectionMode) onToggleSelect(c.id) else onOpen(c)
-                            },
-                            onLongClick = { onLongPress(c.id) }
+        val sorted = remember(filtered) {
+            filtered.sortedBy { (it.name.ifBlank { it.number }).lowercase() }
+        }
+        val grouped = remember(sorted) {
+            sorted.groupBy { c ->
+                val ch = (c.name.ifBlank { c.number }).firstOrNull()?.uppercaseChar()
+                if (ch != null && ch.isLetter()) ch else '#'
+            }.toSortedMap(compareBy { if (it == '#') 'Z' + 1 else it })
+        }
+        val letters = remember(grouped) { grouped.keys.toList() }
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        val scope = rememberCoroutineScope()
+
+        Box(Modifier.fillMaxSize().padding(top = 8.dp)) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 22.dp)) {
+                grouped.forEach { (letter, items) ->
+                    item(key = "header_$letter") {
+                        Text(
+                            letter.toString(),
+                            color = Label2,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PhoneBg)
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
                         )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        Modifier.size(44.dp).clip(CircleShape).background(Surface2),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val av = prefs.contactAvatarAsset(c.number)
-                        val em = prefs.contactEmoji(c.number)
-                        when {
-                            av != null -> AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current).data("file:///android_asset/phone_avatars/$av").build(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                            !em.isNullOrBlank() -> Text(em, fontSize = 22.sp)
-                            else -> Text(c.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontWeight = FontWeight.SemiBold)
-                        }
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(c.name.ifBlank { c.number }, color = Label, fontSize = 16.sp)
-                        Text(PhoneNumberUtils.display(c.number, prefs.numeralStyle), color = Label2, fontSize = 13.sp)
+                    items(items, key = { it.id + it.number }) { c ->
+                        val selected = c.id in selectedIds
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(if (selected) Color(0x330A84FF) else Color.Transparent)
+                                .combinedClickable(
+                                    onClick = {
+                                        if (selectionMode) onToggleSelect(c.id) else onOpen(c)
+                                    },
+                                    onLongClick = { onLongPress(c.id) }
+                                )
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier.size(44.dp).clip(CircleShape).background(Surface2),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val av = prefs.contactAvatarAsset(c.number)
+                                val em = prefs.contactEmoji(c.number)
+                                when {
+                                    av != null -> AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current).data("file:///android_asset/phone_avatars/$av").build(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
+                                    !em.isNullOrBlank() -> Text(em, fontSize = 22.sp)
+                                    else -> Text(c.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(c.name.ifBlank { c.number }, color = Label, fontSize = 16.sp)
+                                Text(PhoneNumberUtils.display(c.number, prefs.numeralStyle), color = Label2, fontSize = 13.sp)
+                            }
+                        }
+                        HorizontalDivider(color = Color(0x22FFFFFF), modifier = Modifier.padding(start = 74.dp))
                     }
                 }
-                HorizontalDivider(color = Color(0x22FFFFFF), modifier = Modifier.padding(start = 74.dp))
+            }
+            // A–Z index rail
+            Column(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+                    .width(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                val allLetters = ('A'..'Z').toList() + listOf('#')
+                allLetters.forEach { letter ->
+                    val enabled = letter in grouped
+                    Text(
+                        letter.toString(),
+                        color = if (enabled) Blue else Label3,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .padding(vertical = 1.dp)
+                            .clickable(enabled = enabled) {
+                                val index = run {
+                                    var idx = 0
+                                    for ((k, v) in grouped) {
+                                        if (k == letter) return@run idx
+                                        idx += 1 + v.size // header + items
+                                    }
+                                    0
+                                }
+                                scope.launch {
+                                    listState.animateScrollToItem(index)
+                                }
+                            }
+                    )
+                }
             }
         }
     }
 }
+
 
 @Composable
 private fun ContactDetailScreen(
@@ -850,6 +915,109 @@ private fun EditContactScreen(
     }
 }
 
+
+private data class CountryCode(val name: String, val dial: String, val iso: String)
+
+private val CountryCodes: List<CountryCode> = listOf(
+    CountryCode("India", "+91", "IN"),
+    CountryCode("Pakistan", "+92", "PK"),
+    CountryCode("Bangladesh", "+880", "BD"),
+    CountryCode("Saudi Arabia", "+966", "SA"),
+    CountryCode("United Arab Emirates", "+971", "AE"),
+    CountryCode("Qatar", "+974", "QA"),
+    CountryCode("Kuwait", "+965", "KW"),
+    CountryCode("Bahrain", "+973", "BH"),
+    CountryCode("Oman", "+968", "OM"),
+    CountryCode("Egypt", "+20", "EG"),
+    CountryCode("Turkey", "+90", "TR"),
+    CountryCode("Indonesia", "+62", "ID"),
+    CountryCode("Malaysia", "+60", "MY"),
+    CountryCode("United Kingdom", "+44", "GB"),
+    CountryCode("United States", "+1", "US"),
+    CountryCode("Canada", "+1", "CA"),
+    CountryCode("Australia", "+61", "AU"),
+    CountryCode("Germany", "+49", "DE"),
+    CountryCode("France", "+33", "FR"),
+    CountryCode("Nigeria", "+234", "NG"),
+    CountryCode("South Africa", "+27", "ZA"),
+    CountryCode("Afghanistan", "+93", "AF"),
+    CountryCode("Iran", "+98", "IR"),
+    CountryCode("Iraq", "+964", "IQ"),
+    CountryCode("Jordan", "+962", "JO"),
+    CountryCode("Lebanon", "+961", "LB"),
+    CountryCode("Morocco", "+212", "MA"),
+    CountryCode("Algeria", "+213", "DZ"),
+    CountryCode("Tunisia", "+216", "TN"),
+    CountryCode("Yemen", "+967", "YE"),
+    CountryCode("Sri Lanka", "+94", "LK"),
+    CountryCode("Nepal", "+977", "NP"),
+    CountryCode("Singapore", "+65", "SG"),
+    CountryCode("Philippines", "+63", "PH"),
+    CountryCode("China", "+86", "CN"),
+    CountryCode("Japan", "+81", "JP"),
+    CountryCode("South Korea", "+82", "KR"),
+    CountryCode("Russia", "+7", "RU"),
+    CountryCode("Brazil", "+55", "BR"),
+    CountryCode("Mexico", "+52", "MX")
+)
+
+@Composable
+private fun CountryCodePickerDialog(
+    selectedDial: String,
+    onSelect: (CountryCode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var q by remember { mutableStateOf("") }
+    val filtered = remember(q) {
+        val query = q.trim()
+        if (query.isEmpty()) CountryCodes
+        else CountryCodes.filter {
+            it.name.contains(query, true) || it.dial.contains(query) || it.iso.contains(query, true)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Country code", color = Label) },
+        text = {
+            Column {
+                BasicTextField(
+                    value = q,
+                    onValueChange = { q = it },
+                    textStyle = LocalTextStyle.current.copy(color = Label, fontSize = 15.sp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Surface2)
+                        .padding(12.dp),
+                    singleLine = true,
+                    decorationBox = { inner ->
+                        if (q.isEmpty()) Text("Search country or code", color = Label3, fontSize = 15.sp)
+                        inner()
+                    }
+                )
+                Spacer(Modifier.height(10.dp))
+                LazyColumn(Modifier.height(320.dp)) {
+                    items(filtered, key = { it.iso + it.dial }) { c ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(c) }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(c.name, color = Label, modifier = Modifier.weight(1f), fontSize = 16.sp)
+                            Text(c.dial, color = if (c.dial == selectedDial) Green else Label2, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        HorizontalDivider(color = Color(0x22FFFFFF))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = Blue) } },
+        containerColor = Surface
+    )
+}
+
 @Composable
 private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved: () -> Unit) {
     val context = LocalContext.current
@@ -858,6 +1026,8 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
     var last by remember { mutableStateOf("") }
     var company by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var countryDial by remember { mutableStateOf("+91") }
+    var showCountryPicker by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var avatarEmoji by remember { mutableStateOf<String?>(null) }
     var avatarAsset by remember { mutableStateOf<String?>(null) }
@@ -882,9 +1052,10 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
                     Toast.makeText(context, "Enter a name or number", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
-                val ok = repo.addContact(first, last, company, phone, email)
+                val fullPhone = if (phone.isBlank()) "" else countryDial + phone.filter { it.isDigit() }
+                val ok = repo.addContact(first, last, company, fullPhone, email)
                 if (ok) {
-                    val n = PhoneNumberUtils.normalize(phone)
+                    val n = PhoneNumberUtils.normalize(fullPhone)
                     if (n.isNotBlank()) {
                         prefs.setContactEmoji(n, avatarEmoji)
                         prefs.setContactAvatarAsset(n, avatarAsset)
@@ -924,17 +1095,39 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
             DarkField("Company", company) { company = it }
         }
         Spacer(Modifier.height(16.dp))
+        if (showCountryPicker) {
+            CountryCodePickerDialog(
+                selectedDial = countryDial,
+                onSelect = { c -> countryDial = c.dial; showCountryPicker = false },
+                onDismiss = { showCountryPicker = false }
+            )
+        }
         FieldBlock {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.AddCircle, null, tint = Green)
-                Spacer(Modifier.width(12.dp))
+                // Country code — only changeable via list
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Surface2)
+                        .clickable { showCountryPicker = true }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(countryDial, color = Label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Filled.ArrowDropDown, null, tint = Label2, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(10.dp))
                 BasicTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = { v -> phone = v.filter { it.isDigit() || it == ' ' || it == '-' } },
                     textStyle = LocalTextStyle.current.copy(color = Label, fontSize = 16.sp),
                     modifier = Modifier.weight(1f),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                    ),
                     decorationBox = { inner ->
-                        if (phone.isEmpty()) Text("add phone", color = Label3)
+                        if (phone.isEmpty()) Text("Phone number", color = Label3)
                         inner()
                     }
                 )

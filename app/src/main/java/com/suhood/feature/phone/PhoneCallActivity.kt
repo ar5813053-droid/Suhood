@@ -209,8 +209,8 @@ fun CallUiScreen(
     val density = LocalDensity.current
     val knobSizePx = with(density) { 56.dp.toPx() }
     val maxSlide = (trackWidthPx - knobSizePx - with(density) { 12.dp.toPx() }).coerceAtLeast(1f)
-    // Must reach ~95% of the track before release counts as answer
-    val answerThreshold = maxSlide * 0.95f
+    // Bidirectional: must reach ~85% of half-track to answer/decline
+    val answerThreshold = (maxSlide / 2f) * 0.85f
 
     // Liquid nudge animation when not dragging
     val infinite = rememberInfiniteTransition(label = "slideNudge")
@@ -224,7 +224,10 @@ fun CallUiScreen(
         label = "nudge"
     )
     var dragging by remember { mutableStateOf(false) }
-    val displaySlide = if (dragging) slidePx else (slidePx + nudge).coerceIn(0f, maxSlide)
+    val displaySlide = if (dragging) slidePx else {
+        // Gentle center nudge only when idle at center
+        if (kotlin.math.abs(slidePx) < 4f) slidePx + nudge * 0.35f else slidePx
+    }
 
     LaunchedEffect(state, preview) {
         if (!preview && state == Call.STATE_ACTIVE) {
@@ -285,17 +288,19 @@ fun CallUiScreen(
                 Text("PREVIEW", color = Color(0xFFFFD60A), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
             }
-            Text(
-                when {
-                    ringing -> ""
-                    state == Call.STATE_DIALING || state == Call.STATE_CONNECTING -> "Calling…"
-                    state == Call.STATE_HOLDING -> "On hold"
-                    else -> String.format("%02d:%02d", elapsed / 60, elapsed % 60)
-                },
-                color = Color(0x99FFFFFF),
-                fontSize = 15.sp
-            )
-            Spacer(Modifier.height(8.dp))
+            if (!ringing) {
+                Text(
+                    when {
+                        state == Call.STATE_DIALING || state == Call.STATE_CONNECTING -> "Calling…"
+                        state == Call.STATE_HOLDING -> "On hold"
+                        else -> String.format("%02d:%02d", elapsed / 60, elapsed % 60)
+                    },
+                    color = Color(0xFF8E8E93),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+            }
             Text(
                 displayName,
                 color = Color.White,
@@ -310,8 +315,9 @@ fun CallUiScreen(
                         PhoneNumberUtils.normalize(displayNumber).ifBlank { displayNumber },
                         prefs.numeralStyle
                     ),
-                    color = Color(0x99FFFFFF),
-                    fontSize = 16.sp
+                    color = Color(0xFF8E8E93),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
             Spacer(Modifier.height(28.dp))
@@ -337,8 +343,7 @@ fun CallUiScreen(
 
             if (ringing) {
                 if (headsUp && !preview) {
-                    // Compact floating bar (inspired by system heads-up call UI)
-                    Spacer(Modifier.weight(1f))
+                    // Compact floating bar
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -394,7 +399,7 @@ fun CallUiScreen(
                     }
                     Spacer(Modifier.height(24.dp))
                 } else {
-                    // Full incoming: slide + explicit Answer / Decline
+                    // Bidirectional slider: left = decline, right = answer (no separate buttons)
                     Box(
                         Modifier
                             .fillMaxWidth()
@@ -404,34 +409,50 @@ fun CallUiScreen(
                             .background(Color(0x28FFFFFF))
                             .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
                     ) {
+                        // End zone hints
                         Box(
                             Modifier
-                                .fillMaxWidth()
-                                .height(24.dp)
-                                .align(Alignment.TopCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color(0x33FFFFFF), Color.Transparent)
-                                    )
-                                )
-                        )
+                                .align(Alignment.CenterStart)
+                                .padding(start = 14.dp)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x33FF3B30)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.CallEnd, null, tint = Color(0x88FF3B30), modifier = Modifier.size(16.dp))
+                        }
+                        Box(
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 14.dp)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x3334C759)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Call, null, tint = Color(0x8834C759), modifier = Modifier.size(16.dp))
+                        }
                         Text(
                             "slide to answer",
                             color = Color(0x66FFFFFF),
                             modifier = Modifier.align(Alignment.Center),
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
+                        // Centered knob; slidePx is offset from center (-max..+max)
+                        val centerX = (trackWidthPx - knobSizePx) / 2f
                         Box(
                             Modifier
-                                .offset { IntOffset(displaySlide.roundToInt(), 0) }
+                                .offset { IntOffset((centerX + displaySlide).roundToInt(), 0) }
                                 .padding(6.dp)
                                 .size(52.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF34C759), Color(0xFF28A745))
-                                    )
+                                    when {
+                                        slidePx > answerThreshold * 0.5f -> Color(0xFF34C759)
+                                        slidePx < -answerThreshold * 0.5f -> Color(0xFFFF3B30)
+                                        else -> Color(0xFF34C759)
+                                    }
                                 )
                                 .border(1.dp, Color(0x55FFFFFF), CircleShape)
                                 .align(Alignment.CenterStart)
@@ -440,51 +461,37 @@ fun CallUiScreen(
                                         onDragStart = { dragging = true },
                                         onDragEnd = {
                                             dragging = false
-                                            if (slidePx >= answerThreshold) {
-                                                if (!preview) CallSession.answer()
-                                                onAnswered()
-                                                slidePx = 0f
-                                            } else {
-                                                slidePx = 0f
+                                            when {
+                                                slidePx >= answerThreshold -> {
+                                                    if (!preview) CallSession.answer()
+                                                    onAnswered()
+                                                }
+                                                slidePx <= -answerThreshold -> {
+                                                    if (!preview) CallSession.reject()
+                                                    onFinish()
+                                                }
                                             }
+                                            slidePx = 0f
                                         },
                                         onDragCancel = {
                                             dragging = false
                                             slidePx = 0f
                                         },
                                         onHorizontalDrag = { _, dx ->
-                                            slidePx = (slidePx + dx).coerceIn(0f, maxSlide)
+                                            // maxSlide is half-track travel from center
+                                            val half = maxSlide / 2f
+                                            slidePx = (slidePx + dx).coerceIn(-half, half)
                                         }
                                     )
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(20.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (!preview) CallSession.reject()
-                                onFinish()
-                            },
-                            modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xFFFF3B30))
-                        ) {
-                            Icon(Icons.Filled.CallEnd, null, tint = Color.White, modifier = Modifier.size(30.dp))
-                        }
-                        IconButton(
-                            onClick = {
-                                if (!preview) CallSession.answer()
-                                onAnswered()
-                            },
-                            modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xFF34C759))
-                        ) {
-                            Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                            Icon(
+                                if (slidePx < -answerThreshold * 0.35f) Icons.Filled.CallEnd else Icons.Filled.Call,
+                                null,
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
                         }
                     }
                     Spacer(Modifier.height(16.dp))
