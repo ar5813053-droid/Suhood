@@ -215,12 +215,12 @@ fun CallUiScreen(
 
     val ringing = preview || state == Call.STATE_RINGING
     val density = LocalDensity.current
-    val knobSizeDp = 44.dp
+    val knobSizeDp = 64.dp
     val knobSizePx = with(density) { knobSizeDp.toPx() }
-    val trackPadPx = with(density) { 8.dp.toPx() }
+    val trackPadPx = with(density) { 6.dp.toPx() }
     val maxSlide = (trackWidthPx - knobSizePx - trackPadPx * 2).coerceAtLeast(1f)
-    // Bidirectional: ~80% of half-track
-    val answerThreshold = (maxSlide / 2f) * 0.80f
+    // Bidirectional: ~78% of half-track
+    val answerThreshold = (maxSlide / 2f) * 0.78f
 
     // Soft idle breathe (very subtle, slow) — only when not dragging and near center
     val infinite = rememberInfiniteTransition(label = "glassBreathe")
@@ -411,63 +411,67 @@ fun CallUiScreen(
                     }
                     Spacer(Modifier.height(24.dp))
                 } else {
-                    // Compact liquid-glass answer bar — raised from bottom edge
-                    Spacer(Modifier.height(8.dp))
+                    // iOS-scale liquid-glass slide bar (left = decline, right = answer)
+                    Spacer(Modifier.height(12.dp))
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 40.dp)
-                            .height(52.dp)
+                            .padding(horizontal = 28.dp)
+                            .height(78.dp)
                             .onSizeChanged { trackWidthPx = it.width.toFloat() }
-                            // Soft floating shadow
                             .shadow(
-                                elevation = 18.dp,
-                                shape = RoundedCornerShape(26.dp),
-                                ambientColor = Color.Black.copy(alpha = 0.45f),
-                                spotColor = Color.Black.copy(alpha = 0.35f)
+                                elevation = 24.dp,
+                                shape = RoundedCornerShape(39.dp),
+                                ambientColor = Color.Black.copy(alpha = 0.40f),
+                                spotColor = Color.Black.copy(alpha = 0.30f)
                             )
-                            .clip(RoundedCornerShape(26.dp))
-                            // Multi-layer liquid glass (Apple-style rim + frost + specular)
+                            .clip(RoundedCornerShape(39.dp))
+                            // Frosted green liquid glass (Apple-style)
                             .background(
                                 Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.22f),
-                                        Color.White.copy(alpha = 0.08f),
-                                        Color.White.copy(alpha = 0.14f)
+                                        Color(0x66A8E6B0),
+                                        Color(0x5590C99A),
+                                        Color(0x4480B888)
                                     )
                                 )
                             )
                             .border(
-                                width = 1.1.dp,
+                                width = 1.25.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
                                         Color.White.copy(alpha = 0.55f),
                                         Color.White.copy(alpha = 0.12f),
-                                        Color.White.copy(alpha = 0.28f)
+                                        Color.White.copy(alpha = 0.30f)
                                     )
                                 ),
-                                shape = RoundedCornerShape(26.dp)
+                                shape = RoundedCornerShape(39.dp)
                             )
                             .drawBehind {
-                                // Inner top specular rim
+                                // Top specular sheen
                                 drawRect(
                                     brush = Brush.verticalGradient(
-                                        0f to Color.White.copy(alpha = 0.35f),
-                                        0.18f to Color.Transparent
+                                        0f to Color.White.copy(alpha = 0.32f),
+                                        0.35f to Color.Transparent
                                     ),
-                                    size = size.copy(height = size.height * 0.45f)
+                                    size = size.copy(height = size.height * 0.5f)
                                 )
                             }
                     ) {
-                        // End-zone soft tints
+                        // Soft decline / answer zones
                         Box(
                             Modifier
                                 .align(Alignment.CenterStart)
                                 .fillMaxHeight()
-                                .width(48.dp)
+                                .fillMaxWidth(0.42f)
                                 .background(
                                     Brush.horizontalGradient(
-                                        listOf(Color(0x33FF3B30), Color.Transparent)
+                                        listOf(
+                                            Color(0x44FF3B30).copy(
+                                                alpha = (0.12f + (-slideAnim.value / (maxSlide / 2f)).coerceIn(0f, 1f) * 0.35f)
+                                            ),
+                                            Color.Transparent
+                                        )
                                     )
                                 )
                         )
@@ -475,69 +479,80 @@ fun CallUiScreen(
                             Modifier
                                 .align(Alignment.CenterEnd)
                                 .fillMaxHeight()
-                                .width(48.dp)
+                                .fillMaxWidth(0.42f)
                                 .background(
                                     Brush.horizontalGradient(
-                                        listOf(Color.Transparent, Color(0x3334C759))
+                                        listOf(
+                                            Color.Transparent,
+                                            Color(0x4434C759).copy(
+                                                alpha = (0.12f + (slideAnim.value / (maxSlide / 2f)).coerceIn(0f, 1f) * 0.35f)
+                                            )
+                                        )
                                     )
                                 )
                         )
-                        // Tiny end icons (subtle)
+                        // Hint icons (subtle, like iOS secondary affordances)
                         Icon(
                             Icons.Filled.CallEnd,
-                            null,
-                            tint = Color.White.copy(alpha = 0.35f),
+                            contentDescription = null,
+                            tint = Color.White.copy(
+                                alpha = 0.28f + (-slideAnim.value / (maxSlide / 2f)).coerceIn(0f, 1f) * 0.45f
+                            ),
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .padding(start = 14.dp)
-                                .size(16.dp)
+                                .padding(start = 22.dp)
+                                .size(22.dp)
                         )
                         Icon(
                             Icons.Filled.Call,
-                            null,
-                            tint = Color.White.copy(alpha = 0.35f),
+                            contentDescription = null,
+                            tint = Color.White.copy(
+                                alpha = 0.28f + (slideAnim.value / (maxSlide / 2f)).coerceIn(0f, 1f) * 0.45f
+                            ),
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
-                                .padding(end = 14.dp)
-                                .size(16.dp)
+                                .padding(end = 22.dp)
+                                .size(22.dp)
                         )
-                        // Glass knob — circular, spring-smoothed
+                        // Large circular glass knob — centered, spring-driven
                         val centerX = (trackWidthPx - knobSizePx) / 2f
                         Box(
                             Modifier
                                 .offset { IntOffset((centerX + displaySlide).roundToInt(), 0) }
-                                .padding(4.dp)
+                                .padding(7.dp)
                                 .size(knobSizeDp)
                                 .align(Alignment.CenterStart)
                                 .shadow(
-                                    elevation = 10.dp,
+                                    elevation = 14.dp,
                                     shape = CircleShape,
-                                    ambientColor = Color.Black.copy(alpha = 0.4f),
-                                    spotColor = Color.Black.copy(alpha = 0.35f)
+                                    ambientColor = Color.Black.copy(alpha = 0.35f),
+                                    spotColor = Color.Black.copy(alpha = 0.28f)
                                 )
                                 .clip(CircleShape)
                                 .background(
                                     Brush.radialGradient(
                                         colors = when {
-                                            slideAnim.value > answerThreshold * 0.4f -> listOf(
-                                                Color(0xFF5ADF7A), Color(0xFF28A745)
+                                            slideAnim.value > answerThreshold * 0.35f -> listOf(
+                                                Color(0xFFE8FFE9),
+                                                Color(0xFF34C759)
                                             )
-                                            slideAnim.value < -answerThreshold * 0.4f -> listOf(
-                                                Color(0xFFFF6B61), Color(0xFFD70015)
+                                            slideAnim.value < -answerThreshold * 0.35f -> listOf(
+                                                Color(0xFFFFE8E6),
+                                                Color(0xFFFF3B30)
                                             )
                                             else -> listOf(
-                                                Color.White.copy(alpha = 0.95f),
-                                                Color.White.copy(alpha = 0.72f)
+                                                Color.White,
+                                                Color(0xFFF2F2F7)
                                             )
                                         }
                                     )
                                 )
                                 .border(
-                                    width = 1.dp,
+                                    width = 1.2.dp,
                                     brush = Brush.verticalGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.9f),
-                                            Color.White.copy(alpha = 0.25f)
+                                            Color.White.copy(alpha = 0.95f),
+                                            Color.White.copy(alpha = 0.35f)
                                         )
                                     ),
                                     shape = CircleShape
@@ -565,16 +580,14 @@ fun CallUiScreen(
                                                 v <= -answerThreshold -> {
                                                     if (!preview) CallSession.reject()
                                                     onFinish()
-                                                    scope.launch {
-                                                        slideAnim.snapTo(0f)
-                                                    }
+                                                    scope.launch { slideAnim.snapTo(0f) }
                                                 }
                                                 else -> {
                                                     scope.launch {
                                                         slideAnim.animateTo(
                                                             0f,
                                                             spring(
-                                                                dampingRatio = 0.72f,
+                                                                dampingRatio = 0.78f,
                                                                 stiffness = Spring.StiffnessMediumLow
                                                             )
                                                         )
@@ -588,7 +601,7 @@ fun CallUiScreen(
                                                 slideAnim.animateTo(
                                                     0f,
                                                     spring(
-                                                        dampingRatio = 0.72f,
+                                                        dampingRatio = 0.78f,
                                                         stiffness = Spring.StiffnessMediumLow
                                                     )
                                                 )
@@ -603,38 +616,40 @@ fun CallUiScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            // Glass highlight on knob
+                            // Specular highlight on glass knob
                             Box(
                                 Modifier
                                     .align(Alignment.TopCenter)
-                                    .padding(top = 5.dp)
-                                    .width(18.dp)
-                                    .height(8.dp)
+                                    .padding(top = 8.dp)
+                                    .width(26.dp)
+                                    .height(11.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color.White.copy(alpha = 0.55f))
+                                    .background(Color.White.copy(alpha = 0.65f))
                             )
                             Icon(
-                                when {
-                                    slideAnim.value < -answerThreshold * 0.35f -> Icons.Filled.CallEnd
+                                imageVector = when {
+                                    slideAnim.value < -answerThreshold * 0.3f -> Icons.Filled.CallEnd
                                     else -> Icons.Filled.Call
                                 },
-                                null,
+                                contentDescription = null,
                                 tint = when {
-                                    kotlin.math.abs(slideAnim.value) > answerThreshold * 0.4f -> Color.White
-                                    else -> Color(0xFF1C1C1E)
+                                    slideAnim.value > answerThreshold * 0.35f -> Color.White
+                                    slideAnim.value < -answerThreshold * 0.35f -> Color.White
+                                    else -> Color(0xFF34C759)
                                 },
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(18.dp))
+                    // Message / quick-reply chips (Message-style affordance under slider)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         listOf("Can't talk now", "Call you later", "I'm in Salah").forEach { msg ->
                             Box(
                                 Modifier
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(Color.White.copy(alpha = 0.12f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(18.dp))
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White.copy(alpha = 0.14f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(20.dp))
                                     .clickable {
                                         if (!preview) {
                                             CallSession.reject()
@@ -644,11 +659,11 @@ fun CallUiScreen(
                                     }
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                             ) {
-                                Text(msg, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+                                Text(msg, color = Color.White.copy(alpha = 0.92f), fontSize = 12.sp)
                             }
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                 }
             } else {
                 if (showKeypad) {
