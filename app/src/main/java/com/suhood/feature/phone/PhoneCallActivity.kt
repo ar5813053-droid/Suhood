@@ -805,3 +805,173 @@ private fun CallAction(
         Text(label, color = Color(0xCCFFFFFF), fontSize = 12.sp)
     }
 }
+
+
+@Composable
+private fun IncomingFloatingBar(
+    name: String,
+    number: String,
+    emoji: String?,
+    numeralStyle: NumeralStyle,
+    onDecline: () -> Unit,
+    onAnswer: () -> Unit,
+    onExpand: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .shadow(16.dp, RoundedCornerShape(40.dp))
+            .clip(RoundedCornerShape(40.dp))
+            .background(Color(0xF01C1C1E))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp))
+            .clickable { onExpand() }
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(46.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!emoji.isNullOrBlank()) Text(emoji, fontSize = 22.sp)
+            else Text(
+                name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).clickable { onExpand() }) {
+            Text(
+                name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 19.sp
+            )
+            Text(
+                PhoneNumberUtils.display(
+                    PhoneNumberUtils.normalize(number).ifBlank { number },
+                    numeralStyle
+                ),
+                color = Color(0x99FFFFFF),
+                fontSize = 13.sp,
+                maxLines = 1
+            )
+        }
+        IconButton(
+            onClick = onDecline,
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFFF3B30))
+        ) {
+            Icon(Icons.Filled.CallEnd, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        IconButton(
+            onClick = onAnswer,
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFF34C759))
+        ) {
+            Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+@Composable
+private fun OngoingFloatingBar(
+    name: String,
+    number: String,
+    emoji: String?,
+    elapsed: Int,
+    muted: Boolean,
+    speaker: Boolean,
+    onMute: () -> Unit,
+    onEnd: () -> Unit,
+    onExpand: () -> Unit,
+    onSpeaker: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(18.dp, RoundedCornerShape(36.dp))
+            .clip(RoundedCornerShape(36.dp))
+            .background(Color(0xF0111111))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(36.dp))
+            .clickable { onExpand() }
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!emoji.isNullOrBlank()) Text(emoji, fontSize = 16.sp)
+                else Text(
+                    name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    String.format("%02d:%02d", elapsed / 60, elapsed % 60),
+                    color = Color(0xFF8E8E93),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OverlayAction(Icons.Filled.Videocam, onClick = { })
+            OverlayAction(if (muted) Icons.Filled.MicOff else Icons.Filled.Mic, active = muted, onClick = onMute)
+            IconButton(
+                onClick = onEnd,
+                modifier = Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFFF3B30))
+            ) {
+                Icon(Icons.Filled.CallEnd, null, tint = Color.White, modifier = Modifier.size(26.dp))
+            }
+            OverlayAction(Icons.Filled.PersonAdd, onClick = { })
+            OverlayAction(Icons.Filled.MoreHoriz, onClick = onExpand)
+        }
+    }
+}
+
+@Composable
+private fun OverlayAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    active: Boolean = false,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(44.dp).clip(CircleShape).background(if (active) Color.White else Color(0x33FFFFFF))
+    ) {
+        Icon(icon, null, tint = if (active) Color.Black else Color.White, modifier = Modifier.size(20.dp))
+    }
+}
+
+private fun resolveLocalContactName(context: android.content.Context, number: String): String? {
+    if (number.isBlank()) return null
+    return try {
+        val uri = android.net.Uri.withAppendedPath(
+            android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+            android.net.Uri.encode(number)
+        )
+        context.contentResolver.query(
+            uri,
+            arrayOf(android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME),
+            null, null, null
+        )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    } catch (_: Exception) {
+        null
+    }
+}
+
