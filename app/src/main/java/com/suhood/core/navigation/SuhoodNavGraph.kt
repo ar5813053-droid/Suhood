@@ -17,6 +17,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -109,7 +116,19 @@ fun SuhoodNavGraph(
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            enterTransition = {
+                fadeIn(tween(220)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220))
+            },
+            exitTransition = {
+                fadeOut(tween(160)) + scaleOut(targetScale = 0.98f, animationSpec = tween(160))
+            },
+            popEnterTransition = {
+                fadeIn(tween(220)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220))
+            },
+            popExitTransition = {
+                fadeOut(tween(160)) + scaleOut(targetScale = 1.02f, animationSpec = tween(160))
+            }
         ) {
             // Onboarding
             composable(Routes.ONBOARDING) {

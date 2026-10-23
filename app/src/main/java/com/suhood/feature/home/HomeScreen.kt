@@ -257,62 +257,54 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Smart Next Salah bar — period theme + active green window
+        // Smart Next Salah bar — 3D analytics card (rays behind, text crisp)
         val highlightGreen = Color(0xFF6FCF97)
         val periodColor = SmartNextSalah.periodAccent(smart.period)
         val barAccent = if (smart.isActiveHighlight) highlightGreen else periodColor
-        // Apple-style liquid glass Salah bar
         Box(
             Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 20.dp,
-                    shape = RoundedCornerShape(26.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = barAccent.copy(alpha = 0.25f)
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.55f),
+                    spotColor = Color.Black.copy(alpha = 0.4f)
                 )
-                .clip(RoundedCornerShape(26.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            colors.surfaceGlass.copy(alpha = 0.92f),
-                            colors.surfaceElevated.copy(alpha = 0.78f),
-                            colors.surfaceGlass.copy(alpha = 0.88f)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.15.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.42f),
-                            barAccent.copy(alpha = if (smart.isActiveHighlight) 0.45f else 0.18f),
-                            Color.White.copy(alpha = 0.12f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(26.dp)
-                )
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xFF1A1A1C))
                 .drawBehind {
-                    // Specular top rim (liquid glass highlight)
+                    // Soft radial glow (accent) — behind content only
                     drawRect(
-                        brush = Brush.verticalGradient(
-                            0f to Color.White.copy(alpha = 0.22f),
-                            0.22f to Color.Transparent
-                        ),
-                        size = size.copy(height = size.height * 0.4f)
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                barAccent.copy(alpha = 0.22f),
+                                barAccent.copy(alpha = 0.06f),
+                                Color.Transparent
+                            ),
+                            center = androidx.compose.ui.geometry.Offset(size.width * 0.72f, size.height * 0.15f),
+                            radius = size.minDimension * 0.95f
+                        )
                     )
-                    // Soft accent glow at bottom edge
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            1f to barAccent.copy(alpha = 0.10f)
-                        ),
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height * 0.55f),
-                        size = size.copy(height = size.height * 0.45f)
-                    )
+                    // Vertical soft "ray" bars in background (decorative, low alpha)
+                    val barCount = 7
+                    val gap = size.width / (barCount + 1)
+                    for (i in 0 until barCount) {
+                        val x = gap * (i + 1)
+                        val hFactor = listOf(0.35f, 0.55f, 0.9f, 0.5f, 0.7f, 0.4f, 0.6f)[i]
+                        val alpha = if (i == 2) 0.35f else 0.10f
+                        val col = if (i == 2) barAccent.copy(alpha = alpha) else Color.White.copy(alpha = alpha * 0.35f)
+                        val bw = size.width * 0.06f
+                        val bh = size.height * hFactor * 0.55f
+                        drawRoundRect(
+                            color = col,
+                            topLeft = androidx.compose.ui.geometry.Offset(x - bw / 2f, size.height - bh - 8f),
+                            size = androidx.compose.ui.geometry.Size(bw, bh),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(bw / 2f, bw / 2f)
+                        )
+                    }
                 }
                 .clickable { onNavigate(Routes.SALAH) }
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
             if (smart.isActiveHighlight) {
                 // Active prayer: green name + check + "Prayer time started" + Next Salah row
@@ -338,7 +330,7 @@ fun HomeScreen(
                         Column {
                             Text(
                                 smart.primaryName,
-                                style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Light),
                                 color = highlightGreen
                             )
                             Text(
@@ -408,7 +400,7 @@ fun HomeScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             smart.primaryName,
-                            style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            style = SuhoodTypography.headlineMedium.copy(fontWeight = FontWeight.Light),
                             color = colors.textPrimary
                         )
                         Spacer(Modifier.height(4.dp))

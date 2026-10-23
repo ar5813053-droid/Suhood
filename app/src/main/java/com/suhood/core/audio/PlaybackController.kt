@@ -119,6 +119,10 @@ class PlaybackController(
                 .setAlbumTitle(track.collection)
                 .setIsPlayable(true)
                 .build()
+            runCatching {
+                player.stop()
+                player.clearMediaItems()
+            }
             player.setMediaItem(
                 MediaItem.Builder()
                     .setUri(uri)
