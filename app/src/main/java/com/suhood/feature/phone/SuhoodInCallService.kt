@@ -139,7 +139,7 @@ class SuhoodInCallService : InCallService() {
     private fun startRinging() {
         stopRinging()
         val prefs = PhonePrefs(this)
-        if (prefs.isQuietHoursNow()) return
+        if (prefs.isQuietNow()) return
 
         try {
             val uri = prefs.ringtoneUri?.let { android.net.Uri.parse(it) }
@@ -449,12 +449,8 @@ object CallSession {
     fun reject() {
         val c = call ?: return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                c.reject(Call.RejectReason.REJECTED)
-            } else {
-                @Suppress("DEPRECATION")
-                c.reject(false, null)
-            }
+            @Suppress("DEPRECATION")
+            c.reject(false, null)
         } catch (_: Exception) {
             try {
                 c.disconnect()
