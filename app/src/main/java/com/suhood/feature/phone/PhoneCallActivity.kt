@@ -11,12 +11,17 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +57,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.suhood.core.designsystem.theme.SuhoodTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class PhoneCallActivity : ComponentActivity() {
@@ -201,32 +207,38 @@ fun CallUiScreen(
     var onHold by remember { mutableStateOf(false) }
     var speaker by remember { mutableStateOf(false) }
     var showKeypad by remember { mutableStateOf(false) }
-    var slidePx by remember { mutableFloatStateOf(0f) }
     var trackWidthPx by remember { mutableFloatStateOf(1f) }
     var elapsed by remember { mutableIntStateOf(0) }
+    val slideAnim = remember { Animatable(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val ringing = preview || state == Call.STATE_RINGING
     val density = LocalDensity.current
-    val knobSizePx = with(density) { 56.dp.toPx() }
-    val maxSlide = (trackWidthPx - knobSizePx - with(density) { 12.dp.toPx() }).coerceAtLeast(1f)
-    // Bidirectional: must reach ~85% of half-track to answer/decline
-    val answerThreshold = (maxSlide / 2f) * 0.85f
+    val knobSizeDp = 44.dp
+    val knobSizePx = with(density) { knobSizeDp.toPx() }
+    val trackPadPx = with(density) { 8.dp.toPx() }
+    val maxSlide = (trackWidthPx - knobSizePx - trackPadPx * 2).coerceAtLeast(1f)
+    // Bidirectional: ~80% of half-track
+    val answerThreshold = (maxSlide / 2f) * 0.80f
 
-    // Liquid nudge animation when not dragging
-    val infinite = rememberInfiniteTransition(label = "slideNudge")
-    val nudge by infinite.animateFloat(
+    // Soft idle breathe (very subtle, slow) — only when not dragging and near center
+    val infinite = rememberInfiniteTransition(label = "glassBreathe")
+    val breathe by infinite.animateFloat(
         initialValue = 0f,
-        targetValue = with(density) { 14.dp.toPx() },
+        targetValue = with(density) { 6.dp.toPx() },
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
+            animation = tween(2200, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "nudge"
+        label = "breathe"
     )
-    var dragging by remember { mutableStateOf(false) }
-    val displaySlide = if (dragging) slidePx else {
-        // Gentle center nudge only when idle at center
-        if (kotlin.math.abs(slidePx) < 4f) slidePx + nudge * 0.35f else slidePx
+    val displaySlide = if (dragging) {
+        slideAnim.value
+    } else if (kotlin.math.abs(slideAnim.value) < 3f) {
+        slideAnim.value + breathe * 0.45f
+    } else {
+        slideAnim.value
     }
 
     LaunchedEffect(state, preview) {
@@ -399,109 +411,230 @@ fun CallUiScreen(
                     }
                     Spacer(Modifier.height(24.dp))
                 } else {
-                    // Bidirectional slider: left = decline, right = answer (no separate buttons)
+                    // Compact liquid-glass answer bar — raised from bottom edge
+                    Spacer(Modifier.height(8.dp))
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .height(64.dp)
+                            .padding(horizontal = 40.dp)
+                            .height(52.dp)
                             .onSizeChanged { trackWidthPx = it.width.toFloat() }
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(Color(0x28FFFFFF))
-                            .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
+                            // Soft floating shadow
+                            .shadow(
+                                elevation = 18.dp,
+                                shape = RoundedCornerShape(26.dp),
+                                ambientColor = Color.Black.copy(alpha = 0.45f),
+                                spotColor = Color.Black.copy(alpha = 0.35f)
+                            )
+                            .clip(RoundedCornerShape(26.dp))
+                            // Multi-layer liquid glass (Apple-style rim + frost + specular)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.22f),
+                                        Color.White.copy(alpha = 0.08f),
+                                        Color.White.copy(alpha = 0.14f)
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.55f),
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color.White.copy(alpha = 0.28f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(26.dp)
+                            )
+                            .drawBehind {
+                                // Inner top specular rim
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        0f to Color.White.copy(alpha = 0.35f),
+                                        0.18f to Color.Transparent
+                                    ),
+                                    size = size.copy(height = size.height * 0.45f)
+                                )
+                            }
                     ) {
-                        // End zone hints
+                        // End-zone soft tints
                         Box(
                             Modifier
                                 .align(Alignment.CenterStart)
-                                .padding(start = 14.dp)
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x33FF3B30)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.CallEnd, null, tint = Color(0x88FF3B30), modifier = Modifier.size(16.dp))
-                        }
+                                .fillMaxHeight()
+                                .width(48.dp)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0x33FF3B30), Color.Transparent)
+                                    )
+                                )
+                        )
                         Box(
                             Modifier
                                 .align(Alignment.CenterEnd)
-                                .padding(end = 14.dp)
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x3334C759)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.Call, null, tint = Color(0x8834C759), modifier = Modifier.size(16.dp))
-                        }
-                        Text(
-                            "slide to answer",
-                            color = Color(0x66FFFFFF),
-                            modifier = Modifier.align(Alignment.Center),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                                .fillMaxHeight()
+                                .width(48.dp)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color.Transparent, Color(0x3334C759))
+                                    )
+                                )
                         )
-                        // Centered knob; slidePx is offset from center (-max..+max)
+                        // Tiny end icons (subtle)
+                        Icon(
+                            Icons.Filled.CallEnd,
+                            null,
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 14.dp)
+                                .size(16.dp)
+                        )
+                        Icon(
+                            Icons.Filled.Call,
+                            null,
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 14.dp)
+                                .size(16.dp)
+                        )
+                        // Glass knob — circular, spring-smoothed
                         val centerX = (trackWidthPx - knobSizePx) / 2f
                         Box(
                             Modifier
                                 .offset { IntOffset((centerX + displaySlide).roundToInt(), 0) }
-                                .padding(6.dp)
-                                .size(52.dp)
+                                .padding(4.dp)
+                                .size(knobSizeDp)
+                                .align(Alignment.CenterStart)
+                                .shadow(
+                                    elevation = 10.dp,
+                                    shape = CircleShape,
+                                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                                    spotColor = Color.Black.copy(alpha = 0.35f)
+                                )
                                 .clip(CircleShape)
                                 .background(
-                                    when {
-                                        slidePx > answerThreshold * 0.5f -> Color(0xFF34C759)
-                                        slidePx < -answerThreshold * 0.5f -> Color(0xFFFF3B30)
-                                        else -> Color(0xFF34C759)
-                                    }
+                                    Brush.radialGradient(
+                                        colors = when {
+                                            slideAnim.value > answerThreshold * 0.4f -> listOf(
+                                                Color(0xFF5ADF7A), Color(0xFF28A745)
+                                            )
+                                            slideAnim.value < -answerThreshold * 0.4f -> listOf(
+                                                Color(0xFFFF6B61), Color(0xFFD70015)
+                                            )
+                                            else -> listOf(
+                                                Color.White.copy(alpha = 0.95f),
+                                                Color.White.copy(alpha = 0.72f)
+                                            )
+                                        }
+                                    )
                                 )
-                                .border(1.dp, Color(0x55FFFFFF), CircleShape)
-                                .align(Alignment.CenterStart)
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.9f),
+                                            Color.White.copy(alpha = 0.25f)
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
                                 .pointerInput(maxSlide, answerThreshold) {
                                     detectHorizontalDragGestures(
                                         onDragStart = { dragging = true },
                                         onDragEnd = {
                                             dragging = false
+                                            val v = slideAnim.value
                                             when {
-                                                slidePx >= answerThreshold -> {
+                                                v >= answerThreshold -> {
                                                     if (!preview) CallSession.answer()
                                                     onAnswered()
+                                                    scope.launch {
+                                                        slideAnim.animateTo(
+                                                            0f,
+                                                            spring(
+                                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                                stiffness = Spring.StiffnessMediumLow
+                                                            )
+                                                        )
+                                                    }
                                                 }
-                                                slidePx <= -answerThreshold -> {
+                                                v <= -answerThreshold -> {
                                                     if (!preview) CallSession.reject()
                                                     onFinish()
+                                                    scope.launch {
+                                                        slideAnim.snapTo(0f)
+                                                    }
+                                                }
+                                                else -> {
+                                                    scope.launch {
+                                                        slideAnim.animateTo(
+                                                            0f,
+                                                            spring(
+                                                                dampingRatio = 0.72f,
+                                                                stiffness = Spring.StiffnessMediumLow
+                                                            )
+                                                        )
+                                                    }
                                                 }
                                             }
-                                            slidePx = 0f
                                         },
                                         onDragCancel = {
                                             dragging = false
-                                            slidePx = 0f
+                                            scope.launch {
+                                                slideAnim.animateTo(
+                                                    0f,
+                                                    spring(
+                                                        dampingRatio = 0.72f,
+                                                        stiffness = Spring.StiffnessMediumLow
+                                                    )
+                                                )
+                                            }
                                         },
                                         onHorizontalDrag = { _, dx ->
-                                            // maxSlide is half-track travel from center
                                             val half = maxSlide / 2f
-                                            slidePx = (slidePx + dx).coerceIn(-half, half)
+                                            val next = (slideAnim.value + dx).coerceIn(-half, half)
+                                            scope.launch { slideAnim.snapTo(next) }
                                         }
                                     )
                                 },
                             contentAlignment = Alignment.Center
                         ) {
+                            // Glass highlight on knob
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 5.dp)
+                                    .width(18.dp)
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.55f))
+                            )
                             Icon(
-                                if (slidePx < -answerThreshold * 0.35f) Icons.Filled.CallEnd else Icons.Filled.Call,
+                                when {
+                                    slideAnim.value < -answerThreshold * 0.35f -> Icons.Filled.CallEnd
+                                    else -> Icons.Filled.Call
+                                },
                                 null,
-                                tint = Color.White,
-                                modifier = Modifier.size(26.dp)
+                                tint = when {
+                                    kotlin.math.abs(slideAnim.value) > answerThreshold * 0.4f -> Color.White
+                                    else -> Color(0xFF1C1C1E)
+                                },
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         listOf("Can't talk now", "Call you later", "I'm in Salah").forEach { msg ->
                             Box(
                                 Modifier
                                     .clip(RoundedCornerShape(18.dp))
-                                    .background(Color(0x33FFFFFF))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(18.dp))
                                     .clickable {
                                         if (!preview) {
                                             CallSession.reject()
@@ -511,10 +644,11 @@ fun CallUiScreen(
                                     }
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                             ) {
-                                Text(msg, color = Color.White, fontSize = 12.sp)
+                                Text(msg, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
                             }
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
                 }
             } else {
                 if (showKeypad) {
