@@ -40,6 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
+
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.suhood.core.designsystem.components.*
@@ -106,7 +113,7 @@ object FocusScreens {
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(
-                    "Usage Access · Accessibility optional",
+                    "Usage Access + Accessibility required",
                     style = SuhoodTypography.labelSmall,
                     color = colors.textMuted
                 )
@@ -232,7 +239,7 @@ object FocusScreens {
                 listOf(
                     "Choose a duration for your session",
                     "Optionally select apps to limit",
-                    "Enable Usage Access / Accessibility when prompted",
+                    "Enable Usage Access and Accessibility (required for blocking)",
                     "Stay with the session until it completes"
                 ).forEachIndexed { i, line ->
                     Row(
@@ -261,11 +268,42 @@ object FocusScreens {
         }
     }
 
+
     @Composable
     fun SelectApps(onBack: () -> Unit) {
         val colors = suhoodColors
         val context = LocalContext.current
         val controller = remember { FocusSessionController.get(context) }
+        var usageOk by remember { mutableStateOf(AppBlockHelper.hasUsageAccess(context)) }
+        var a11yOk by remember { mutableStateOf(AppBlockHelper.hasAccessibility(context)) }
+        val lifecycleOwner = LocalLifecycleOwner.current
+
+        DisposableEffect(lifecycleOwner) {
+            val obs = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    usageOk = AppBlockHelper.hasUsageAccess(context)
+                    a11yOk = AppBlockHelper.hasAccessibility(context)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(obs)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+        }
+
+        if (!usageOk || !a11yOk) {
+            FocusPermissionGate(
+                usageOk = usageOk,
+                a11yOk = a11yOk,
+                onBack = onBack,
+                onOpenUsage = { AppBlockHelper.openUsageAccessSettings(context) },
+                onOpenA11y = { AppBlockHelper.openAccessibilitySettings(context) },
+                onRefresh = {
+                    usageOk = AppBlockHelper.hasUsageAccess(context)
+                    a11yOk = AppBlockHelper.hasAccessibility(context)
+                }
+            )
+            return
+        }
+
         val installed = remember {
             runCatching { InstalledAppsRepository.loadLauncherApps(context) }
                 .getOrDefault(emptyList())
@@ -282,6 +320,13 @@ object FocusScreens {
 
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
+
+            if (!a11yOk) {
+                AccessibilityWarningBanner(
+                    onEnable = { AppBlockHelper.openAccessibilitySettings(context) }
+                )
+            }
+
             Text(
                 "Enable apps to limit during focus. Your choices are saved.",
                 style = SuhoodTypography.bodySmall,
@@ -323,88 +368,230 @@ object FocusScreens {
                         style = SuhoodTypography.labelMedium,
                         color = colors.accentLavender,
                         modifier = Modifier.clickable {
-                            val all = installed.map { it.packageName }.toSet()
-                            selected = all
-                            controller.setBlockedApps(all)
+                            selected = installed.map { it.packageName }.toSet()
+                            controller.setBlockedApps(selected)
                         }
                     )
                 }
             }
-            if (installed.isEmpty()) {
-                Text(
-                    "No launcher apps could be listed. Android may restrict package visibility on this device.",
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(24.dp)
-                )
-            } else {
-                LazyColumn(
-                    Modifier
-                        .weight(1f)
-                        .padding(horizontal = SuhoodSpacing.screenHorizontal)
-                        .padding(bottom = 24.dp)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        val on = app.packageName in selected
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            selected = on,
-                            onClick = {
-                                selected = controller.toggleBlockedApp(app.packageName)
+            Spacer(Modifier.height(4.dp))
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = SuhoodSpacing.screenHorizontal,
+                    vertical = 8.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(filtered, key = { it.packageName }) { app ->
+                    val isOn = app.packageName in selected
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isOn) colors.surfaceElevated else colors.surface)
+                            .clickable {
+                                selected = if (isOn) selected - app.packageName else selected + app.packageName
+                                controller.setBlockedApps(selected)
                             }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val bmp = remember(app.packageName) {
+                            runCatching {
+                                val d = context.packageManager.getApplicationIcon(app.packageName)
+                                drawableToBitmap(d, 96)
+                            }.getOrNull()
+                        }
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
+                            )
+                        } else {
+                            Box(
+                                Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(colors.surfaceElevated),
+                                contentAlignment = Alignment.Center
                             ) {
-                                val bmp = remember(app.packageName) {
-                                    app.icon?.let { drawableToBitmap(it) }
-                                }
-                                if (bmp != null) {
-                                    Image(
-                                        bitmap = bmp.asImageBitmap(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                } else {
-                                    Box(
-                                        Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.surfaceSelected),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            app.label.take(1).uppercase(),
-                                            style = SuhoodTypography.labelMedium,
-                                            color = colors.textSecondary
-                                        )
-                                    }
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        app.label,
-                                        style = SuhoodTypography.titleSmall,
-                                        color = colors.textPrimary
-                                    )
-                                    Text(
-                                        if (on) "Limited during focus" else "Allowed",
-                                        style = SuhoodTypography.labelSmall,
-                                        color = if (on) colors.accentLavender else colors.textMuted
-                                    )
-                                }
-                                Switch(
-                                    checked = on,
-                                    onCheckedChange = {
-                                        selected = controller.toggleBlockedApp(app.packageName)
-                                    }
-                                )
+                                Icon(Icons.Filled.Apps, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
                             }
                         }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(app.label, style = SuhoodTypography.titleSmall, color = colors.textPrimary, maxLines = 1)
+                            Text(app.packageName, style = SuhoodTypography.labelSmall, color = colors.textMuted, maxLines = 1)
+                        }
+                        Switch(
+                            checked = isOn,
+                            onCheckedChange = { on ->
+                                selected = if (on) selected + app.packageName else selected - app.packageName
+                                controller.setBlockedApps(selected)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = colors.accentLavender,
+                                checkedThumbColor = colors.textPrimary
+                            )
+                        )
                     }
                 }
             }
         }
     }
+
+    @Composable
+    private fun FocusPermissionGate(
+        usageOk: Boolean,
+        a11yOk: Boolean,
+        onBack: () -> Unit,
+        onOpenUsage: () -> Unit,
+        onOpenA11y: () -> Unit,
+        onRefresh: () -> Unit
+    ) {
+        val colors = suhoodColors
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+        ) {
+            ScreenHeader(title = "Distracting apps", onBack = onBack)
+            Spacer(Modifier.height(12.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(20.dp))
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Lock, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Enable required access",
+                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = colors.textPrimary
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "To choose distracting apps and block them during Focus, Suhood needs App Usage Access and the Accessibility Service. You cannot open this page until both are enabled.",
+                        style = SuhoodTypography.bodyMedium,
+                        color = colors.textSecondary
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    PermissionStatusRow(
+                        title = "App Usage Access",
+                        subtitle = "Detects which app is open during a Focus session",
+                        enabled = usageOk,
+                        buttonLabel = if (usageOk) "Enabled" else "Enable",
+                        onClick = onOpenUsage
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    PermissionStatusRow(
+                        title = "Accessibility Service",
+                        subtitle = "Blocks selected apps when Focus is running (Suhood Focus)",
+                        enabled = a11yOk,
+                        buttonLabel = if (a11yOk) "Enabled" else "Enable",
+                        onClick = onOpenA11y
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    GlassButton(
+                        text = "I've enabled them — Continue",
+                        onClick = onRefresh,
+                        primary = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "After turning a switch on in system Settings, return here and tap Continue.",
+                        style = SuhoodTypography.labelSmall,
+                        color = colors.textMuted
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun PermissionStatusRow(
+        title: String,
+        subtitle: String,
+        enabled: Boolean,
+        buttonLabel: String,
+        onClick: () -> Unit
+    ) {
+        val colors = suhoodColors
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.surface)
+                .border(1.dp, colors.borderSubtle, RoundedCornerShape(14.dp))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                if (enabled) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                null,
+                tint = if (enabled) colors.accentLavender else colors.silverBright,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                Text(subtitle, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (enabled) colors.surfaceElevated else colors.accentLavender.copy(alpha = 0.2f))
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    buttonLabel,
+                    style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (enabled) colors.textMuted else colors.accentLavender
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun AccessibilityWarningBanner(onEnable: () -> Unit) {
+        val colors = suhoodColors
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SuhoodSpacing.screenHorizontal, vertical = 6.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0x33FF3B30))
+                .border(1.dp, Color(0x66FF3B30), RoundedCornerShape(12.dp))
+                .clickable(onClick = onEnable)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF8A80), modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Accessibility Service is off",
+                    style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+                Text(
+                    "Distracting apps cannot be blocked until you enable Suhood Focus in Accessibility settings. Tap to open Settings.",
+                    style = SuhoodTypography.labelSmall,
+                    color = colors.textSecondary
+                )
+            }
+        }
+    }
+
 
     private fun drawableToBitmap(drawable: Drawable): Bitmap? {
         return try {
