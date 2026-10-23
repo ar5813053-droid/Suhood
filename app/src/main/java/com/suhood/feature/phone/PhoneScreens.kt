@@ -1,5 +1,7 @@
 package com.suhood.feature.phone
 
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
