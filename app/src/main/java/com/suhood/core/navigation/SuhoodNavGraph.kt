@@ -283,6 +283,14 @@ fun SuhoodNavGraph(
                     onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
+            composable(Routes.QURAN_PARAH_LIST) {
+                QuranScreens.ParahList(
+                    onBack = { navController.popBackStack() },
+                    onParah = { id -> navController.navigate("quran/parah/$id") },
+                    onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
+                    onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) }
+                )
+            }
             composable(
                 "quran/parah/{parahId}",
                 arguments = listOf(navArgument("parahId") { type = NavType.IntType })

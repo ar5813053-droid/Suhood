@@ -7,6 +7,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
@@ -283,6 +287,28 @@ object QiblaScreens {
             d
         } else null
         val aligned = relative != null && abs(relative) < 8.0
+        var wasAligned by remember { mutableStateOf(false) }
+        val vibrator = remember {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        }
+        LaunchedEffect(aligned) {
+            if (aligned && !wasAligned) {
+                runCatching {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator?.vibrate(VibrationEffect.createOneShot(55, VibrationEffect.DEFAULT_AMPLITUDE))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator?.vibrate(55)
+                    }
+                }
+            }
+            wasAligned = aligned
+        }
 
         // Smooth dial rotation (reduces lag/jitter)
         val animatedAzimuth by animateFloatAsState(
@@ -395,7 +421,7 @@ object QiblaScreens {
                 when {
                     !hasPermission -> "Allow location to find Qibla"
                     qiblaBearing == null -> "Getting location…"
-                    aligned -> "✓ Facing the Qibla"
+                    aligned -> "🕋  Facing Makkah"
                     relative != null && relative > 0 -> "Turn right ${relative.toInt()}°"
                     relative != null -> "Turn left ${abs(relative).toInt()}°"
                     else -> "Rotate phone slowly"

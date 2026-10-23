@@ -1,4 +1,8 @@
 package com.suhood.feature.alarms
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -502,6 +506,29 @@ object AlarmScreens {
                         }
                 }
                 SwitchRow("Vibrate when alarm sounds", vibrate) { vibrate = it }
+                Spacer(Modifier.height(8.dp))
+                Text("Wake up challenge", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Spacer(Modifier.height(6.dp))
+                SwitchRow(
+                    "Enable wake-up challenge",
+                    challenge != ChallengeType.NONE
+                ) {
+                    challenge = if (it) ChallengeType.MATH else ChallengeType.NONE
+                }
+                if (challenge != ChallengeType.NONE) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            ChallengeType.MATH to "Math",
+                            ChallengeType.TAP to "Taps",
+                            ChallengeType.NONE to "Off"
+                        ).forEach { (type, label) ->
+                            val sel = challenge == type
+                            GlassPill(selected = sel, onClick = { challenge = type }) {
+                                Text(label, color = if (sel) colors.textPrimary else colors.textMuted)
+                            }
+                        }
+                    }
+                }
                 SwitchRow("Delete after goes off", deleteAfter) { deleteAfter = it }
 
                 Spacer(Modifier.height(12.dp))
@@ -512,17 +539,6 @@ object AlarmScreens {
                     placeholder = "Enter label"
                 )
 
-                Spacer(Modifier.height(16.dp))
-                Text("Wake-up challenge", style = SuhoodTypography.labelMedium, color = colors.textMuted)
-                ChallengeType.entries.forEach { type ->
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        selected = challenge == type,
-                        onClick = { challenge = type }
-                    ) {
-                        Text(type.name, color = colors.textPrimary)
-                    }
-                }
 
                 if (alarmId != null) {
                     Spacer(Modifier.height(16.dp))
@@ -654,6 +670,7 @@ object AlarmScreens {
 }
 
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlarmMusicPickerSheet(
@@ -664,9 +681,10 @@ private fun AlarmMusicPickerSheet(
     val context = LocalContext.current
     val colors = suhoodColors
     var query by remember { mutableStateOf("") }
-    var tracks by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var tracks by remember { mutableStateOf<List<Triple<String, String, String>>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var permissionOk by remember { mutableStateOf(false) }
+    var selectedUri by remember { mutableStateOf<String?>(null) }
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -692,40 +710,177 @@ private fun AlarmMusicPickerSheet(
 
     val filtered = remember(tracks, query) {
         if (query.isBlank()) tracks
-        else tracks.filter { it.second.contains(query, ignoreCase = true) }
+        else tracks.filter {
+            it.second.contains(query, ignoreCase = true) ||
+                it.third.contains(query, ignoreCase = true)
+        }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xF21C1C20),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 14.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.2f))
+            )
+        }
+    ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 28.dp)
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 28.dp)
         ) {
-            Text("Choose alarm music", style = SuhoodTypography.titleLarge, color = colors.textPrimary, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
+            // Search
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp)
+                    .padding(top = 8.dp),
                 singleLine = true,
-                placeholder = { Text("Search songs…") },
-                leadingIcon = { Icon(Icons.Filled.Search, null) }
+                placeholder = { Text("Search songs…", color = Color.White.copy(alpha = 0.28f)) },
+                leadingIcon = { Icon(Icons.Filled.Search, null, tint = Color.White.copy(alpha = 0.35f)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White.copy(alpha = 0.92f),
+                    unfocusedTextColor = Color.White.copy(alpha = 0.92f),
+                    focusedBorderColor = Color(0xFF7B7FFF),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                    focusedContainerColor = Color.White.copy(alpha = 0.07f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.07f),
+                    cursorColor = Color(0xFF7B7FFF)
+                ),
+                shape = RoundedCornerShape(14.dp)
             )
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { onSelect("", "Default alarm") }) { Text("Use default alarm sound") }
-            TextButton(onClick = onPickFile) { Text("Browse files…") }
-            Spacer(Modifier.height(8.dp))
+
+            // Quick actions
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect("", "Default alarm") }
+                        .padding(13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x2E7B7FFF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.MusicNote, null, tint = Color(0xFF7B7FFF), modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text("Use default alarm sound", color = Color(0xFF7B7FFF), fontWeight = FontWeight.Medium)
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onPickFile)
+                        .padding(13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.07f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Folder, null, tint = Color.White.copy(alpha = 0.48f), modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text("Browse files…", color = Color.White.copy(alpha = 0.48f), fontWeight = FontWeight.Medium)
+                }
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 18.dp))
+            Text(
+                "ON THIS DEVICE",
+                color = Color.White.copy(alpha = 0.28f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 10.dp)
+            )
+
             when {
-                !permissionOk -> Text("Allow music access to list your songs in-app.", color = colors.textMuted)
-                loading -> Text("Loading library…", color = colors.textMuted)
-                filtered.isEmpty() -> Text("No songs found.", color = colors.textMuted)
-                else -> LazyColumn(Modifier.heightIn(max = 360.dp)) {
-                    items(filtered, key = { it.first }) { (uri, title) ->
+                !permissionOk -> Text(
+                    "Allow music access to list your songs in-app.",
+                    color = Color.White.copy(alpha = 0.48f),
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+                loading -> Text(
+                    "Loading library…",
+                    color = Color.White.copy(alpha = 0.48f),
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+                filtered.isEmpty() -> Text(
+                    "No songs found.",
+                    color = Color.White.copy(alpha = 0.48f),
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+                else -> LazyColumn(
+                    Modifier
+                        .heightIn(max = 360.dp)
+                        .padding(horizontal = 18.dp)
+                ) {
+                    items(filtered, key = { it.first }) { (uri, title, artist) ->
+                        val active = selectedUri == uri
                         Row(
-                            Modifier.fillMaxWidth().clickable { onSelect(uri, title) }.padding(vertical = 12.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (active) Color(0x2E7B7FFF) else Color.Transparent)
+                                .clickable {
+                                    selectedUri = uri
+                                    onSelect(uri, title)
+                                }
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Filled.MusicNote, null, tint = colors.accentLavender)
-                            Spacer(Modifier.width(12.dp))
-                            Text(title, color = colors.textPrimary, maxLines = 1)
+                            Box(
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF1E1E2E), Color(0xFF2A1F3D))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.MusicNote,
+                                    null,
+                                    tint = if (active) Color(0xFF7B7FFF) else Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    title,
+                                    color = if (active) Color(0xFF7B7FFF) else Color.White.copy(alpha = 0.92f),
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    artist.ifBlank { "Unknown artist" },
+                                    color = Color.White.copy(alpha = 0.48f),
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
@@ -734,12 +889,14 @@ private fun AlarmMusicPickerSheet(
     }
 }
 
-private fun loadDeviceAudio(context: android.content.Context): List<Pair<String, String>> {
-    val out = ArrayList<Pair<String, String>>()
+
+private fun loadDeviceAudio(context: android.content.Context): List<Triple<String, String, String>> {
+    val out = ArrayList<Triple<String, String, String>>()
     val projection = arrayOf(
         android.provider.MediaStore.Audio.Media._ID,
         android.provider.MediaStore.Audio.Media.TITLE,
-        android.provider.MediaStore.Audio.Media.DISPLAY_NAME
+        android.provider.MediaStore.Audio.Media.DISPLAY_NAME,
+        android.provider.MediaStore.Audio.Media.ARTIST
     )
     val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0"
     runCatching {
@@ -751,13 +908,15 @@ private fun loadDeviceAudio(context: android.content.Context): List<Pair<String,
             val idIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)
             val titleIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)
             val nameIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
+            val artistIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)
             while (c.moveToNext()) {
                 val id = c.getLong(idIdx)
                 val title = c.getString(titleIdx)?.takeIf { it.isNotBlank() } ?: c.getString(nameIdx) ?: "Track"
+                val artist = c.getString(artistIdx)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: ""
                 val uri = android.content.ContentUris.withAppendedId(
                     android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id
                 ).toString()
-                out.add(uri to title)
+                out.add(Triple(uri, title, artist))
             }
         }
     }

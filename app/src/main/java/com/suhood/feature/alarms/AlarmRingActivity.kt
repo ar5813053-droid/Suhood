@@ -409,7 +409,7 @@ private fun DismissChallenge(challenge: String, onSolved: () -> Unit) {
                     if (input.toIntOrNull() == a + b) onSolved() else error = "Try again"
                 }) { Text("Confirm", color = Color(0xFFFF9F0A)) }
             }
-            "TAPS" -> {
+            "TAP" -> {
                 Text("Tap 5 times", color = Color.White, fontSize = 20.sp)
                 Spacer(Modifier.height(12.dp))
                 TextButton(onClick = {

@@ -304,7 +304,7 @@ fun HomeScreen(
                     }
                 }
                 .clickable { onNavigate(Routes.SALAH) }
-                .padding(20.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
         ) {
             if (smart.isActiveHighlight) {
                 // Active prayer: green name + check + "Prayer time started" + Next Salah row
@@ -330,8 +330,10 @@ fun HomeScreen(
                         Column {
                             Text(
                                 smart.primaryName,
-                                style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Light),
-                                color = highlightGreen
+                                style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = highlightGreen,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Text(
                                 "Prayer time started",
@@ -400,8 +402,10 @@ fun HomeScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             smart.primaryName,
-                            style = SuhoodTypography.headlineMedium.copy(fontWeight = FontWeight.Light),
-                            color = colors.textPrimary
+                            style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
