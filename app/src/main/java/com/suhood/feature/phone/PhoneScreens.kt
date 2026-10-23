@@ -1,6 +1,6 @@
-package com.suhood.feature.phone
-
 @file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
+package com.suhood.feature.phone
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.Animatable
