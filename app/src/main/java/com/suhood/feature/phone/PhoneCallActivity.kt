@@ -11,6 +11,11 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -49,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,6 +92,15 @@ class PhoneCallActivity : ComponentActivity() {
         val previewName = intent.getStringExtra(EXTRA_NAME) ?: "Incoming call"
         val forceTheme = intent.getStringExtra(EXTRA_THEME)
         val headsUp = intent.getBooleanExtra(EXTRA_HEADS_UP, false)
+
+        // Transparent window so floating call UI sits over other apps
+        if (headsUp && !preview) {
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+            @Suppress("DEPRECATION")
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        }
 
         // Vibrate on incoming even in silent mode (app-driven vibration)
         val state = CallSession.state.value
@@ -192,8 +208,18 @@ fun CallUiScreen(
     val name by CallSession.displayName.collectAsState()
 
     val displayNumber = if (preview) previewNumber else number.ifBlank { previewNumber }
-    val displayName = if (preview) previewName else name.ifBlank { displayNumber.ifBlank { "Unknown" } }
+    val resolvedContact = remember(displayNumber) {
+        if (preview) null else resolveLocalContactName(context, displayNumber)
+    }
+    val displayName = when {
+        preview -> previewName
+        !resolvedContact.isNullOrBlank() -> resolvedContact
+        name.isNotBlank() && name != displayNumber -> name
+        else -> displayNumber.ifBlank { "Unknown" }
+    }
     val emoji = prefs.contactEmoji(displayNumber)
+    // Overlay vs full-screen (user can expand)
+    var expanded by remember { mutableStateOf(preview || !headsUp) }
 
     val themeId = remember(forceThemeName, displayNumber, state) {
         forceThemeName?.let { runCatching { CallThemeId.valueOf(it) }.getOrNull() }
@@ -251,7 +277,75 @@ fun CallUiScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(if (headsUp && !preview) Color(0x99000000) else Color(0xFF1C1C1E))) {
+    // —— FLOATING OVERLAY MODE (incoming + in-call) ——
+    if (!expanded && !preview) {
+        Box(Modifier.fillMaxSize()) {
+            // Soft dim only behind bars
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.18f))
+                    .clickable {
+                        // Tap outside expands to full call UI
+                        expanded = true
+                    }
+            )
+            AnimatedVisibility(
+                visible = true,
+                enter = slideInVertically(initialOffsetY = { -it / 3 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it / 3 }) + fadeOut(),
+                modifier = Modifier
+                    .align(if (ringing) Alignment.TopCenter else Alignment.BottomCenter)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                if (ringing) {
+                    IncomingFloatingBar(
+                        name = displayName,
+                        number = displayNumber,
+                        emoji = emoji,
+                        numeralStyle = prefs.numeralStyle,
+                        onDecline = {
+                            CallSession.reject()
+                            onFinish()
+                        },
+                        onAnswer = {
+                            CallSession.answer()
+                            onAnswered()
+                            // Stay as floating in-call controls
+                        },
+                        onExpand = { expanded = true }
+                    )
+                } else {
+                    OngoingFloatingBar(
+                        name = displayName,
+                        number = displayNumber,
+                        emoji = emoji,
+                        elapsed = elapsed,
+                        muted = muted,
+                        onMute = {
+                            muted = !muted
+                            CallSession.setMuted(muted)
+                        },
+                        onEnd = {
+                            CallSession.disconnect()
+                            onFinish()
+                        },
+                        onExpand = { expanded = true },
+                        onSpeaker = {
+                            speaker = !speaker
+                            CallSession.setSpeaker(speaker)
+                        },
+                        speaker = speaker
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    Box(Modifier.fillMaxSize().background(Color(0xFF1C1C1E))) {
         if (assetWp != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -316,9 +410,13 @@ fun CallUiScreen(
             Text(
                 displayName,
                 color = Color.White,
-                fontSize = 36.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 2
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 40.sp,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
             )
             if (!ringing) {
                 Spacer(Modifier.height(6.dp))
@@ -354,63 +452,7 @@ fun CallUiScreen(
             Spacer(Modifier.weight(1f))
 
             if (ringing) {
-                if (headsUp && !preview) {
-                    // Compact floating bar
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(Color(0xEE1C1C1E))
-                            .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier.size(44.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (!emoji.isNullOrBlank()) Text(emoji, fontSize = 22.sp)
-                            else Text(
-                                displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Text(
-                                PhoneNumberUtils.display(
-                                    PhoneNumberUtils.normalize(displayNumber).ifBlank { displayNumber },
-                                    prefs.numeralStyle
-                                ),
-                                color = Color(0x99FFFFFF),
-                                fontSize = 13.sp,
-                                maxLines = 1
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                CallSession.reject()
-                                onFinish()
-                            },
-                            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFFF3B30))
-                        ) {
-                            Icon(Icons.Filled.CallEnd, null, tint = Color.White)
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        IconButton(
-                            onClick = {
-                                CallSession.answer()
-                                onAnswered()
-                            },
-                            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFF34C759))
-                        ) {
-                            Icon(Icons.Filled.Call, null, tint = Color.White)
-                        }
-                    }
-                    Spacer(Modifier.height(24.dp))
-                } else {
+                // Full incoming — same as preview
                     // iOS-scale liquid-glass slide bar (left = decline, right = answer)
                     Spacer(Modifier.height(12.dp))
                     Box(
@@ -664,7 +706,6 @@ fun CallUiScreen(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                }
             } else {
                 if (showKeypad) {
                     val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#")

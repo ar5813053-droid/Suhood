@@ -68,18 +68,20 @@ class SuhoodInCallService : InCallService() {
         CallSession.bind(call, this)
         val details = call.details
         val number = details?.handle?.schemeSpecificPart ?: ""
-        val name = details?.callerDisplayName?.toString()?.takeIf { it.isNotBlank() }
-            ?: resolveContactName(number)
-            ?: number.ifBlank { "Unknown" }
+        // Prefer device contact name over network CNAM
+        val contact = resolveContactName(number)
+        val cnam = details?.callerDisplayName?.toString()?.takeIf { it.isNotBlank() && !it.all { ch -> ch.isDigit() || ch in "+- ()" } }
+        val name = contact ?: cnam ?: number.ifBlank { "Unknown" }
         CallSession.setIdentity(number, name)
 
         when (call.state) {
             Call.STATE_RINGING -> handleIncoming(number, name)
             Call.STATE_DIALING, Call.STATE_CONNECTING, Call.STATE_ACTIVE -> {
-                openCallActivity(number, name, forceFullScreen = true)
+                // Stay as floating overlay when already in another app; full when locked handled elsewhere
+                openCallActivity(number, name, forceFullScreen = false)
                 postOngoingNotification(number, name)
             }
-            else -> openCallActivity(number, name, forceFullScreen = true)
+            else -> openCallActivity(number, name, forceFullScreen = false)
         }
     }
 
@@ -381,7 +383,7 @@ class IncomingCallActionReceiver : BroadcastReceiver() {
                 context.startActivity(
                     Intent(context, PhoneCallActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        putExtra(PhoneCallActivity.EXTRA_HEADS_UP, false)
+                        putExtra(PhoneCallActivity.EXTRA_HEADS_UP, true)
                     }
                 )
             }
