@@ -149,17 +149,17 @@ fun FloatingTopNavigation(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color(0xD92C2C2E),
-                            Color(0xF01C1C1E)
+                            Color(0xE638383C),
+                            Color(0xF2222226)
                         )
                     )
                 )
                 .border(
-                    width = 0.8.dp,
+                    width = 1.dp,
                     brush = Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = 0.28f),
-                            Color.White.copy(alpha = 0.06f)
+                            Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.08f)
                         )
                     ),
                     shape = RoundedCornerShape(36.dp)
@@ -208,12 +208,12 @@ fun FloatingTopNavigation(
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                Color(0xFF4A4A4C),
-                                Color(0xFF2C2C2E)
+                                Color(0xCC5A5A60),
+                                Color(0xEE2E2E34)
                             )
                         )
                     )
-                    .border(0.7.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
             )
 
             Row(

@@ -211,176 +211,217 @@ object QuranScreens {
         val dailyMin by prefsRepo.quranDailyMinutes.collectAsStateWithLifecycle(10)
         val todayPages by prefsRepo.quranTodayPages.collectAsStateWithLifecycle(0)
 
-        Column(
+        // One continuous scroll page — header + tools + surah list
+        LazyColumn(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .background(colors.background)
+                .background(colors.background),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Header
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "SUHOOD · QURAN",
-                    style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = colors.accentLavender
-                )
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textSecondary)
-                }
-            }
-
-            // Hero
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                    style = SuhoodTypography.arabicBody,
-                    color = colors.accentLavender,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "The Holy Quran",
-                    style = SuhoodTypography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = colors.textPrimary
-                )
-                Text(
-                    "114 Surahs · Authentic Arabic text",
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted
-                )
-                Spacer(Modifier.height(10.dp))
-                Box(
+            item(key = "header") {
+                Row(
                     Modifier
-                        .width(160.dp)
-                        .height(1.dp)
-                        .background(colors.accentLavender.copy(alpha = 0.35f))
-                )
-            }
-            Spacer(Modifier.height(14.dp))
-
-            GlassSearchField(
-                query = query,
-                onQueryChange = { query = it },
-                placeholder = "Search by surah name or number…",
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(Modifier.height(14.dp))
-
-            // Companion card
-            GlassCard(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                Text(
-                    "DAILY READING",
-                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = colors.accentLavender
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Today · $todayPages pages · ${dailyMin} min goal",
-                    style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = colors.textPrimary
-                )
-                Text(
-                    "Change goal in Settings · Quran Companion",
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GlassButton(
-                        text = "Continue",
-                        onClick = onLastRead,
-                        primary = true,
-                        modifier = Modifier.weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "SUHOOD · QURAN",
+                        style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.accentLavender
                     )
-                    GlassButton(
-                        text = "Mushaf",
-                        onClick = onMushaf,
-                        primary = false,
-                        modifier = Modifier.weight(1f)
-                    )
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = colors.textSecondary
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(14.dp))
 
-            // Quick nav 2x2
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                QuickNavTile(
-                    title = "Last Read",
-                    subtitle = "Resume reading",
-                    icon = Icons.Filled.Bookmark,
-                    onClick = onLastRead,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickNavTile(
-                    title = "Mushaf",
-                    subtitle = "Page view",
-                    icon = Icons.Filled.MenuBook,
-                    onClick = onMushaf,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                QuickNavTile(
-                    title = "Bookmarks",
-                    subtitle = "Saved ayahs",
-                    icon = Icons.Filled.BookmarkBorder,
-                    onClick = onBookmarks,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickNavTile(
-                    title = "Juz / Para",
-                    subtitle = "30 parts",
-                    icon = Icons.Filled.ViewModule,
-                    onClick = onJuz,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                "ALL SURAHS",
-                style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = colors.textMuted,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-
-            when {
-                loading && surahs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colors.accentLavender)
-                }
-                error != null && surahs.isEmpty() -> Column(
-                    Modifier.fillMaxSize().padding(24.dp),
+            item(key = "hero") {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(error ?: "Error", color = colors.error)
-                    Spacer(Modifier.height(12.dp))
-                    GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
+                    Text(
+                        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                        style = SuhoodTypography.arabicBody,
+                        color = colors.accentLavender,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "The Holy Quran",
+                        style = SuhoodTypography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary
+                    )
+                    Text(
+                        "114 Surahs · Authentic Arabic text",
+                        style = SuhoodTypography.bodySmall,
+                        color = colors.textMuted
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier
+                            .width(48.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(colors.accentLavender.copy(alpha = 0.5f))
+                    )
                 }
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+            }
+
+            item(key = "search") {
+                Spacer(Modifier.height(16.dp))
+                GlassSearchField(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = "Search by surah name or number…",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            item(key = "daily") {
+                Spacer(Modifier.height(14.dp))
+                GlassCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(16.dp)
                 ) {
+                    Text(
+                        "DAILY READING",
+                        style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = colors.accentLavender
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Today · $todayPages pages · $dailyMin min goal",
+                        style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.textPrimary
+                    )
+                    Text(
+                        "Change goal in Settings · Quran Companion",
+                        style = SuhoodTypography.bodySmall,
+                        color = colors.textMuted
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GlassButton(
+                            text = "Continue",
+                            onClick = onLastRead,
+                            primary = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        GlassButton(
+                            text = "Mushaf",
+                            onClick = onMushaf,
+                            primary = false,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            item(key = "quick") {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickNavTile(
+                        title = "Last Read",
+                        subtitle = "Resume reading",
+                        icon = Icons.Filled.Bookmark,
+                        onClick = onLastRead,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickNavTile(
+                        title = "Mushaf",
+                        subtitle = "Page view",
+                        icon = Icons.Filled.MenuBook,
+                        onClick = onMushaf,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickNavTile(
+                        title = "Bookmarks",
+                        subtitle = "Saved ayahs",
+                        icon = Icons.Filled.BookmarkBorder,
+                        onClick = onBookmarks,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickNavTile(
+                        title = "Juz / Para",
+                        subtitle = "30 parts",
+                        icon = Icons.Filled.ViewModule,
+                        onClick = onJuz,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            item(key = "section") {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    "ALL SURAHS",
+                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            when {
+                loading && surahs.isEmpty() -> {
+                    item(key = "loading") {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = colors.accentLavender)
+                        }
+                    }
+                }
+                error != null && surahs.isEmpty() -> {
+                    item(key = "error") {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(error ?: "Error", color = colors.error)
+                            Spacer(Modifier.height(12.dp))
+                            GlassButton(text = "Retry", onClick = { vm.refreshSurahList() })
+                        }
+                    }
+                }
+                else -> {
                     items(filtered, key = { it.number }) { s ->
                         GlassCard(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 3.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                             onClick = { onSurah(s.number) }
                         ) {

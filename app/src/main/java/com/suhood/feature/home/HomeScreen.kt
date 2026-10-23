@@ -257,195 +257,155 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Smart Next Salah bar — 3D analytics card (rays behind, text crisp)
+        // Smart Next Salah bar — clean liquid-glass card
         val highlightGreen = Color(0xFF6FCF97)
         val periodColor = SmartNextSalah.periodAccent(smart.period)
         val barAccent = if (smart.isActiveHighlight) highlightGreen else periodColor
+        val periodName = SmartNextSalah.periodLabel(smart.period)
+
         Box(
             Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.55f),
-                    spotColor = Color.Black.copy(alpha = 0.4f)
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.45f),
+                    spotColor = Color.Black.copy(alpha = 0.3f)
                 )
-                .clip(RoundedCornerShape(28.dp))
-                .background(Color(0xFF1A1A1C))
+                .clip(RoundedCornerShape(24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF222228), Color(0xFF16161A))
+                    )
+                )
+                .border(
+                    0.8.dp,
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.04f))
+                    ),
+                    RoundedCornerShape(24.dp)
+                )
                 .drawBehind {
-                    // Soft radial glow (accent) — behind content only
+                    // Soft accent glow — right side, does not cover text
                     drawRect(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                barAccent.copy(alpha = 0.22f),
-                                barAccent.copy(alpha = 0.06f),
+                                barAccent.copy(alpha = 0.18f),
                                 Color.Transparent
                             ),
-                            center = androidx.compose.ui.geometry.Offset(size.width * 0.72f, size.height * 0.15f),
-                            radius = size.minDimension * 0.95f
+                            center = androidx.compose.ui.geometry.Offset(size.width * 0.85f, size.height * 0.2f),
+                            radius = size.minDimension * 0.9f
                         )
                     )
-                    // Vertical soft "ray" bars in background (decorative, low alpha)
-                    val barCount = 7
-                    val gap = size.width / (barCount + 1)
-                    for (i in 0 until barCount) {
-                        val x = gap * (i + 1)
-                        val hFactor = listOf(0.35f, 0.55f, 0.9f, 0.5f, 0.7f, 0.4f, 0.6f)[i]
-                        val alpha = if (i == 2) 0.35f else 0.10f
-                        val col = if (i == 2) barAccent.copy(alpha = alpha) else Color.White.copy(alpha = alpha * 0.35f)
-                        val bw = size.width * 0.06f
-                        val bh = size.height * hFactor * 0.55f
-                        drawRoundRect(
-                            color = col,
-                            topLeft = androidx.compose.ui.geometry.Offset(x - bw / 2f, size.height - bh - 8f),
-                            size = androidx.compose.ui.geometry.Size(bw, bh),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(bw / 2f, bw / 2f)
-                        )
-                    }
                 }
                 .clickable { onNavigate(Routes.SALAH) }
                 .padding(horizontal = 18.dp, vertical = 16.dp)
         ) {
-            if (smart.isActiveHighlight) {
-                // Active prayer: green name + check + "Prayer time started" + Next Salah row
+            Column(Modifier.fillMaxWidth()) {
+                // Top row: status chip + period / location
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            when (smart.period) {
-                                PrayerPeriod.FAJR -> Icons.Filled.WbSunny
-                                PrayerPeriod.DHUHR -> Icons.Filled.WbSunny
-                                PrayerPeriod.ASR -> Icons.Filled.WbTwilight
-                                PrayerPeriod.MAGHRIB -> Icons.Filled.WbTwilight
-                                PrayerPeriod.ISHA -> Icons.Filled.NightsStay
-                            },
-                            contentDescription = null,
-                            tint = highlightGreen,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                smart.primaryName,
-                                style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = highlightGreen,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                            Text(
-                                "Prayer time started",
-                                style = SuhoodTypography.bodySmall,
-                                color = colors.textSecondary
-                            )
-                        }
-                    }
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = "Prayer started",
-                        tint = highlightGreen,
-                        modifier = Modifier.size(26.dp)
+                    Text(
+                        if (smart.isActiveHighlight) "Prayer time" else "$periodName · Next",
+                        style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = barAccent,
+                        maxLines = 1
                     )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            periodName,
+                            style = SuhoodTypography.labelSmall,
+                            color = barAccent,
+                            maxLines = 1
+                        )
+                        Text(
+                            smart.dateLabel.split(",").firstOrNull()?.trim() ?: smart.dateLabel,
+                            style = SuhoodTypography.labelSmall,
+                            color = colors.textMuted,
+                            maxLines = 1
+                        )
+                    }
                 }
-                Spacer(Modifier.height(14.dp))
-                HorizontalDivider(color = colors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
-                Spacer(Modifier.height(14.dp))
+
+                Spacer(Modifier.height(10.dp))
+
+                // Main prayer name + time
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Column {
-                        Text(
-                            "Next Salah",
-                            style = SuhoodTypography.labelMedium,
-                            color = colors.textMuted
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            smart.nextName ?: "—",
-                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = colors.textPrimary
-                        )
-                    }
-                    Text(
-                        smart.nextTimeDisplay ?: smart.nextTime ?: "",
-                        style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = colors.textPrimary
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    smart.dateLabel,
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted
-                )
-                Text(
-                    locLabel,
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted
-                )
-            } else {
-                // Upcoming next prayer
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "${SmartNextSalah.periodLabel(smart.period)} · Next",
-                            style = SuhoodTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = periodColor
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
                             smart.primaryName,
-                            style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            softWrap = false
+                            style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (smart.isActiveHighlight) highlightGreen else colors.textPrimary,
+                            maxLines = 1
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             smart.primaryTimeDisplay,
-                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = colors.textSecondary
+                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                            color = colors.textSecondary,
+                            maxLines = 1
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "in ${formatCountdown(smart.countdownSeconds)}",
+                            if (smart.isActiveHighlight) "Started · ends soon"
+                            else "in ${formatCountdown(smart.countdownSeconds)}",
                             style = SuhoodTypography.bodySmall,
-                            color = colors.textMuted
+                            color = colors.textMuted,
+                            maxLines = 1
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
+                        if (locLabel.isNotBlank()) {
+                            Text(
+                                locLabel,
+                                style = SuhoodTypography.labelSmall,
+                                color = colors.textMuted,
+                                maxLines = 1
+                            )
+                        }
+                        if (smart.isActiveHighlight) {
+                            Spacer(Modifier.height(6.dp))
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = highlightGreen,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Next prayer row when currently in highlight window
+                if (smart.isActiveHighlight && !smart.nextName.isNullOrBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            SmartNextSalah.periodLabel(smart.period),
-                            style = SuhoodTypography.labelSmall,
-                            color = periodColor
+                            "Next · ${smart.nextName}",
+                            style = SuhoodTypography.bodyMedium,
+                            color = colors.textSecondary,
+                            maxLines = 1
                         )
-                        Spacer(Modifier.height(6.dp))
                         Text(
-                            smart.dateLabel.split(",").firstOrNull()?.trim() ?: smart.dateLabel,
-                            style = SuhoodTypography.labelSmall,
-                            color = colors.textMuted
-                        )
-                        Text(
-                            locLabel,
-                            style = SuhoodTypography.labelSmall,
-                            color = colors.textMuted
+                            smart.nextTimeDisplay.orEmpty(),
+                            style = SuhoodTypography.bodyMedium,
+                            color = colors.textMuted,
+                            maxLines = 1
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "View all prayer times  →",
-                style = SuhoodTypography.labelMedium,
-                color = periodColor
-            )
         }
 
         Spacer(Modifier.height(16.dp))
