@@ -796,7 +796,7 @@ private fun AlarmMusicPickerSheet(
                             .background(Color.White.copy(alpha = 0.07f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.InsertDriveFile, null, tint = Color.White.copy(alpha = 0.48f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.MusicNote, null, tint = Color.White.copy(alpha = 0.48f), modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Text("Browse files…", color = Color.White.copy(alpha = 0.48f), fontWeight = FontWeight.Medium)
