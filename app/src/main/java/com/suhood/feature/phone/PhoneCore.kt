@@ -219,6 +219,15 @@ class PhonePrefs(context: Context) {
     fun contactEmoji(number: String): String? =
         p.getString("emoji_" + PhoneNumberUtils.normalize(number), null)
 
+    fun contactAvatarAsset(number: String): String? =
+        p.getString("avatar_" + PhoneNumberUtils.normalize(number), null)
+
+    fun setContactAvatarAsset(number: String, asset: String?) {
+        val key = "avatar_" + PhoneNumberUtils.normalize(number)
+        if (asset.isNullOrBlank()) p.edit().remove(key).apply()
+        else p.edit().putString(key, asset).apply()
+    }
+
     fun setContactEmoji(number: String, emoji: String?) {
         val key = "emoji_" + PhoneNumberUtils.normalize(number)
         if (emoji.isNullOrBlank()) p.edit().remove(key).apply()

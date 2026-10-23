@@ -199,6 +199,157 @@ class PhoneRepository(private val context: Context) {
         return n
     }
 
+
+    fun updateContact(contactId: String, firstName: String, lastName: String, phone: String, email: String): Boolean {
+        if (!hasWriteContactsPermission()) return false
+        val id = contactId.toLongOrNull() ?: return false
+        val display = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { phone }
+        try {
+            val values = android.content.ContentValues().apply {
+                put(ContactsContract.Contacts.DISPLAY_NAME, display)
+            }
+            context.contentResolver.update(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, id),
+                values, null, null
+            )
+            // Update structured name
+            val nameWhere = "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?"
+            val nameArgs = arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+            val nameVals = android.content.ContentValues().apply {
+                put(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+                put(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+                put(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, display)
+            }
+            val updatedName = context.contentResolver.update(ContactsContract.Data.CONTENT_URI, nameVals, nameWhere, nameArgs)
+            if (updatedName == 0) {
+                // insert name row via raw contact
+                val rawId = rawContactId(id) ?: return true
+                val ops = ArrayList<ContentProviderOperation>()
+                ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, display)
+                    .build()
+                context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            }
+            if (phone.isNotBlank()) {
+                val phoneWhere = "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?"
+                val phoneArgs = arrayOf(contactId, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                val phoneVals = android.content.ContentValues().apply {
+                    put(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                    put(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                }
+                val u = context.contentResolver.update(ContactsContract.Data.CONTENT_URI, phoneVals, phoneWhere, phoneArgs)
+                if (u == 0) {
+                    val rawId = rawContactId(id) ?: return true
+                    val ops = ArrayList<ContentProviderOperation>()
+                    ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                        .build()
+                    context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+                }
+            }
+            if (email.isNotBlank()) {
+                val emailWhere = "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?"
+                val emailArgs = arrayOf(contactId, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                val emailVals = android.content.ContentValues().apply {
+                    put(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                    put(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_HOME)
+                }
+                val u = context.contentResolver.update(ContactsContract.Data.CONTENT_URI, emailVals, emailWhere, emailArgs)
+                if (u == 0) {
+                    val rawId = rawContactId(id) ?: return true
+                    val ops = ArrayList<ContentProviderOperation>()
+                    ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                        .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_HOME)
+                        .build()
+                    context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+                }
+            }
+            return true
+        } catch (_: Exception) {
+            return false
+        }
+    }
+
+    private fun rawContactId(contactId: Long): Long? {
+        context.contentResolver.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts._ID),
+            "${ContactsContract.RawContacts.CONTACT_ID}=?",
+            arrayOf(contactId.toString()),
+            null
+        )?.use { c ->
+            if (c.moveToFirst()) return c.getLong(0)
+        }
+        return null
+    }
+
+    fun searchContactsByDigits(digits: String, limit: Int = 12): List<PhoneContact> {
+        if (!hasContactsPermission() || digits.isBlank()) return emptyList()
+        val norm = digits.filter { it.isDigit() || it == '+' }
+        if (norm.isEmpty()) return emptyList()
+        val out = mutableListOf<PhoneContact>()
+        val seen = mutableSetOf<String>()
+        try {
+            context.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(
+                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    ContactsContract.CommonDataKinds.Phone.NUMBER
+                ),
+                null, null,
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+            )?.use { c ->
+                val idIdx = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                val nameIdx = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                val numIdx = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                while (c.moveToNext() && out.size < limit) {
+                    val num = c.getString(numIdx) ?: continue
+                    val digitsOnly = num.filter { it.isDigit() }
+                    val q = norm.filter { it.isDigit() }
+                    if (q.isEmpty()) continue
+                    if (!digitsOnly.contains(q) && !q.contains(digitsOnly.takeLast(q.length.coerceAtMost(digitsOnly.length)))) continue
+                    val id = c.getString(idIdx) ?: continue
+                    val key = id + "|" + num
+                    if (key in seen) continue
+                    seen += key
+                    out += PhoneContact(id = id, name = c.getString(nameIdx) ?: num, number = num)
+                }
+            }
+        } catch (_: Exception) {}
+        return out
+    }
+
+    fun openSms(number: String, body: String? = null) {
+        try {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = android.net.Uri.parse("smsto:" + PhoneNumberUtils.normalize(number).ifBlank { number })
+                if (!body.isNullOrBlank()) putExtra("sms_body", body)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    data = android.net.Uri.parse("sms:" + number)
+                    if (!body.isNullOrBlank()) putExtra("sms_body", body)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
+    }
+
     fun isDefaultDialer(): Boolean {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             val rm = context.getSystemService(android.app.role.RoleManager::class.java)

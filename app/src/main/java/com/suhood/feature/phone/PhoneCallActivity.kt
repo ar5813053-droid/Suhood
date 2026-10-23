@@ -401,8 +401,49 @@ fun CallUiScreen(
                         Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(26.dp))
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                // bottom black shadow area already from gradient — no red decline button
+                Spacer(Modifier.height(18.dp))
+                // Decline with short SMS (opens Messages; rejects call)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf(
+                        "Can't talk now",
+                        "Call you later",
+                        "I'm in Salah"
+                    ).forEach { msg ->
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0x33FFFFFF))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                .clickable {
+                                    if (!preview) {
+                                        CallSession.reject()
+                                        PhoneRepository(context).openSms(displayNumber, msg)
+                                    }
+                                    onFinish()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(msg, color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Message",
+                    color = Color(0xFF0A84FF),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable {
+                        if (!preview) {
+                            CallSession.reject()
+                            PhoneRepository(context).openSms(displayNumber, null)
+                        }
+                        onFinish()
+                    }
+                )
             } else {
                 if (showKeypad) {
                     val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#")
