@@ -1,11 +1,16 @@
 package com.suhood.core.designsystem.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,25 +22,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.TopLevelDestination
+import kotlinx.coroutines.launch
 
 data class NavItem(
     val destination: TopLevelDestination,
@@ -44,12 +52,9 @@ data class NavItem(
     val contentDescription: String
 )
 
-/** Exactly three top-level destinations: Home, Quran, Nasheedify. */
 val primaryNavItems = listOf(
     NavItem(TopLevelDestination.HOME, "Home", Icons.Filled.Home, "Home"),
-    NavItem(TopLevelDestination.JOURNEY, "Journey", Icons.Filled.Checklist, "My Journey"),
     NavItem(TopLevelDestination.QURAN, "Quran", Icons.Filled.MenuBook, "Quran"),
-    NavItem(TopLevelDestination.MUHASABAH, "Journal", Icons.Filled.EditNote, "Muhasabah"),
     NavItem(TopLevelDestination.AUDIO, "Audio", Icons.Filled.MusicNote, "Nasheedify")
 )
 
@@ -64,16 +69,47 @@ fun FloatingTopNavigation(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(horizontal = 18.dp, vertical = 10.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(58.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(colors.surfaceElevated.copy(alpha = 0.92f))
-                .border(1.dp, colors.borderSubtle.copy(alpha = 0.7f), RoundedCornerShape(28.dp))
-                .padding(horizontal = 8.dp),
+                .height(62.dp)
+                .shadow(
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(30.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.45f),
+                    spotColor = Color.Black.copy(alpha = 0.35f)
+                )
+                .clip(RoundedCornerShape(30.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colors.surfaceElevated.copy(alpha = 0.94f),
+                            colors.surface.copy(alpha = 0.88f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.28f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(30.dp)
+                )
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.White.copy(alpha = 0.18f),
+                            0.35f to Color.Transparent
+                        ),
+                        size = size.copy(height = size.height * 0.45f)
+                    )
+                }
+                .padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -97,38 +133,51 @@ private fun NavBarItem(
     modifier: Modifier = Modifier
 ) {
     val colors = suhoodColors
-    val tint = if (selected) colors.accentLavender else colors.textMuted
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    val tint by animateColorAsState(
+        if (selected) colors.accentLavender else colors.textMuted,
+        tween(180),
+        label = "navTint"
+    )
+    val pill by animateColorAsState(
+        if (selected) colors.accentLavender.copy(alpha = 0.18f) else Color.Transparent,
+        tween(180),
+        label = "navPill"
+    )
+
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .then(
-                if (selected) Modifier.background(colors.accentLavender.copy(alpha = 0.16f))
-                else Modifier
-            )
-            .clickable(onClick = onClick)
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .clip(RoundedCornerShape(20.dp))
+            .background(pill)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                scope.launch {
+                    scale.animateTo(0.86f, spring(stiffness = Spring.StiffnessHigh, dampingRatio = 0.6f))
+                    onClick()
+                    scale.animateTo(1.06f, spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.4f))
+                    scale.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
+                }
+            }
             .semantics {
                 role = Role.Tab
                 contentDescription = item.contentDescription
             }
-            .padding(vertical = 12.dp),
+            .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Icons only — labels stay in contentDescription for TalkBack
-        Icon(
-            item.icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(24.dp)
-        )
+        Icon(item.icon, null, tint = tint, modifier = Modifier.size(24.dp))
     }
 }
 
-/** Alias used by SuhoodNavGraph. */
 @Composable
 fun FloatingBottomNavigation(
     selected: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FloatingTopNavigation(selected = selected, onSelect = onSelect, modifier = modifier)
+    FloatingTopNavigation(selected, onSelect, modifier)
 }

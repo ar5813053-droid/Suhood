@@ -1,5 +1,16 @@
 package com.suhood.feature.alarms
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -260,7 +271,8 @@ object AlarmScreens {
             loaded = true
         }
 
-        val pickSound = rememberLauncherForActivityResult(
+        var showMusicPicker by remember { mutableStateOf(false) }
+        val pickSoundFallback = rememberLauncherForActivityResult(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
             if (uri != null) {
@@ -446,10 +458,23 @@ object AlarmScreens {
 
                 Spacer(Modifier.height(16.dp))
                 SettingsRow(
-                    title = "Ringtone",
-                    value = if (soundUri.isBlank()) "Default alarm" else "Custom file",
-                    onClick = { pickSound.launch(arrayOf("audio/*")) }
+                    title = "Alarm music",
+                    value = if (soundUri.isBlank()) "Default alarm" else "Custom track",
+                    onClick = { showMusicPicker = true }
                 )
+                if (showMusicPicker) {
+                    AlarmMusicPickerSheet(
+                        onDismiss = { showMusicPicker = false },
+                        onSelect = { uri, _ ->
+                            soundUri = uri
+                            showMusicPicker = false
+                        },
+                        onPickFile = {
+                            showMusicPicker = false
+                            pickSoundFallback.launch(arrayOf("audio/*"))
+                        }
+                    )
+                }
                 SettingsRow(
                     title = "Repeat",
                     value = repeatLabel(days.sorted().joinToString(",")),
@@ -626,4 +651,115 @@ object AlarmScreens {
             )
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlarmMusicPickerSheet(
+    onDismiss: () -> Unit,
+    onSelect: (uri: String, title: String) -> Unit,
+    onPickFile: () -> Unit
+) {
+    val context = LocalContext.current
+    val colors = suhoodColors
+    var query by remember { mutableStateOf("") }
+    var tracks by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var permissionOk by remember { mutableStateOf(false) }
+
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> permissionOk = granted }
+
+    LaunchedEffect(Unit) {
+        val perm = if (android.os.Build.VERSION.SDK_INT >= 33)
+            android.Manifest.permission.READ_MEDIA_AUDIO
+        else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, perm
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        permissionOk = granted
+        if (!granted) permLauncher.launch(perm)
+    }
+
+    LaunchedEffect(permissionOk) {
+        if (!permissionOk) { loading = false; return@LaunchedEffect }
+        loading = true
+        tracks = withContext(Dispatchers.IO) { loadDeviceAudio(context) }
+        loading = false
+    }
+
+    val filtered = remember(tracks, query) {
+        if (query.isBlank()) tracks
+        else tracks.filter { it.second.contains(query, ignoreCase = true) }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 28.dp)
+        ) {
+            Text("Choose alarm music", style = SuhoodTypography.titleLarge, color = colors.textPrimary, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search songs…") },
+                leadingIcon = { Icon(Icons.Filled.Search, null) }
+            )
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = { onSelect("", "Default alarm") }) { Text("Use default alarm sound") }
+            TextButton(onClick = onPickFile) { Text("Browse files…") }
+            Spacer(Modifier.height(8.dp))
+            when {
+                !permissionOk -> Text("Allow music access to list your songs in-app.", color = colors.textMuted)
+                loading -> Text("Loading library…", color = colors.textMuted)
+                filtered.isEmpty() -> Text("No songs found.", color = colors.textMuted)
+                else -> LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    items(filtered, key = { it.first }) { (uri, title) ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onSelect(uri, title) }.padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.MusicNote, null, tint = colors.accentLavender)
+                            Spacer(Modifier.width(12.dp))
+                            Text(title, color = colors.textPrimary, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun loadDeviceAudio(context: android.content.Context): List<Pair<String, String>> {
+    val out = ArrayList<Pair<String, String>>()
+    val projection = arrayOf(
+        android.provider.MediaStore.Audio.Media._ID,
+        android.provider.MediaStore.Audio.Media.TITLE,
+        android.provider.MediaStore.Audio.Media.DISPLAY_NAME
+    )
+    val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0"
+    runCatching {
+        context.contentResolver.query(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection, selection, null,
+            android.provider.MediaStore.Audio.Media.TITLE + " ASC"
+        )?.use { c ->
+            val idIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)
+            val titleIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)
+            val nameIdx = c.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
+            while (c.moveToNext()) {
+                val id = c.getLong(idIdx)
+                val title = c.getString(titleIdx)?.takeIf { it.isNotBlank() } ?: c.getString(nameIdx) ?: "Track"
+                val uri = android.content.ContentUris.withAppendedId(
+                    android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id
+                ).toString()
+                out.add(uri to title)
+            }
+        }
+    }
+    return out
 }

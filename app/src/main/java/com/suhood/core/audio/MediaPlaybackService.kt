@@ -5,20 +5,19 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.suhood.app.MainActivity
 import com.suhood.app.SuhoodApplication
 
 /**
- * Media3 session service for notification / lock-screen controls.
- * Uses the single shared [PlaybackController.player] from [SuhoodApplication].
- * Fully defensive — must never crash the app process.
+ * Media3 session service — system media notification with play/pause/next/prev + progress
+ * (Android equivalent of Apple Now Playing / Dynamic Island compact player).
  */
 class MediaPlaybackService : MediaSessionService() {
 
@@ -28,17 +27,12 @@ class MediaPlaybackService : MediaSessionService() {
         super.onCreate()
         runCatching {
             ensureNotificationChannel()
-            // Promote to foreground immediately (Android 8–14 requirement)
-            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Suhood · Nasheedify")
-                .setContentText("Preparing playback")
-                .setSmallIcon(android.R.drawable.ic_media_play)
-                .setOngoing(true)
-                .setSilent(true)
-                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .build()
-            startForeground(NOTIFICATION_ID, notification)
+            setMediaNotificationProvider(
+                DefaultMediaNotificationProvider.Builder(this)
+                    .setChannelId(CHANNEL_ID)
+                    .setNotificationId(NOTIFICATION_ID)
+                    .build()
+            )
 
             val app = application as SuhoodApplication
             val player: ExoPlayer = app.playbackController.player
@@ -49,37 +43,32 @@ class MediaPlaybackService : MediaSessionService() {
                         .setUsage(C.USAGE_MEDIA)
                         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                         .build(),
-                    /* handleAudioFocus = */ true
+                    true
                 )
                 player.setHandleAudioBecomingNoisy(true)
             }
 
             val sessionActivity = PendingIntent.getActivity(
-                this,
-                0,
-                Intent(this, MainActivity::class.java),
+                this, 0,
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("open", "nasheedify")
+                },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Avoid "player already attached to a session" crashes
             mediaSession?.release()
             mediaSession = MediaSession.Builder(this, player)
                 .setSessionActivity(sessionActivity)
+                .setId("suhood_nasheedify")
                 .build()
-        }.onFailure {
-            // Never let service create crash the process
-            stopSelf()
-        }
+        }.onFailure { stopSelf() }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
-        mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onDestroy() {
-        runCatching {
-            mediaSession?.release()
-            mediaSession = null
-        }
+        runCatching { mediaSession?.release(); mediaSession = null }
         super.onDestroy()
     }
 
@@ -88,9 +77,7 @@ class MediaPlaybackService : MediaSessionService() {
             val player = mediaSession?.player
             if (player == null || !player.playWhenReady || player.mediaItemCount == 0 ||
                 player.playbackState == Player.STATE_ENDED
-            ) {
-                stopSelf()
-            }
+            ) stopSelf()
         }
     }
 
@@ -101,9 +88,13 @@ class MediaPlaybackService : MediaSessionService() {
                 mgr.createNotificationChannel(
                     NotificationChannel(
                         CHANNEL_ID,
-                        "Playback",
-                        NotificationManager.IMPORTANCE_LOW
-                    )
+                        "Nasheedify Playback",
+                        NotificationManager.IMPORTANCE_DEFAULT
+                    ).apply {
+                        description = "Now playing controls for Nasheedify"
+                        setShowBadge(false)
+                        setSound(null, null)
+                    }
                 )
             }
         }
