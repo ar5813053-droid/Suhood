@@ -18,6 +18,11 @@ import androidx.compose.ui.graphics.Color
 import android.app.Application
 import android.icu.util.IslamicCalendar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -256,16 +261,58 @@ fun HomeScreen(
         val highlightGreen = Color(0xFF6FCF97)
         val periodColor = SmartNextSalah.periodAccent(smart.period)
         val barAccent = if (smart.isActiveHighlight) highlightGreen else periodColor
-        GlassCard(
-            modifier = Modifier
+        // Apple-style liquid glass Salah bar
+        Box(
+            Modifier
                 .fillMaxWidth()
+                .shadow(
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.35f),
+                    spotColor = barAccent.copy(alpha = 0.25f)
+                )
+                .clip(RoundedCornerShape(26.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colors.surfaceGlass.copy(alpha = 0.92f),
+                            colors.surfaceElevated.copy(alpha = 0.78f),
+                            colors.surfaceGlass.copy(alpha = 0.88f)
+                        )
+                    )
+                )
                 .border(
-                    1.dp,
-                    barAccent.copy(alpha = if (smart.isActiveHighlight) 0.55f else 0.28f),
-                    RoundedCornerShape(22.dp)
-                ),
-            onClick = { onNavigate(Routes.SALAH) },
-            contentPadding = PaddingValues(18.dp)
+                    width = 1.15.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.42f),
+                            barAccent.copy(alpha = if (smart.isActiveHighlight) 0.45f else 0.18f),
+                            Color.White.copy(alpha = 0.12f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(26.dp)
+                )
+                .drawBehind {
+                    // Specular top rim (liquid glass highlight)
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.White.copy(alpha = 0.22f),
+                            0.22f to Color.Transparent
+                        ),
+                        size = size.copy(height = size.height * 0.4f)
+                    )
+                    // Soft accent glow at bottom edge
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            1f to barAccent.copy(alpha = 0.10f)
+                        ),
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height * 0.55f),
+                        size = size.copy(height = size.height * 0.45f)
+                    )
+                }
+                .clickable { onNavigate(Routes.SALAH) }
+                .padding(18.dp)
         ) {
             if (smart.isActiveHighlight) {
                 // Active prayer: green name + check + "Prayer time started" + Next Salah row

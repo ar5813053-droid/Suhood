@@ -1,6 +1,19 @@
 package com.suhood.feature.phone
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 
 import android.Manifest
@@ -484,17 +497,26 @@ private fun KeypadPane(
             )
         }
 
-        Text(
-            text = display.ifBlank { " " },
-            color = Label,
-            fontSize = if (digits.length > 12) 28.sp else 36.sp,
-            fontWeight = FontWeight.Light,
-            letterSpacing = 2.sp,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
-        )
+        androidx.compose.animation.AnimatedContent(
+            targetState = display.ifBlank { " " },
+            transitionSpec = {
+                androidx.compose.animation.fadeIn(tween(120)) + androidx.compose.animation.scaleIn(initialScale = 0.96f) togetherWith
+                    androidx.compose.animation.fadeOut(tween(90))
+            },
+            label = "digits"
+        ) { shown ->
+            Text(
+                text = shown,
+                color = Label,
+                fontSize = if (digits.length > 12) 28.sp else 38.sp,
+                fontWeight = FontWeight.Light,
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)
+            )
+        }
 
         val keys = listOf(
             "1" to "", "2" to "ABC", "3" to "DEF",
@@ -502,36 +524,33 @@ private fun KeypadPane(
             "7" to "PQRS", "8" to "TUV", "9" to "WXYZ",
             "*" to "", "0" to "+", "#" to ""
         )
-        Column(Modifier.padding(horizontal = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(horizontal = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             keys.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     row.forEach { (num, alpha) ->
-                        Box(
-                            Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(Surface2)
-                                .clickable {
-                                    DialPadTone.play(num.first())
-                                    onDigits(digits + num)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(PhoneNumberUtils.display(num, prefs.numeralStyle), color = Label, fontSize = 28.sp)
-                                if (alpha.isNotEmpty()) Text(alpha, color = Label3, fontSize = 9.sp, letterSpacing = 1.sp)
+                        DialPadKey(
+                            label = PhoneNumberUtils.display(num, prefs.numeralStyle),
+                            sublabel = alpha,
+                            onTap = {
+                                DialPadTone.play(num.first())
+                                onDigits(digits + num)
                             }
-                        }
+                        )
                     }
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
         Box(Modifier.fillMaxWidth().padding(bottom = 4.dp), contentAlignment = Alignment.Center) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Spacer(Modifier.size(48.dp))
-                Box(
-                    Modifier.size(68.dp).clip(CircleShape).background(Green).clickable {
+                // Call button with soft press scale
+                DialPadCallButton(
+                    onClick = {
                         val n = PhoneNumberUtils.normalize(digits)
                         if (!PhoneNumberUtils.isValidForDial(n)) {
                             Toast.makeText(context, "Enter a number", Toast.LENGTH_SHORT).show()
@@ -540,16 +559,113 @@ private fun KeypadPane(
                         } else {
                             repo.placeCall(n)
                         }
-                    },
+                    }
+                )
+                // Tap = delete one; long-press = clear entire number
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            onClick = { if (digits.isNotEmpty()) onDigits(digits.dropLast(1)) },
+                            onLongClick = { if (digits.isNotEmpty()) onDigits("") }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(30.dp))
-                }
-                IconButton(onClick = { if (digits.isNotEmpty()) onDigits(digits.dropLast(1)) }) {
-                    Icon(Icons.AutoMirrored.Filled.Backspace, null, tint = if (digits.isNotEmpty()) Label else Label3)
+                    Icon(
+                        Icons.AutoMirrored.Filled.Backspace,
+                        contentDescription = "Delete",
+                        tint = if (digits.isNotEmpty()) Label else Label3,
+                        modifier = Modifier.size(26.dp)
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DialPadKey(
+    label: String,
+    sublabel: String,
+    onTap: () -> Unit
+) {
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    val bg by animateColorAsState(
+        targetValue = if (scale.value < 0.98f) Surface.copy(alpha = 0.95f) else Surface2,
+        animationSpec = tween(90),
+        label = "keyBg"
+    )
+    Box(
+        Modifier
+            .size(74.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
+            .clip(CircleShape)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(
+                        bg.copy(alpha = 0.95f),
+                        bg
+                    )
+                )
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) {
+                scope.launch {
+                    scale.animateTo(0.88f, spring(stiffness = Spring.StiffnessHigh, dampingRatio = 0.65f))
+                    onTap()
+                    scale.animateTo(1.05f, spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.45f))
+                    scale.animateTo(1f, spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.7f))
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, color = Label, fontSize = 28.sp, fontWeight = FontWeight.Light)
+            if (sublabel.isNotEmpty()) {
+                Text(sublabel, color = Label3, fontSize = 9.sp, letterSpacing = 1.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialPadCallButton(onClick: () -> Unit) {
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    Box(
+        Modifier
+            .size(70.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
+            .clip(CircleShape)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0xFF5ADF7A), Green)
+                )
+            )
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) {
+                scope.launch {
+                    scale.animateTo(0.9f, spring(stiffness = Spring.StiffnessHigh))
+                    onClick()
+                    scale.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium))
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(30.dp))
     }
 }
 
