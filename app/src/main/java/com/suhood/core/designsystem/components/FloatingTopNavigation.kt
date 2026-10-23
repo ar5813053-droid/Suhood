@@ -203,7 +203,7 @@ fun FloatingTopNavigation(
                         )
                     }
                     .size(indicatorSize)
-                    .shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(0.35f))
+                    .shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.35f))
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
