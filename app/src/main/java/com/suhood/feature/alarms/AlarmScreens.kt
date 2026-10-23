@@ -1,4 +1,5 @@
 package com.suhood.feature.alarms
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.HorizontalDivider
@@ -250,15 +251,17 @@ object AlarmScreens {
         val scope = rememberCoroutineScope()
         val colors = suhoodColors
 
-        var hour24 by remember { mutableIntStateOf(5) }
-        var minute by remember { mutableIntStateOf(0) }
+        var hour24 by remember { mutableIntStateOf(6) }
+        var minute by remember { mutableIntStateOf(30) }
         var label by remember { mutableStateOf("") }
         var soundUri by remember { mutableStateOf("") }
         var challenge by remember { mutableStateOf(ChallengeType.NONE) }
         var days by remember { mutableStateOf(setOf<Int>()) }
         var vibrate by remember { mutableStateOf(true) }
-        var deleteAfter by remember { mutableStateOf(false) }
+        var snooze by remember { mutableStateOf(true) }
         var loaded by remember { mutableStateOf(false) }
+        var showMusicPicker by remember { mutableStateOf(false) }
+        var showRepeatSheet by remember { mutableStateOf(false) }
 
         LaunchedEffect(alarmId) {
             if (alarmId != null) {
@@ -275,7 +278,6 @@ object AlarmScreens {
             loaded = true
         }
 
-        var showMusicPicker by remember { mutableStateOf(false) }
         val pickSoundFallback = rememberLauncherForActivityResult(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
@@ -292,168 +294,267 @@ object AlarmScreens {
         if (!loaded) return
 
         val isAm = hour24 < 12
-        val hour12 = when (val h = hour24 % 12) {
-            0 -> 12
-            else -> h
+        val hour12 = when (val h = hour24 % 12) { 0 -> 12; else -> h }
+
+        val accentOrange = Color(0xFFFF9F0A)
+        val rowBg = Color(0xFF1C1C1E)
+        val groupShape = RoundedCornerShape(12.dp)
+
+        fun save() {
+            scope.launch {
+                val id = alarmId ?: UUID.randomUUID().toString()
+                val entity = AlarmEntity(
+                    id = id,
+                    hour = hour24,
+                    minute = minute,
+                    label = label.ifBlank { "Alarm" },
+                    enabled = true,
+                    repeatDaysCsv = days.sorted().joinToString(","),
+                    soundUri = soundUri,
+                    challengeType = challenge.name,
+                    isFajrAuto = false
+                )
+                dao.upsertAlarm(entity)
+                AlarmScheduler.schedule(context, entity)
+                onSaved()
+            }
         }
 
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Color(0xFF000000))
+                .statusBarsPadding()
+        ) {
+            // iOS header: Cancel · Add Alarm · Save
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                GlassIconButton(
-                    icon = Icons.Filled.Close,
-                    contentDescription = "Close",
-                    onClick = onBack
+                Text(
+                    "Cancel",
+                    color = accentOrange,
+                    style = SuhoodTypography.bodyLarge,
+                    modifier = Modifier.clickable(onClick = onBack)
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Add alarm", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
-                    val next = AlarmScheduler.nextTriggerMillis(
-                        hour24, minute, days.sorted().joinToString(",")
-                    )
-                    val mins = ((next - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0)
-                    Text(
-                        "Alarm in ${mins / 60} hours ${mins % 60} minutes",
-                        style = SuhoodTypography.labelSmall,
-                        color = colors.textMuted
-                    )
-                }
-                GlassIconButton(
-                    icon = Icons.Filled.Check,
-                    contentDescription = "Save",
-                    onClick = {
-                        scope.launch {
-                            val id = alarmId ?: UUID.randomUUID().toString()
-                            val entity = AlarmEntity(
-                                id = id,
-                                hour = hour24,
-                                minute = minute,
-                                label = label.ifBlank { "Alarm" },
-                                enabled = true,
-                                repeatDaysCsv = days.sorted().joinToString(","),
-                                soundUri = soundUri,
-                                challengeType = challenge.name,
-                                isFajrAuto = false
-                            )
-                            dao.upsertAlarm(entity)
-                            AlarmScheduler.schedule(context, entity)
-                            onSaved()
-                        }
-                    }
+                Text(
+                    if (alarmId == null) "Add Alarm" else "Edit Alarm",
+                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.White
+                )
+                Text(
+                    "Save",
+                    color = accentOrange,
+                    style = SuhoodTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.clickable { save() }
                 )
             }
+
+            // Drum-roll time picker
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Selection band
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Hours 1–12
+                    IosWheel(
+                        items = (1..12).map { it.toString().padStart(2, '0') },
+                        selectedIndex = hour12 - 1,
+                        onSelected = { idx ->
+                            val h12 = idx + 1
+                            hour24 = if (isAm) {
+                                if (h12 == 12) 0 else h12
+                            } else {
+                                if (h12 == 12) 12 else h12 + 12
+                            }
+                        },
+                        modifier = Modifier.width(72.dp)
+                    )
+                    // Minutes 00–59
+                    IosWheel(
+                        items = (0..59).map { it.toString().padStart(2, '0') },
+                        selectedIndex = minute,
+                        onSelected = { minute = it },
+                        modifier = Modifier.width(72.dp)
+                    )
+                    // AM / PM
+                    IosWheel(
+                        items = listOf("AM", "PM"),
+                        selectedIndex = if (isAm) 0 else 1,
+                        onSelected = { idx ->
+                            val wantAm = idx == 0
+                            if (wantAm && hour24 >= 12) hour24 -= 12
+                            if (!wantAm && hour24 < 12) hour24 += 12
+                        },
+                        modifier = Modifier.width(72.dp),
+                        textSize = 22.sp
+                    )
+                }
+
+                // Top/bottom fade masks
+                Column(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Black, Color.Transparent)
+                                )
+                            )
+                    )
+                    Spacer(Modifier.height(44.dp))
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color.Black)
+                                )
+                            )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
 
             Column(
                 Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                    .padding(horizontal = 16.dp)
             ) {
-                // Cyclic hour/minute wheels (wrap around; virtualized, not infinite memory)
-                val hourCycle = 12
-                val minuteCycle = 60
-                val virtualMid = 5000
-                val hourListState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = virtualMid + (hour12 - 1)
-                )
-                val minuteListState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = virtualMid + minute
-                )
-                val hourSnap = rememberSnapFlingBehavior(lazyListState = hourListState)
-                val minuteSnap = rememberSnapFlingBehavior(lazyListState = minuteListState)
-
-                LaunchedEffect(hourListState.isScrollInProgress) {
-                    if (!hourListState.isScrollInProgress) {
-                        val idx = hourListState.firstVisibleItemIndex
-                        val h = ((idx % hourCycle) + hourCycle) % hourCycle + 1 // 1..12
-                        val newHour24 = if (isAm) {
-                            if (h == 12) 0 else h
-                        } else {
-                            if (h == 12) 12 else h + 12
-                        }
-                        if (newHour24 != hour24) hour24 = newHour24
-                    }
-                }
-                LaunchedEffect(minuteListState.isScrollInProgress) {
-                    if (!minuteListState.isScrollInProgress) {
-                        val idx = minuteListState.firstVisibleItemIndex
-                        val m = ((idx % minuteCycle) + minuteCycle) % minuteCycle // 0..59
-                        if (m != minute) minute = m
-                    }
-                }
-
-                Row(
-                    Modifier.fillMaxWidth().height(200.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                // Grouped settings card
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(groupShape)
+                        .background(rowBg)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        listOf("AM", "PM").forEach { labelAmpm ->
-                            val selected = (labelAmpm == "AM") == isAm
-                            Text(
-                                labelAmpm,
-                                style = SuhoodTypography.headlineSmall,
-                                color = if (selected) colors.accentLavender else colors.textMuted,
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .clickable {
-                                        hour24 = if (labelAmpm == "AM") {
-                                            if (hour12 == 12) 0 else hour12
-                                        } else {
-                                            if (hour12 == 12) 12 else hour12 + 12
-                                        }
-                                    }
-                            )
-                        }
-                    }
-                    Box(Modifier.height(180.dp).width(72.dp), contentAlignment = Alignment.Center) {
-                        LazyColumn(
-                            state = hourListState,
-                            flingBehavior = hourSnap,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxHeight()
-                        ) {
-                            items(10_000) { index ->
-                                val h = (index % hourCycle) + 1
-                                val selected = h == hour12
-                                Text(
-                                    "%02d".format(h),
-                                    fontSize = if (selected) 36.sp else 22.sp,
-                                    color = if (selected) colors.accentLavender else colors.textMuted,
-                                    modifier = Modifier
-                                        .padding(vertical = 8.dp)
-                                        .clickable {
-                                            hour24 = if (isAm) {
-                                                if (h == 12) 0 else h
-                                            } else {
-                                                if (h == 12) 12 else h + 12
-                                            }
-                                        }
-                                )
+                    IosSettingsRow(
+                        title = "Repeat",
+                        value = when {
+                            days.isEmpty() -> "Never"
+                            days.size == 7 -> "Every day"
+                            days == setOf(2, 3, 4, 5, 6) -> "Weekdays"
+                            else -> days.sorted().joinToString(" ") {
+                                listOf("S", "M", "T", "W", "T", "F", "S").getOrElse(it - 1) { "?" }
                             }
-                        }
-                    }
-                    Box(Modifier.height(180.dp).width(72.dp), contentAlignment = Alignment.Center) {
-                        LazyColumn(
-                            state = minuteListState,
-                            flingBehavior = minuteSnap,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxHeight()
-                        ) {
-                            items(10_000) { index ->
-                                val m = index % minuteCycle
-                                val selected = m == minute
-                                Text(
-                                    "%02d".format(m),
-                                    fontSize = if (selected) 36.sp else 22.sp,
-                                    color = if (selected) colors.accentLavender else colors.textMuted,
-                                    modifier = Modifier
-                                        .padding(vertical = 8.dp)
-                                        .clickable { minute = m }
+                        },
+                        onClick = { showRepeatSheet = true },
+                        showDivider = true
+                    )
+                    IosSettingsRow(
+                        title = "Label",
+                        value = label.ifBlank { "Alarm" },
+                        onClick = { /* inline edit below */ },
+                        showDivider = true
+                    )
+                    IosSettingsRow(
+                        title = "Sound",
+                        value = when {
+                            soundUri.isBlank() -> "Default"
+                            else -> soundUri.substringAfterLast('/').take(18)
+                        },
+                        onClick = { showMusicPicker = true },
+                        showDivider = true
+                    )
+                    IosSwitchRow(
+                        title = "Snooze",
+                        checked = snooze,
+                        onChange = { snooze = it },
+                        showDivider = false
+                    )
+                }
+
+                // Label editor
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Label", color = Color.White.copy(alpha = 0.35f)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = rowBg,
+                        unfocusedContainerColor = rowBg,
+                        cursorColor = accentOrange
+                    ),
+                    shape = groupShape
+                )
+
+                // Wake-up challenge
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    "WAKE UP CHALLENGE",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.6.sp,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(groupShape)
+                        .background(rowBg)
+                ) {
+                    IosSwitchRow(
+                        title = "Enable challenge",
+                        checked = challenge != ChallengeType.NONE,
+                        onChange = {
+                            challenge = if (it) ChallengeType.MATH else ChallengeType.NONE
+                        },
+                        showDivider = challenge != ChallengeType.NONE
+                    )
+                    if (challenge != ChallengeType.NONE) {
+                        listOf(
+                            ChallengeType.MATH to "Math puzzle",
+                            ChallengeType.TAP to "Tap sequence",
+                            ChallengeType.MEMORY to "Memory"
+                        ).forEachIndexed { i, (type, name) ->
+                            val last = i == 2
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { challenge = type }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(name, color = Color.White, style = SuhoodTypography.bodyLarge)
+                                if (challenge == type) {
+                                    Text("✓", color = accentOrange, fontSize = 18.sp)
+                                }
+                            }
+                            if (!last) {
+                                HorizontalDivider(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    modifier = Modifier.padding(start = 16.dp)
                                 )
                             }
                         }
@@ -461,101 +562,210 @@ object AlarmScreens {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                SettingsRow(
-                    title = "Alarm music",
-                    value = if (soundUri.isBlank()) "Default alarm" else "Custom track",
-                    onClick = { showMusicPicker = true }
-                )
-                if (showMusicPicker) {
-                    AlarmMusicPickerSheet(
-                        onDismiss = { showMusicPicker = false },
-                        onSelect = { uri, _ ->
-                            soundUri = uri
-                            showMusicPicker = false
-                        },
-                        onPickFile = {
-                            showMusicPicker = false
-                            pickSoundFallback.launch(arrayOf("audio/*"))
-                        }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(groupShape)
+                        .background(rowBg)
+                ) {
+                    IosSwitchRow(
+                        title = "Vibrate",
+                        checked = vibrate,
+                        onChange = { vibrate = it },
+                        showDivider = false
                     )
                 }
-                SettingsRow(
-                    title = "Repeat",
-                    value = repeatLabel(days.sorted().joinToString(",")),
-                    onClick = { }
-                )
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    listOf(1 to "S", 2 to "M", 3 to "T", 4 to "W", 5 to "T", 6 to "F", 7 to "S")
-                        .forEach { (d, letter) ->
-                            val on = d in days
-                            Box(
-                                Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(if (on) Color(0xFF2563EB) else colors.surfaceGlass)
-                                    .clickable {
-                                        days = if (on) days - d else days + d
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(letter, color = colors.textPrimary, fontSize = 12.sp)
-                            }
-                        }
-                }
-                SwitchRow("Vibrate when alarm sounds", vibrate) { vibrate = it }
-                Spacer(Modifier.height(8.dp))
-                Text("Wake up challenge", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                Spacer(Modifier.height(6.dp))
-                SwitchRow(
-                    "Enable wake-up challenge",
-                    challenge != ChallengeType.NONE
-                ) {
-                    challenge = if (it) ChallengeType.MATH else ChallengeType.NONE
-                }
-                if (challenge != ChallengeType.NONE) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            ChallengeType.MATH to "Math",
-                            ChallengeType.TAP to "Taps",
-                            ChallengeType.NONE to "Off"
-                        ).forEach { (type, label) ->
-                            val sel = challenge == type
-                            GlassPill(selected = sel, onClick = { challenge = type }) {
-                                Text(label, color = if (sel) colors.textPrimary else colors.textMuted)
-                            }
-                        }
-                    }
-                }
-                SwitchRow("Delete after goes off", deleteAfter) { deleteAfter = it }
-
-                Spacer(Modifier.height(12.dp))
-                Text("Label", style = SuhoodTypography.labelMedium, color = colors.textMuted)
-                GlassSearchField(
-                    query = label,
-                    onQueryChange = { label = it },
-                    placeholder = "Enter label"
-                )
-
 
                 if (alarmId != null) {
-                    Spacer(Modifier.height(16.dp))
-                    GlassButton(
-                        text = "Delete alarm",
-                        onClick = {
-                            scope.launch {
-                                AlarmScheduler.cancel(context, alarmId)
-                                dao.deleteAlarm(alarmId)
-                                onSaved()
+                    Spacer(Modifier.height(24.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(groupShape)
+                            .background(rowBg)
+                            .clickable {
+                                scope.launch {
+                                    AlarmScheduler.cancel(context, alarmId)
+                                    dao.deleteAlarm(alarmId)
+                                    onSaved()
+                                }
                             }
-                        },
-                        primary = false,
-                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Delete Alarm", color = Color(0xFFFF453A), style = SuhoodTypography.bodyLarge)
+                    }
+                }
+                Spacer(Modifier.height(40.dp))
+            }
+        }
+
+        if (showMusicPicker) {
+            AlarmMusicPickerSheet(
+                onDismiss = { showMusicPicker = false },
+                onSelect = { uri, _ ->
+                    soundUri = uri
+                    showMusicPicker = false
+                },
+                onPickFile = {
+                    showMusicPicker = false
+                    pickSoundFallback.launch(arrayOf("audio/*"))
+                }
+            )
+        }
+
+        if (showRepeatSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showRepeatSheet = false },
+                containerColor = Color(0xFF1C1C1E),
+                contentColor = Color.White
+            ) {
+                Text(
+                    "Repeat",
+                    style = SuhoodTypography.titleMedium,
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
+                val labels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+                labels.forEachIndexed { i, name ->
+                    val day = i + 1
+                    val on = day in days
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                days = if (on) days - day else days + day
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(name, color = Color.White)
+                        if (on) Text("✓", color = accentOrange)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+
+    @Composable
+    private fun IosSettingsRow(
+        title: String,
+        value: String,
+        onClick: () -> Unit,
+        showDivider: Boolean
+    ) {
+        Column {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, color = Color.White, style = SuhoodTypography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(value, color = Color.White.copy(alpha = 0.45f), style = SuhoodTypography.bodyMedium)
+                    Text("  ›", color = Color.White.copy(alpha = 0.3f))
+                }
+            }
+            if (showDivider) {
+                HorizontalDivider(
+                    color = Color.White.copy(alpha = 0.08f),
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun IosSwitchRow(
+        title: String,
+        checked: Boolean,
+        onChange: (Boolean) -> Unit,
+        showDivider: Boolean
+    ) {
+        Column {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, color = Color.White, style = SuhoodTypography.bodyLarge)
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF30D158),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.2f)
+                    )
+                )
+            }
+            if (showDivider) {
+                HorizontalDivider(
+                    color = Color.White.copy(alpha = 0.08f),
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+        }
+    }
+
+    /** Smooth iOS-style wheel picker. */
+    @Composable
+    private fun IosWheel(
+        items: List<String>,
+        selectedIndex: Int,
+        onSelected: (Int) -> Unit,
+        modifier: Modifier = Modifier,
+        textSize: androidx.compose.ui.unit.TextUnit = 28.sp
+    ) {
+        val itemH = 44.dp
+        val listState = rememberLazyListState(
+            initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, items.lastIndex)
+        )
+        val fling = rememberSnapFlingBehavior(lazyListState = listState)
+
+        LaunchedEffect(listState.isScrollInProgress) {
+            if (!listState.isScrollInProgress) {
+                val idx = listState.firstVisibleItemIndex.coerceIn(0, items.lastIndex)
+                if (idx != selectedIndex) onSelected(idx)
+            }
+        }
+        LaunchedEffect(selectedIndex) {
+            if (!listState.isScrollInProgress &&
+                listState.firstVisibleItemIndex != selectedIndex
+            ) {
+                listState.animateScrollToItem(selectedIndex.coerceIn(0, items.lastIndex))
+            }
+        }
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = fling,
+            modifier = modifier.height(220.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(vertical = 88.dp)
+        ) {
+            items(items.size) { i ->
+                val selected = i == selectedIndex
+                Box(
+                    Modifier
+                        .height(itemH)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        items[i],
+                        color = if (selected) Color.White else Color.White.copy(alpha = 0.28f),
+                        fontSize = textSize,
+                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Light
                     )
                 }
-                Spacer(Modifier.height(32.dp))
             }
         }
     }
