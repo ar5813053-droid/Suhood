@@ -78,6 +78,7 @@ class PhoneCallActivity : ComponentActivity() {
         val previewNumber = intent.getStringExtra(EXTRA_NUMBER) ?: "Unknown"
         val previewName = intent.getStringExtra(EXTRA_NAME) ?: "Incoming call"
         val forceTheme = intent.getStringExtra(EXTRA_THEME)
+        val headsUp = intent.getBooleanExtra(EXTRA_HEADS_UP, false)
 
         // Vibrate on incoming even in silent mode (app-driven vibration)
         val state = CallSession.state.value
@@ -92,6 +93,7 @@ class PhoneCallActivity : ComponentActivity() {
                     previewNumber = previewNumber,
                     previewName = previewName,
                     forceThemeName = forceTheme,
+                    headsUp = headsUp,
                     onFinish = {
                         stopIncomingVibrate()
                         finish()
@@ -150,6 +152,7 @@ class PhoneCallActivity : ComponentActivity() {
         const val EXTRA_NUMBER = "number"
         const val EXTRA_NAME = "name"
         const val EXTRA_THEME = "theme"
+        const val EXTRA_HEADS_UP = "heads_up"
 
         fun previewIntent(
             context: Context,
@@ -172,6 +175,7 @@ fun CallUiScreen(
     previewNumber: String,
     previewName: String,
     forceThemeName: String?,
+    headsUp: Boolean = false,
     onFinish: () -> Unit,
     onAnswered: () -> Unit = {}
 ) {
@@ -232,7 +236,7 @@ fun CallUiScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF1C1C1E))) {
+    Box(Modifier.fillMaxSize().background(if (headsUp && !preview) Color(0x99000000) else Color(0xFF1C1C1E))) {
         if (assetWp != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -332,118 +336,179 @@ fun CallUiScreen(
             Spacer(Modifier.weight(1f))
 
             if (ringing) {
-                // Liquid glass slide bar — no instructional text
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .onSizeChanged { trackWidthPx = it.width.toFloat() }
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(Color(0x28FFFFFF))
-                        .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
-                ) {
-                    // subtle glass highlight
+                if (headsUp && !preview) {
+                    // Compact floating bar (inspired by system heads-up call UI)
+                    Spacer(Modifier.weight(1f))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(Color(0xEE1C1C1E))
+                            .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape).background(Color(0x33FFFFFF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!emoji.isNullOrBlank()) Text(emoji, fontSize = 22.sp)
+                            else Text(
+                                displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(
+                                PhoneNumberUtils.display(
+                                    PhoneNumberUtils.normalize(displayNumber).ifBlank { displayNumber },
+                                    prefs.numeralStyle
+                                ),
+                                color = Color(0x99FFFFFF),
+                                fontSize = 13.sp,
+                                maxLines = 1
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                CallSession.reject()
+                                onFinish()
+                            },
+                            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFFF3B30))
+                        ) {
+                            Icon(Icons.Filled.CallEnd, null, tint = Color.White)
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        IconButton(
+                            onClick = {
+                                CallSession.answer()
+                                onAnswered()
+                            },
+                            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFF34C759))
+                        ) {
+                            Icon(Icons.Filled.Call, null, tint = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(24.dp))
+                } else {
+                    // Full incoming: slide + explicit Answer / Decline
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .height(24.dp)
-                            .align(Alignment.TopCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0x33FFFFFF), Color.Transparent)
-                                )
-                            )
-                    )
-                    Text(
-                        "slide to answer",
-                        color = Color(0x66FFFFFF),
-                        modifier = Modifier.align(Alignment.Center),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Box(
-                        Modifier
-                            .offset { IntOffset(displaySlide.roundToInt(), 0) }
-                            .padding(6.dp)
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF34C759), Color(0xFF28A745))
-                                )
-                            )
-                            .border(1.dp, Color(0x55FFFFFF), CircleShape)
-                            .align(Alignment.CenterStart)
-                            .pointerInput(maxSlide, answerThreshold) {
-                                detectHorizontalDragGestures(
-                                    onDragStart = { dragging = true },
-                                    onDragEnd = {
-                                        dragging = false
-                                        if (slidePx >= answerThreshold) {
-                                            if (!preview) CallSession.answer()
-                                            onAnswered()
-                                            slidePx = 0f
-                                        } else {
-                                            slidePx = 0f
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        dragging = false
-                                        slidePx = 0f
-                                    },
-                                    onHorizontalDrag = { _, dx ->
-                                        slidePx = (slidePx + dx).coerceIn(0f, maxSlide)
-                                    }
-                                )
-                            },
-                        contentAlignment = Alignment.Center
+                            .height(64.dp)
+                            .onSizeChanged { trackWidthPx = it.width.toFloat() }
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(Color(0x28FFFFFF))
+                            .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(32.dp))
                     ) {
-                        Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                    }
-                }
-                Spacer(Modifier.height(18.dp))
-                // Decline with short SMS (opens Messages; rejects call)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    listOf(
-                        "Can't talk now",
-                        "Call you later",
-                        "I'm in Salah"
-                    ).forEach { msg ->
                         Box(
                             Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(Color(0x33FFFFFF))
-                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
-                                .clickable {
-                                    if (!preview) {
-                                        CallSession.reject()
-                                        PhoneRepository(context).openSms(displayNumber, msg)
-                                    }
-                                    onFinish()
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .fillMaxWidth()
+                                .height(24.dp)
+                                .align(Alignment.TopCenter)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0x33FFFFFF), Color.Transparent)
+                                    )
+                                )
+                        )
+                        Text(
+                            "slide to answer",
+                            color = Color(0x66FFFFFF),
+                            modifier = Modifier.align(Alignment.Center),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Box(
+                            Modifier
+                                .offset { IntOffset(displaySlide.roundToInt(), 0) }
+                                .padding(6.dp)
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF34C759), Color(0xFF28A745))
+                                    )
+                                )
+                                .border(1.dp, Color(0x55FFFFFF), CircleShape)
+                                .align(Alignment.CenterStart)
+                                .pointerInput(maxSlide, answerThreshold) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { dragging = true },
+                                        onDragEnd = {
+                                            dragging = false
+                                            if (slidePx >= answerThreshold) {
+                                                if (!preview) CallSession.answer()
+                                                onAnswered()
+                                                slidePx = 0f
+                                            } else {
+                                                slidePx = 0f
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            dragging = false
+                                            slidePx = 0f
+                                        },
+                                        onHorizontalDrag = { _, dx ->
+                                            slidePx = (slidePx + dx).coerceIn(0f, maxSlide)
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(msg, color = Color.White, fontSize = 12.sp)
+                            Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(26.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (!preview) CallSession.reject()
+                                onFinish()
+                            },
+                            modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xFFFF3B30))
+                        ) {
+                            Icon(Icons.Filled.CallEnd, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                        }
+                        IconButton(
+                            onClick = {
+                                if (!preview) CallSession.answer()
+                                onAnswered()
+                            },
+                            modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xFF34C759))
+                        ) {
+                            Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        listOf("Can't talk now", "Call you later", "I'm in Salah").forEach { msg ->
+                            Box(
+                                Modifier
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color(0x33FFFFFF))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                    .clickable {
+                                        if (!preview) {
+                                            CallSession.reject()
+                                            PhoneRepository(context).openSms(displayNumber, msg)
+                                        }
+                                        onFinish()
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(msg, color = Color.White, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Message",
-                    color = Color(0xFF0A84FF),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable {
-                        if (!preview) {
-                            CallSession.reject()
-                            PhoneRepository(context).openSms(displayNumber, null)
-                        }
-                        onFinish()
-                    }
-                )
             } else {
                 if (showKeypad) {
                     val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#")

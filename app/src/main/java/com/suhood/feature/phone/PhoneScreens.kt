@@ -313,34 +313,44 @@ private fun PhoneSetupGate(repo: PhoneRepository, prefs: PhonePrefs, onDone: () 
             fontSize = 14.sp
         )
         Spacer(Modifier.height(28.dp))
-        Button(
-            onClick = {
-                permLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.READ_CONTACTS,
-                        Manifest.permission.WRITE_CONTACTS,
-                        Manifest.permission.READ_CALL_LOG,
-                        Manifest.permission.CALL_PHONE,
-                        Manifest.permission.READ_PHONE_STATE,
-                        Manifest.permission.ANSWER_PHONE_CALLS
-                    )
-                )
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Surface2),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("1. Allow permissions") }
-        Spacer(Modifier.height(12.dp))
+        Text(
+            if (isDefault) "Status: Ready for calls (default Phone on)"
+            else "Status: Required setup incomplete",
+            color = if (isDefault) Green else Label3,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(Modifier.height(20.dp))
         Button(
             onClick = { requestDefaultDialer(context, roleLauncher) },
             colors = ButtonDefaults.buttonColors(containerColor = Green),
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (isDefault) "Default Phone ✓" else "2. Set as default Phone app") }
-        Spacer(Modifier.height(12.dp))
+        ) { Text(if (isDefault) "1. Default Phone app ✓" else "1. Set as default Phone app") }
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = {
+                val perms = mutableListOf(
+                    Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.WRITE_CONTACTS,
+                    Manifest.permission.READ_CALL_LOG,
+                    Manifest.permission.CALL_PHONE,
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.ANSWER_PHONE_CALLS
+                )
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    perms += Manifest.permission.POST_NOTIFICATIONS
+                }
+                permLauncher.launch(perms.toTypedArray())
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Surface2),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("2. Phone, contacts, notifications") }
+        Spacer(Modifier.height(10.dp))
         Text(
-            if (isDefault) "Default Phone is enabled"
-            else "You must confirm in the system dialog",
+            "Default Phone is required for ringtone, Answer/Decline, and the full call screen. Notifications are used for lock-screen and heads-up incoming calls.",
             color = Label3,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(24.dp))
         Button(
