@@ -323,7 +323,7 @@ class PhoneRepository(private val context: Context) {
                     val key = id + "|" + num
                     if (key in seen) continue
                     seen += key
-                    out += PhoneContact(id = id, name = c.getString(nameIdx) ?: num, number = num)
+                    out += PhoneContact(id = id, name = c.getString(nameIdx) ?: num, number = num, starred = false)
                 }
             }
         } catch (_: Exception) {}

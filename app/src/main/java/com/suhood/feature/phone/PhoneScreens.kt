@@ -1373,7 +1373,7 @@ private fun SettingsRowIcon(
         if (trailing != null) trailing()
         else {
             if (value != null) Text(value, color = Label2, fontSize = 17.sp, modifier = Modifier.padding(end = 8.dp))
-            if (onClick != null) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Label3, modifier = Modifier.size(18.dp))
+            if (onClick != null) Icon(Icons.Filled.KeyboardArrowRight, null, tint = Label3, modifier = Modifier.size(18.dp))
         }
     }
 }
