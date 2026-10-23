@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import com.suhood.core.designsystem.theme.SuhoodTheme
+import com.suhood.core.notifications.AlarmReceiver
+import com.suhood.core.notifications.AlarmScheduler
 import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
 import kotlinx.coroutines.delay
