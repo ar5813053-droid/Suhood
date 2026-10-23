@@ -400,7 +400,7 @@ object FocusScreens {
                         val bmp = remember(app.packageName) {
                             runCatching {
                                 val d = context.packageManager.getApplicationIcon(app.packageName)
-                                drawableToBitmap(d, 96)
+                                drawableToBitmap(d)
                             }.getOrNull()
                         }
                         if (bmp != null) {
