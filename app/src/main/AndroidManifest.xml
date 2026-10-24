@@ -90,8 +90,10 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.Suhood"
+            android:showWhenLocked="true"
             android:showOnLockScreen="true"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            android:taskAffinity="" />
 
         <service
             android:name="com.suhood.feature.focus.SalahLockMonitorService"

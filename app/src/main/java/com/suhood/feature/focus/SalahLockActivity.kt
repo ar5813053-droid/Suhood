@@ -53,10 +53,21 @@ class SalahLockActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        window.addFlags(
+            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
         // Reconcile on entry — expired locks must not stick
         val initial = SalahLockStore.get(this).reconcileNow()
         if (SalahLockLogic.isActive(initial, System.currentTimeMillis())) {
             SalahLockMonitorService.start(this)
+        } else {
+            // No active lock — still show screen briefly with 00:00 then leave
+            // (avoids blank flash when notification opens activity late)
         }
 
         setContent {
@@ -68,10 +79,13 @@ class SalahLockActivity : ComponentActivity() {
             }
 
             LaunchedEffect(Unit) {
+                var frames = 0
                 while (true) {
                     val snap = store.reconcileNow()
                     remainingMs = SalahLockLogic.remainingMs(snap, System.currentTimeMillis())
-                    if (!SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
+                    frames++
+                    // Wait at least 2 ticks so the glass UI is visible before auto-leave
+                    if (!SalahLockLogic.isActive(snap, System.currentTimeMillis()) && frames >= 2) {
                         SalahLockMonitorService.stop(this@SalahLockActivity)
                         goHomeAndFinish()
                         break
