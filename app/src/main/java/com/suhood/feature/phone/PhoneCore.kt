@@ -222,16 +222,61 @@ class PhonePrefs(context: Context) {
     fun contactAvatarAsset(number: String): String? =
         p.getString("avatar_" + PhoneNumberUtils.normalize(number), null)
 
+    fun contactPhotoUri(number: String): String? =
+        p.getString("photo_" + PhoneNumberUtils.normalize(number), null)
+
     fun setContactAvatarAsset(number: String, asset: String?) {
-        val key = "avatar_" + PhoneNumberUtils.normalize(number)
-        if (asset.isNullOrBlank()) p.edit().remove(key).apply()
-        else p.edit().putString(key, asset).apply()
+        val n = PhoneNumberUtils.normalize(number)
+        if (n.isBlank()) return
+        val ed = p.edit()
+        if (asset.isNullOrBlank()) ed.remove("avatar_$n")
+        else {
+            ed.putString("avatar_$n", asset)
+            ed.remove("emoji_$n")
+            ed.remove("photo_$n")
+        }
+        ed.commit()
     }
 
     fun setContactEmoji(number: String, emoji: String?) {
-        val key = "emoji_" + PhoneNumberUtils.normalize(number)
-        if (emoji.isNullOrBlank()) p.edit().remove(key).apply()
-        else p.edit().putString(key, emoji).apply()
+        val n = PhoneNumberUtils.normalize(number)
+        if (n.isBlank()) return
+        val ed = p.edit()
+        if (emoji.isNullOrBlank()) ed.remove("emoji_$n")
+        else {
+            ed.putString("emoji_$n", emoji)
+            ed.remove("avatar_$n")
+            ed.remove("photo_$n")
+        }
+        ed.commit()
+    }
+
+    fun setContactPhotoUri(number: String, uri: String?) {
+        val n = PhoneNumberUtils.normalize(number)
+        if (n.isBlank()) return
+        val ed = p.edit()
+        if (uri.isNullOrBlank()) ed.remove("photo_$n")
+        else {
+            ed.putString("photo_$n", uri)
+            ed.remove("avatar_$n")
+            ed.remove("emoji_$n")
+        }
+        ed.commit()
+    }
+
+    fun migrateContactAvatar(fromNumber: String, toNumber: String) {
+        val a = PhoneNumberUtils.normalize(fromNumber)
+        val b = PhoneNumberUtils.normalize(toNumber)
+        if (a.isBlank() || b.isBlank() || a == b) return
+        val ed = p.edit()
+        listOf("emoji_", "avatar_", "photo_").forEach { prefix ->
+            val v = p.getString(prefix + a, null)
+            if (v != null) {
+                ed.putString(prefix + b, v)
+                ed.remove(prefix + a)
+            }
+        }
+        ed.commit()
     }
 
     var customWallpaperUri: String?

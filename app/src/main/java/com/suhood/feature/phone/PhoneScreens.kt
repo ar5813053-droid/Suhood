@@ -97,6 +97,7 @@ private sealed class PhoneOverlay {
     data class ContactDetail(val contact: PhoneContact) : PhoneOverlay()
     data object AddContact : PhoneOverlay()
     data class EditContact(val contact: PhoneContact) : PhoneOverlay()
+    data object BlockedNumbers : PhoneOverlay()
 }
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -170,6 +171,10 @@ fun PhoneRoot(onBack: (() -> Unit)? = null) {
                     overlay = PhoneOverlay.ContactDetail(updated)
                 }
             )
+            return
+        }
+        is PhoneOverlay.BlockedNumbers -> {
+            BlockedNumbersScreen(repo = repo, prefs = prefs, onBack = { overlay = PhoneOverlay.None })
             return
         }
         PhoneOverlay.None -> Unit
@@ -252,6 +257,7 @@ fun PhoneRoot(onBack: (() -> Unit)? = null) {
                     prefs = prefs,
                     repo = repo,
                     onAppearance = { overlay = PhoneOverlay.Appearance },
+                    onBlocked = { overlay = PhoneOverlay.BlockedNumbers },
                     onBack = onBack
                 )
             }
@@ -436,9 +442,16 @@ private fun KeypadPane(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(Modifier.size(40.dp).clip(CircleShape).background(Surface2), contentAlignment = Alignment.Center) {
+                                val photo = prefs.contactPhotoUri(c.number)
                                 val av = prefs.contactAvatarAsset(c.number)
                                 val em = prefs.contactEmoji(c.number)
                                 when {
+                                    !photo.isNullOrBlank() -> AsyncImage(
+                                        model = ImageRequest.Builder(context).data(photo).build(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
                                     av != null -> AsyncImage(
                                         model = ImageRequest.Builder(context).data("file:///android_asset/phone_avatars/$av").build(),
                                         contentDescription = null,
@@ -823,9 +836,16 @@ private fun ContactsPane(
                                 Modifier.size(44.dp).clip(CircleShape).background(Surface2),
                                 contentAlignment = Alignment.Center
                             ) {
+                                val photo = prefs.contactPhotoUri(c.number)
                                 val av = prefs.contactAvatarAsset(c.number)
                                 val em = prefs.contactEmoji(c.number)
                                 when {
+                                    !photo.isNullOrBlank() -> AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current).data(photo).build(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
                                     av != null -> AsyncImage(
                                         model = ImageRequest.Builder(LocalContext.current).data("file:///android_asset/phone_avatars/$av").build(),
                                         contentDescription = null,
@@ -911,6 +931,12 @@ private fun ContactDetailScreen(
             Spacer(Modifier.height(24.dp))
             Box(Modifier.size(96.dp).clip(CircleShape).background(Surface2), contentAlignment = Alignment.Center) {
                 when {
+                    !photo.isNullOrBlank() -> AsyncImage(
+                        model = ImageRequest.Builder(context).data(photo).build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
                     av != null -> AsyncImage(
                         model = ImageRequest.Builder(context).data("file:///android_asset/phone_avatars/$av").build(),
                         contentDescription = null,
@@ -969,14 +995,29 @@ private fun EditContactScreen(
     var email by remember { mutableStateOf("") }
     var avatarEmoji by remember { mutableStateOf(prefs.contactEmoji(contact.number)) }
     var avatarAsset by remember { mutableStateOf(prefs.contactAvatarAsset(contact.number)) }
+    var avatarPhoto by remember { mutableStateOf(prefs.contactPhotoUri(contact.number)) }
     var showAvatarSheet by remember { mutableStateOf(false) }
+    val originalNumber = remember { contact.number }
 
     if (showAvatarSheet) {
         AvatarPickerDialog(
             selectedEmoji = avatarEmoji,
             selectedAsset = avatarAsset,
-            onPickEmoji = { avatarEmoji = it; avatarAsset = null; showAvatarSheet = false },
-            onPickAsset = { avatarAsset = it; avatarEmoji = null; showAvatarSheet = false },
+            selectedPhotoUri = avatarPhoto,
+            onPickEmoji = {
+                avatarEmoji = it; avatarAsset = null; avatarPhoto = null
+                prefs.setContactEmoji(phone.ifBlank { contact.number }, it)
+                showAvatarSheet = false
+            },
+            onPickAsset = {
+                avatarAsset = it; avatarEmoji = null; avatarPhoto = null
+                prefs.setContactAvatarAsset(phone.ifBlank { contact.number }, it)
+                showAvatarSheet = false
+            },
+            onPickPhotoUri = {
+                avatarPhoto = it; avatarEmoji = null; avatarAsset = null
+                prefs.setContactPhotoUri(phone.ifBlank { contact.number }, it)
+            },
             onDismiss = { showAvatarSheet = false }
         )
     }
@@ -990,8 +1031,10 @@ private fun EditContactScreen(
                 if (ok) {
                     val n = PhoneNumberUtils.normalize(phone)
                     if (n.isNotBlank()) {
+                        prefs.migrateContactAvatar(originalNumber, phone)
                         prefs.setContactEmoji(n, avatarEmoji)
                         prefs.setContactAvatarAsset(n, avatarAsset)
+                        prefs.setContactPhotoUri(n, avatarPhoto)
                     }
                     val display = listOf(first, last).filter { it.isNotBlank() }.joinToString(" ").ifBlank { phone }
                     onSaved(contact.copy(name = display, number = phone))
@@ -1007,6 +1050,12 @@ private fun EditContactScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when {
+                    !avatarPhoto.isNullOrBlank() -> AsyncImage(
+                        model = ImageRequest.Builder(context).data(avatarPhoto).build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
                     avatarAsset != null -> AsyncImage(
                         model = ImageRequest.Builder(context).data("file:///android_asset/phone_avatars/$avatarAsset").build(),
                         contentDescription = null,
@@ -1149,14 +1198,28 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
     var email by remember { mutableStateOf("") }
     var avatarEmoji by remember { mutableStateOf<String?>(null) }
     var avatarAsset by remember { mutableStateOf<String?>(null) }
+    var avatarPhoto by remember { mutableStateOf<String?>(null) }
     var showAvatarSheet by remember { mutableStateOf(false) }
 
     if (showAvatarSheet) {
         AvatarPickerDialog(
             selectedEmoji = avatarEmoji,
             selectedAsset = avatarAsset,
-            onPickEmoji = { avatarEmoji = it; avatarAsset = null; showAvatarSheet = false },
-            onPickAsset = { avatarAsset = it; avatarEmoji = null; showAvatarSheet = false },
+            selectedPhotoUri = avatarPhoto,
+            onPickEmoji = {
+                avatarEmoji = it; avatarAsset = null; avatarPhoto = null
+                if (phone.isNotBlank()) prefs.setContactEmoji(phone, it)
+                showAvatarSheet = false
+            },
+            onPickAsset = {
+                avatarAsset = it; avatarEmoji = null; avatarPhoto = null
+                if (phone.isNotBlank()) prefs.setContactAvatarAsset(phone, it)
+                showAvatarSheet = false
+            },
+            onPickPhotoUri = {
+                avatarPhoto = it; avatarEmoji = null; avatarAsset = null
+                if (phone.isNotBlank()) prefs.setContactPhotoUri(phone, it)
+            },
             onDismiss = { showAvatarSheet = false }
         )
     }
@@ -1177,6 +1240,7 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
                     if (n.isNotBlank()) {
                         prefs.setContactEmoji(n, avatarEmoji)
                         prefs.setContactAvatarAsset(n, avatarAsset)
+                        prefs.setContactPhotoUri(n, avatarPhoto)
                     }
                     Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
                     onSaved()
@@ -1192,6 +1256,12 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
                 contentAlignment = Alignment.Center
             ) {
                 when {
+                    !avatarPhoto.isNullOrBlank() -> AsyncImage(
+                        model = ImageRequest.Builder(context).data(avatarPhoto).build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
                     avatarAsset != null -> AsyncImage(
                         model = ImageRequest.Builder(context).data("file:///android_asset/phone_avatars/$avatarAsset").build(),
                         contentDescription = null,
@@ -1275,8 +1345,10 @@ private fun AddContactScreen(repo: PhoneRepository, onBack: () -> Unit, onSaved:
 private fun AvatarPickerDialog(
     selectedEmoji: String?,
     selectedAsset: String?,
+    selectedPhotoUri: String? = null,
     onPickEmoji: (String) -> Unit,
     onPickAsset: (String) -> Unit,
+    onPickPhotoUri: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1287,9 +1359,14 @@ private fun AvatarPickerDialog(
         } catch (_: Exception) { emptyList() }
     }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        // File pick is optional display only for now; user primarily uses bundled avatars
         if (uri != null) {
-            Toast.makeText(context, "Use Avatars tab for built-in photos", Toast.LENGTH_SHORT).show()
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            onPickPhotoUri(uri.toString())
+            onDismiss()
         }
     }
     val emojiList = remember {
@@ -1400,6 +1477,7 @@ private fun MorePane(
     prefs: PhonePrefs,
     repo: PhoneRepository,
     onAppearance: () -> Unit,
+    onBlocked: () -> Unit = {},
     onBack: (() -> Unit)?
 ) {
     val context = LocalContext.current
@@ -1622,7 +1700,7 @@ private fun MorePane(
                 iconBrush = listOf(Color(0xFF52525B), Color(0xFF3F3F46)),
                 label = "Blocked Numbers",
                 value = if (prefs.blocked().isEmpty()) "None" else "${prefs.blocked().size}",
-                onClick = { }
+                onClick = onBlocked
             )
         }
 
@@ -1848,6 +1926,165 @@ fun openDefaultAppsSettings(context: Context, launcher: ManagedActivityResultLau
             context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: Exception) {
             Toast.makeText(context, "Settings → Default apps → Phone", Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+
+@Composable
+private fun BlockedNumbersScreen(
+    repo: PhoneRepository,
+    prefs: PhonePrefs,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var blocked by remember { mutableStateOf(prefs.blocked().toList().sorted()) }
+    var contacts by remember { mutableStateOf(repo.loadContacts()) }
+    var query by remember { mutableStateOf("") }
+    var showPick by remember { mutableStateOf(false) }
+    var pendingBlock by remember { mutableStateOf<String?>(null) }
+    var manualNumber by remember { mutableStateOf("") }
+    var showManual by remember { mutableStateOf(false) }
+
+    fun refresh() {
+        blocked = prefs.blocked().toList().sorted()
+        contacts = repo.loadContacts()
+    }
+
+    if (pendingBlock != null) {
+        val num = pendingBlock!!
+        AlertDialog(
+            onDismissRequest = { pendingBlock = null },
+            title = { Text("Are you sure you want to block?", color = Label) },
+            text = { Text(PhoneNumberUtils.display(num, prefs.numeralStyle), color = Label2, fontSize = 16.sp) },
+            confirmButton = {
+                TextButton(onClick = {
+                    prefs.block(num)
+                    pendingBlock = null
+                    refresh()
+                    Toast.makeText(context, "Number blocked", Toast.LENGTH_SHORT).show()
+                }) { Text("Block", color = Red, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingBlock = null }) { Text("Cancel", color = Blue) }
+            },
+            containerColor = Surface
+        )
+    }
+
+    if (showManual) {
+        AlertDialog(
+            onDismissRequest = { showManual = false },
+            title = { Text("Block number", color = Label) },
+            text = {
+                BasicTextField(
+                    value = manualNumber,
+                    onValueChange = { manualNumber = it },
+                    textStyle = LocalTextStyle.current.copy(color = Label, fontSize = 17.sp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Surface2).padding(14.dp),
+                    singleLine = true,
+                    decorationBox = { inner ->
+                        if (manualNumber.isEmpty()) Text("Enter phone number", color = Label3)
+                        inner()
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val n = PhoneNumberUtils.normalize(manualNumber)
+                    if (n.isBlank()) Toast.makeText(context, "Enter a valid number", Toast.LENGTH_SHORT).show()
+                    else {
+                        showManual = false
+                        pendingBlock = n
+                        manualNumber = ""
+                    }
+                }) { Text("Continue", color = Blue, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showManual = false }) { Text("Cancel", color = Label2) }
+            },
+            containerColor = Surface
+        )
+    }
+
+    Column(Modifier.fillMaxSize().background(PhoneBg).statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Back", color = Blue) }
+            Text("Blocked Numbers", color = Label, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            IconButton(onClick = { showPick = !showPick }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add", tint = Blue)
+            }
+        }
+        if (showPick) {
+            Text("Select a contact or enter a number", color = Label2, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(12.dp)).background(Surface2).padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Search, null, tint = Label3, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    textStyle = LocalTextStyle.current.copy(color = Label, fontSize = 15.sp),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) Text("Search contacts", color = Label3, fontSize = 15.sp)
+                        inner()
+                    }
+                )
+            }
+            TextButton(onClick = { showManual = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text("+ Enter number manually", color = Blue)
+            }
+            val filtered = remember(contacts, query) {
+                if (query.isBlank()) contacts
+                else contacts.filter { it.name.contains(query, true) || it.number.contains(query) }
+            }
+            LazyColumn(Modifier.weight(1f)) {
+                items(filtered, key = { it.id }) { c ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { pendingBlock = PhoneNumberUtils.normalize(c.number) }.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val photo = prefs.contactPhotoUri(c.number)
+                        val av = prefs.contactAvatarAsset(c.number)
+                        val em = prefs.contactEmoji(c.number)
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(Surface2), contentAlignment = Alignment.Center) {
+                            when {
+                                !photo.isNullOrBlank() -> AsyncImage(model = ImageRequest.Builder(context).data(photo).build(), contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                av != null -> AsyncImage(model = ImageRequest.Builder(context).data("file:///android_asset/phone_avatars/$av").build(), contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                !em.isNullOrBlank() -> Text(em, fontSize = 22.sp)
+                                else -> Text(c.name.take(1).uppercase().ifBlank { "#" }, color = Label, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(c.name.ifBlank { c.number }, color = Label, fontSize = 16.sp)
+                            Text(PhoneNumberUtils.display(c.number, prefs.numeralStyle), color = Label2, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        } else if (blocked.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("No blocked numbers", color = Label2)
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { showPick = true }) { Text("Block a number", color = Blue) }
+                }
+            }
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(blocked, key = { it }) { num ->
+                    val name = contacts.find { PhoneNumberUtils.matches(it.number, num) }?.name
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(name ?: PhoneNumberUtils.display(num, prefs.numeralStyle), color = Label, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { prefs.unblock(num); refresh() }) { Text("Unblock", color = Blue) }
+                    }
+                }
+            }
         }
     }
 }

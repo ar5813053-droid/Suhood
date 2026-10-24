@@ -1,4 +1,6 @@
 package com.suhood.feature.alarms
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.FolderOpen
@@ -263,6 +265,7 @@ object AlarmScreens {
         var loaded by remember { mutableStateOf(false) }
         var showMusicPicker by remember { mutableStateOf(false) }
         var showRepeatSheet by remember { mutableStateOf(false) }
+        var showLabelDialog by remember { mutableStateOf(false) }
 
         LaunchedEffect(alarmId) {
             if (alarmId != null) {
@@ -353,6 +356,21 @@ object AlarmScreens {
                     modifier = Modifier.clickable { save() }
                 )
             }
+
+            val nextMs = AlarmScheduler.nextTriggerMillis(
+                hour24, minute, days.sorted().joinToString(",")
+            )
+            val totalMins = ((nextMs - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0)
+            val hLeft = totalMins / 60
+            val mLeft = totalMins % 60
+            Text(
+                if (hLeft > 0) "Alarm in $hLeft hours $mLeft minutes"
+                else "Alarm in $mLeft minutes",
+                color = Color(0xFF8E8E93),
+                style = SuhoodTypography.labelMedium,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
 
             // Drum-roll time picker
             Box(
@@ -468,7 +486,7 @@ object AlarmScreens {
                     IosSettingsRow(
                         title = "Label",
                         value = label.ifBlank { "Alarm" },
-                        onClick = { /* inline edit below */ },
+                        onClick = { showLabelDialog = true },
                         showDivider = true
                     )
                     IosSettingsRow(
@@ -487,26 +505,6 @@ object AlarmScreens {
                         showDivider = false
                     )
                 }
-
-                // Label editor
-                Spacer(Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text("Label", color = Color.White.copy(alpha = 0.35f)) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color.White.copy(alpha = 0.2f),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
-                        focusedContainerColor = rowBg,
-                        unfocusedContainerColor = rowBg,
-                        cursorColor = accentOrange
-                    ),
-                    shape = groupShape
-                )
 
                 // Wake-up challenge
                 Spacer(Modifier.height(20.dp))
@@ -599,6 +597,34 @@ object AlarmScreens {
                 }
                 Spacer(Modifier.height(40.dp))
             }
+        }
+
+        if (showLabelDialog) {
+            AlertDialog(
+                onDismissRequest = { showLabelDialog = false },
+                title = { Text("Label", color = Color.White) },
+                text = {
+                    OutlinedTextField(
+                        value = label,
+                        onValueChange = { label = it },
+                        singleLine = true,
+                        placeholder = { Text("Alarm", color = Color.White.copy(alpha = 0.35f)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFFF9F0A),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                            cursorColor = Color(0xFFFF9F0A)
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLabelDialog = false }) {
+                        Text("Done", color = Color(0xFFFF9F0A))
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
         }
 
         if (showMusicPicker) {
@@ -725,11 +751,24 @@ object AlarmScreens {
         modifier: Modifier = Modifier,
         textSize: androidx.compose.ui.unit.TextUnit = 28.sp
     ) {
+        val context = LocalContext.current
         val itemH = 44.dp
         val listState = rememberLazyListState(
             initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, items.lastIndex)
         )
         val fling = rememberSnapFlingBehavior(lazyListState = listState)
+        var lastTickIndex by remember { mutableIntStateOf(selectedIndex) }
+
+        LaunchedEffect(listState.firstVisibleItemIndex, listState.isScrollInProgress) {
+            val idx = listState.firstVisibleItemIndex
+            if (listState.isScrollInProgress && idx != lastTickIndex) {
+                lastTickIndex = idx
+                runCatching {
+                    val am = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                    am.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 0.55f)
+                }
+            }
+        }
 
         LaunchedEffect(listState.isScrollInProgress) {
             if (!listState.isScrollInProgress) {
