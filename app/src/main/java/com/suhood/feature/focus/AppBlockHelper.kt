@@ -36,7 +36,7 @@ object AppBlockHelper {
         if (!hasUsageAccess(context)) return null
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val end = System.currentTimeMillis()
-        val events = usm.queryEvents(end - 15_000, end)
+        val events = usm.queryEvents(end - 60_000, end)
         val event = UsageEvents.Event()
         var last: String? = null
         while (events.hasNextEvent()) {

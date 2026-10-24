@@ -104,7 +104,7 @@ class SalahLockMonitorService : Service() {
 
     companion object {
         private const val NOTIF_ID = 71001
-        private const val POLL_MS = 1500L
+        private const val POLL_MS = 1000L
 
         fun start(context: Context) {
             val i = Intent(context, SalahLockMonitorService::class.java)

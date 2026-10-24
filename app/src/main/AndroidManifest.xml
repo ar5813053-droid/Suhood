@@ -120,6 +120,8 @@
         <service
             android:name="com.suhood.feature.focus.FocusAccessibilityService"
             android:exported="false"
+            android:process=":a11y"
+            android:stopWithTask="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
