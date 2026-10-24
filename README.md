@@ -109,28 +109,43 @@ No ads. No subscriptions. No in-app purchases. Optional voluntary tips to the de
 
 ## Screenshots
 
-App icon and brand mark (device UI captures can be dropped into `screenshots/`):
+Real device captures from **Suhood 1.2.1** (dark liquid-glass UI).
 
-| Brand | |
-|-------|--|
-| ![Icon](screenshots/app-icon.png) | ![Logo](screenshots/app-logo-full.jpg) |
+### Home & worship
 
-**Suggested captures to add later** (same folder, then link here):
+| Home | Quran hub | Mushaf |
+|:---:|:---:|:---:|
+| ![Home](screenshots/01-home.png) | ![Quran](screenshots/02-quran-home.png) | ![Mushaf](screenshots/03-mushaf.png) |
 
-| File | Screen |
-|------|--------|
-| `01-home-salah-bar.png` | Home — live Next Salah bar |
-| `02-salah-custom-time.png` | Salah — time wheel dialog |
-| `03-focus-session.png` | Focus — running session + app list |
-| `04-alarm-create.png` | Create alarm — wheels + countdown |
-| `05-phone-contacts.png` | Phone — contacts with avatars |
-| `06-quran-surah.png` | Quran — surah list |
-| `07-nasheedify-player.png` | Nasheedify — player |
-| `08-widgets.png` | Home-screen widgets |
+| Ayah reader | Audio player | Islamic audio search |
+|:---:|:---:|:---:|
+| ![Ayah](screenshots/04-ayah-reader.png) | ![Player](screenshots/05-audio-player.png) | ![Search](screenshots/06-islamic-audio-search.png) |
 
-Interactive feature map (HTML): [`suhood-feature-expansion-preview.html`](suhood-feature-expansion-preview.html)
+| Focus | Tasbeeh | Worship hub |
+|:---:|:---:|:---:|
+| ![Focus](screenshots/07-focus.png) | ![Tasbeeh](screenshots/08-tasbeeh.png) | ![Worship](screenshots/09-worship.png) |
 
----
+| Find Duas | Dua search | Qibla |
+|:---:|:---:|:---:|
+| ![Duas](screenshots/10-duas.png) | ![Dua search](screenshots/11-duas-search.png) | ![Qibla](screenshots/12-qibla.png) |
+
+### Alarms, features & settings
+
+| Add alarm | All features | More features |
+|:---:|:---:|:---:|
+| ![Alarm](screenshots/13-add-alarm.png) | ![Features](screenshots/14-all-features-1.png) | ![Features 2](screenshots/15-all-features-2.png) |
+
+| Settings | Splash |
+|:---:|:---:|
+| ![Settings](screenshots/16-settings.png) | ![Splash](screenshots/17-splash.png) |
+
+<p align="center">
+  <img src="screenshots/app-icon.png" alt="Suhood icon" width="72" />
+  &nbsp;&nbsp;
+  <img src="screenshots/app-logo-full.jpg" alt="Suhood logo" width="160" />
+</p>
+
+Interactive feature map: [`suhood-feature-expansion-preview.html`](suhood-feature-expansion-preview.html)
 
 ## Tech stack
 
