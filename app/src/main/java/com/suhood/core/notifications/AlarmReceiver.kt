@@ -72,6 +72,7 @@ class BootReceiver : BroadcastReceiver() {
             runCatching { AlarmScheduler.rescheduleAll(context) }
             runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context) }
             runCatching { com.suhood.core.prayer.FajrAutoScheduler.reschedule(context) }
+            runCatching { com.suhood.feature.focus.SalahLockStore.get(context).reconcileNow() }
             runCatching { QuranReminderScheduler.rescheduleFromPrefs(context) }
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(context) }
             runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(context) }

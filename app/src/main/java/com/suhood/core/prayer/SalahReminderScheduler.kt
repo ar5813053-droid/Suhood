@@ -6,11 +6,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.MainActivity
 import com.suhood.app.SuhoodApplication
 import com.suhood.feature.focus.FocusSessionController
+import com.suhood.feature.focus.SalahLockActivity
+import com.suhood.feature.focus.SalahLockStore
 import java.util.Calendar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -18,6 +21,9 @@ import kotlinx.coroutines.runBlocking
 class SalahReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra(EXTRA_PRAYER) ?: "Salah"
+        val app = context.applicationContext
+
+        // Notification (separate from blocking)
         val open = PendingIntent.getActivity(
             context, name.hashCode(),
             Intent(context, MainActivity::class.java).apply {
@@ -29,7 +35,7 @@ class SalahReminderReceiver : BroadcastReceiver() {
         val n = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_PRAYER)
             .setSmallIcon(android.R.drawable.ic_menu_recent_history)
             .setContentTitle("$name time")
-            .setContentText("It's time for $name. Apps are limited until you finish.")
+            .setContentText("It's Salah time. Selected apps are limited for 10 minutes.")
             .setContentIntent(open)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -38,15 +44,29 @@ class SalahReminderReceiver : BroadcastReceiver() {
         runCatching {
             NotificationManagerCompat.from(context).notify(name.hashCode() and 0x7FFF, n)
         }
-        // Real-time app block: start Focus session with user's selected distracting apps
+
+        // Activate 10-minute Salah lock for user's selected distracting apps
         runCatching {
-            val ctrl = FocusSessionController.get(context.applicationContext)
-            if (ctrl.getBlockedApps().isNotEmpty()) {
-                ctrl.start(durationMinutes = 20)
+            val packages = FocusSessionController.get(app).getBlockedApps()
+            if (packages.isNotEmpty()) {
+                SalahLockStore.get(app).activate(
+                    prayerName = name,
+                    packages = packages,
+                    nowWallMs = System.currentTimeMillis(),
+                    elapsedRealtimeMs = SystemClock.elapsedRealtime()
+                )
+                // Surface the lock screen immediately if possible
+                context.startActivity(
+                    Intent(context, SalahLockActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        putExtra(SalahLockActivity.EXTRA_PRAYER, name)
+                    }
+                )
             }
         }
-        // Reschedule tomorrow's occurrence so the chain continues
-        runCatching { SalahReminderScheduler.rescheduleAll(context.applicationContext) }
+
+        // Reschedule tomorrow's occurrence (does not extend current lock)
+        runCatching { SalahReminderScheduler.rescheduleAll(app) }
     }
 
     companion object {
@@ -57,7 +77,7 @@ class SalahReminderReceiver : BroadcastReceiver() {
 object SalahReminderScheduler {
     fun scheduleFromTimes(
         context: Context,
-        times: List<Pair<String, String>>, // name to HH:mm
+        times: List<Pair<String, String>>,
         prefs: List<SalahReminderPref>
     ) {
         val enabled = prefs.associateBy { it.name }

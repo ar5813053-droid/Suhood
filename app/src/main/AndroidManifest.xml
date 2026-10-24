@@ -85,6 +85,15 @@
             android:turnScreenOn="true" />
 
         <activity
+            android:name="com.suhood.feature.focus.SalahLockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Suhood"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true" />
+
+        <activity
             android:name="com.suhood.feature.alarms.AlarmRingActivity"
             android:exported="false"
             android:excludeFromRecents="true"
