@@ -41,14 +41,16 @@ class FocusAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instanceRef = WeakReference(this)
-        val snap = SalahLockStore.get(applicationContext).reconcileNow()
-        if (SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
-            // Process may have been killed from Recents — resume overlay immediately
+        val now = System.currentTimeMillis()
+        val snap = SalahLockStore.get(applicationContext).reconcileNow(now)
+        if (SalahLockLogic.isActive(snap, now)) {
             handler.removeCallbacks(pollWhileLocked)
             handler.post(pollWhileLocked)
-            val fg = rootInActiveWindow?.packageName?.toString() ?: "app"
-            enforceLock(fg, snap.prayerName)
             SalahLockMonitorService.start(applicationContext)
+            val fg = rootInActiveWindow?.packageName?.toString()
+            if (fg != null && SalahLockLogic.shouldBlockPackage(snap, now, fg, packageName)) {
+                enforceLock(fg, snap.prayerName)
+            }
         }
     }
 
@@ -158,12 +160,16 @@ class FocusAccessibilityService : AccessibilityService() {
         }
 
         fun onSalahLockActivated(context: android.content.Context, prayer: String) {
-            val svc = instanceRef?.get()
-            if (svc != null) {
-                svc.handler.removeCallbacks(svc.pollWhileLocked)
-                svc.handler.post(svc.pollWhileLocked)
-                val fg = svc.rootInActiveWindow?.packageName?.toString() ?: "app"
-                svc.enforceLock(fg, prayer)
+            val svc = instanceRef?.get() ?: return
+            svc.handler.removeCallbacks(svc.pollWhileLocked)
+            svc.handler.post(svc.pollWhileLocked)
+            val now = System.currentTimeMillis()
+            val snap = SalahLockStore.get(context).reconcileNow(now)
+            if (!SalahLockLogic.isActive(snap, now)) return
+            val fg = svc.rootInActiveWindow?.packageName?.toString()
+            // Only pull out / show overlay when the foreground app is actually blocked
+            if (fg != null && SalahLockLogic.shouldBlockPackage(snap, now, fg, context.packageName)) {
+                svc.enforceLock(fg, prayer.ifBlank { snap.prayerName })
             }
         }
     }
