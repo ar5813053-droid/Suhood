@@ -68,49 +68,46 @@ class SuhoodApplication : Application() {
     private fun createChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
-
-            // Legacy generic prayer channel (no custom sound — keep for old installs)
-            nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_PRAYER, "Prayer reminders", NotificationManager.IMPORTANCE_DEFAULT)
-            )
-
-            // New Salah lock channel with Adhan sound + vibration (v2 ID so OS picks up new settings)
             val soundUri = Uri.parse("android.resource://$packageName/${R.raw.allahu_akbar_short}")
             val attrs = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
-            val salahCh = NotificationChannel(
-                CHANNEL_SALAH_LOCK,
-                "Salah time & app lock",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Salah time alerts with Adhan and 10-minute app lock"
-                setSound(soundUri, attrs)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 600)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            }
-            nm.createNotificationChannel(salahCh)
+            val vibe = longArrayOf(0, 400, 200, 400, 200, 600)
 
-            listOf(
-                CHANNEL_FOCUS to ("Focus sessions" to NotificationManager.IMPORTANCE_DEFAULT),
-                CHANNEL_ALARM to ("Alarms" to NotificationManager.IMPORTANCE_HIGH),
-                CHANNEL_AUDIO to ("Audio playback" to NotificationManager.IMPORTANCE_LOW),
-                CHANNEL_QURAN to ("Quran Companion" to NotificationManager.IMPORTANCE_DEFAULT)
-            ).forEach { (id, pair) ->
-                nm.createNotificationChannel(NotificationChannel(id, pair.first, pair.second))
+            fun channel(id: String, name: String, importance: Int): NotificationChannel {
+                return NotificationChannel(id, name, importance).apply {
+                    description = name
+                    setSound(soundUri, attrs)
+                    enableVibration(true)
+                    vibrationPattern = vibe
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                }
             }
+
+            // New IDs so OS applies custom sound (old channel settings are immutable)
+            nm.createNotificationChannel(channel(CHANNEL_SALAH_LOCK, "Salah time & app lock", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(channel(CHANNEL_PRAYER, "Prayer reminders", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(channel(CHANNEL_FOCUS, "Focus sessions", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(channel(CHANNEL_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(channel(CHANNEL_QURAN, "Quran Companion", NotificationManager.IMPORTANCE_DEFAULT))
+            // Audio playback stays quiet
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_AUDIO, "Audio playback", NotificationManager.IMPORTANCE_LOW).apply {
+                    setSound(null, null)
+                    enableVibration(false)
+                }
+            )
         }
     }
 
     companion object {
-        const val CHANNEL_PRAYER = "prayer"
+        const val CHANNEL_PRAYER = "prayer_v2"
         /** High-importance channel with custom Adhan; new ID so channel settings apply on upgrade. */
         const val CHANNEL_SALAH_LOCK = "salah_lock_v2"
-        const val CHANNEL_FOCUS = "focus"
-        const val CHANNEL_ALARM = "alarm"
+        const val CHANNEL_FOCUS = "focus_v2"
+        const val CHANNEL_ALARM = "alarm_v2"
         const val CHANNEL_AUDIO = "audio"
-        const val CHANNEL_QURAN = "quran"
+        const val CHANNEL_QURAN = "quran_v2"
     }
 }

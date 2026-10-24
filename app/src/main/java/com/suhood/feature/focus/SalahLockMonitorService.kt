@@ -37,12 +37,11 @@ class SalahLockMonitorService : Service() {
                 snap.blockedPackages
             )
             if (blockedFg != null) {
-                // Prefer Accessibility HOME + lock so Instagram is actually left
+                // Accessibility overlay + HOME (no notification spam)
                 FocusAccessibilityService.onSalahLockActivated(
                     applicationContext,
                     snap.prayerName.ifBlank { "Salah" }
                 )
-                launchLock(blockedFg, snap.prayerName)
             }
             handler.postDelayed(this, POLL_MS)
         }
