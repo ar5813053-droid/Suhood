@@ -34,6 +34,7 @@ class SuhoodApplication : Application() {
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(this) }
             runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(this) }
+            runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(this) }
         }, 1500)
         preferencesRepository = PreferencesRepository(this)
         database = SuhoodDatabase.get(this)

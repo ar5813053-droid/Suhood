@@ -10,26 +10,43 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.MainActivity
 import com.suhood.app.SuhoodApplication
+import com.suhood.feature.focus.FocusSessionController
 import java.util.Calendar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class SalahReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra(EXTRA_PRAYER) ?: "Salah"
         val open = PendingIntent.getActivity(
             context, name.hashCode(),
-            Intent(context, MainActivity::class.java),
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open", "salah")
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_PRAYER)
             .setSmallIcon(android.R.drawable.ic_menu_recent_history)
-            .setContentTitle("$name reminder")
-            .setContentText("Time for $name (calculated schedule)")
+            .setContentTitle("$name time")
+            .setContentText("It's time for $name. Apps are limited until you finish.")
             .setContentIntent(open)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .build()
         runCatching {
-            NotificationManagerCompat.from(context).notify(name.hashCode(), n)
+            NotificationManagerCompat.from(context).notify(name.hashCode() and 0x7FFF, n)
         }
+        // Real-time app block: start Focus session with user's selected distracting apps
+        runCatching {
+            val ctrl = FocusSessionController.get(context.applicationContext)
+            if (ctrl.getBlockedApps().isNotEmpty()) {
+                ctrl.start(durationMinutes = 20)
+            }
+        }
+        // Reschedule tomorrow's occurrence so the chain continues
+        runCatching { SalahReminderScheduler.rescheduleAll(context.applicationContext) }
     }
 
     companion object {
@@ -58,6 +75,7 @@ object SalahReminderScheduler {
                 set(Calendar.HOUR_OF_DAY, hour)
                 set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
                 add(Calendar.MINUTE, -pref.offsetMinutes)
                 if (before(Calendar.getInstance())) add(Calendar.DAY_OF_MONTH, 1)
             }
@@ -75,13 +93,13 @@ object SalahReminderScheduler {
         }
     }
 
-
     fun rescheduleAll(context: Context) {
-        val defaults = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha").map {
-            SalahReminderPref(it, enabled = true, offsetMinutes = 0)
+        runBlocking {
+            val settings = PrayerSettingsStore(context).current()
+            val reminderPrefs = SalahReminderStore(context).preferences.first()
+            val times = EffectivePrayerTimes.compute(settings).map { it.name to it.startHhmm }
+            scheduleFromTimes(context, times, reminderPrefs)
         }
-        val calc = PrayerTimesCalculator.calculate(21.4225, 39.8262)
-        scheduleFromTimes(context, calc.times.map { it.name to it.time }, defaults)
     }
 
     fun cancel(context: Context, name: String) {

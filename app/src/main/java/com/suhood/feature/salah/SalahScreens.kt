@@ -1,4 +1,15 @@
 package com.suhood.feature.salah
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import com.suhood.core.prayer.SalahReminderScheduler
+import com.suhood.core.prayer.PrayerSettingsStore
+import com.suhood.core.prayer.EffectivePrayerTimes
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
@@ -205,15 +216,34 @@ object SalahScreens {
         val colors = suhoodColors
         // Cycle: unmarked -> on time -> late -> not prayed -> unmarked
         val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.JAMA_AH, SalahStatus.LATE, SalahStatus.QAZA, SalahStatus.NOT_PRAYED)
-        val prayerTimes = remember {
-            // display-only placeholders; real times come from prayer calculator when wired
-            mapOf(
-                "Fajr" to "Fajr",
-                "Dhuhr" to "Dhuhr",
-                "Asr" to "Asr",
-                "Maghrib" to "Maghrib",
-                "Isha" to "Isha"
+        val context = LocalContext.current
+        val prayerStore = remember { PrayerSettingsStore(context.applicationContext) }
+        val prayerSettings by prayerStore.settings.collectAsState(
+            initial = com.suhood.core.prayer.PrayerSettings()
+        )
+        val prefsRepo = remember { com.suhood.core.datastore.PreferencesRepository(context.applicationContext) }
+        val userLat by prefsRepo.latitude.collectAsState(initial = 21.4225)
+        val userLng by prefsRepo.longitude.collectAsState(initial = 39.8262)
+        val method by prefsRepo.prayerMethod.collectAsState(initial = com.suhood.core.prayer.PrayerTimesCalculator.Method.MWL)
+        val effectiveTimes = remember(prayerSettings, userLat, userLng, method) {
+            val synced = prayerSettings.copy(
+                latitude = userLat,
+                longitude = userLng,
+                methodName = method.name
             )
+            EffectivePrayerTimes.compute(synced).associate { it.name to it.startHhmm }
+        }
+        val scope = rememberCoroutineScope()
+        var editPrayer by remember { mutableStateOf<String?>(null) }
+        var wheelHour by remember { mutableIntStateOf(12) }
+        var wheelMinute by remember { mutableIntStateOf(0) }
+
+        fun openTimeEditor(name: String) {
+            val hhmm = effectiveTimes[name] ?: "12:00"
+            val parts = hhmm.split(":")
+            wheelHour = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 12
+            wheelMinute = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+            editPrayer = name
         }
         val icons = mapOf(
             "Fajr" to Icons.Filled.WbSunny,
@@ -373,8 +403,24 @@ object SalahScreens {
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(name, style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                            Text("Tap to cycle status", style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                            Text(
+                                "Tap status · hold time to edit",
+                                style = SuhoodTypography.labelSmall,
+                                color = colors.textMuted
+                            )
                         }
+                        // Custom time — tap opens alarm-style wheel
+                        val hhmm = effectiveTimes[name] ?: "--:--"
+                        Text(
+                            hhmm,
+                            style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = colors.accentLavender,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { openTimeEditor(name) }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Box(
                             Modifier
                                 .clip(RoundedCornerShape(999.dp))
@@ -394,6 +440,62 @@ object SalahScreens {
                         }
                     }
                 }
+            }
+
+            // Time wheel dialog (same interaction as create-alarm)
+            if (editPrayer != null) {
+                val prayer = editPrayer!!
+                AlertDialog(
+                    onDismissRequest = { editPrayer = null },
+                    title = {
+                        Text(
+                            "Set $prayer time",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    text = {
+                        Row(
+                            Modifier.fillMaxWidth().height(220.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SalahTimeWheel(
+                                items = (0..23).map { "%02d".format(it) },
+                                selectedIndex = wheelHour,
+                                onSelected = { wheelHour = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(":", color = colors.textPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                            SalahTimeWheel(
+                                items = (0..59).map { "%02d".format(it) },
+                                selectedIndex = wheelMinute,
+                                onSelected = { wheelMinute = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val hhmm = "%02d:%02d".format(wheelHour, wheelMinute)
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    prayerStore.setCustomSalahTime(prayer, hhmm)
+                                    SalahReminderScheduler.rescheduleAll(context.applicationContext)
+                                }
+                                editPrayer = null
+                            }
+                        }) {
+                            Text("Done", color = colors.accentLavender, fontWeight = FontWeight.SemiBold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { editPrayer = null }) {
+                            Text("Cancel", color = colors.textMuted)
+                        }
+                    },
+                    containerColor = colors.surfaceElevated
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -706,5 +808,68 @@ private fun AutoMarkSection() {
             style = SuhoodTypography.labelSmall,
             color = colors.textMuted
         )
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SalahTimeWheel(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val itemH = 44.dp
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
+    )
+    val fling = rememberSnapFlingBehavior(lazyListState = listState)
+    var lastTickIndex by remember { mutableIntStateOf(selectedIndex) }
+
+    LaunchedEffect(listState.firstVisibleItemIndex, listState.isScrollInProgress) {
+        val idx = listState.firstVisibleItemIndex
+        if (listState.isScrollInProgress && idx != lastTickIndex) {
+            lastTickIndex = idx
+            runCatching {
+                val am = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                am.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 0.55f)
+            }
+        }
+    }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val idx = listState.firstVisibleItemIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
+            if (idx != selectedIndex) onSelected(idx)
+        }
+    }
+    LaunchedEffect(selectedIndex) {
+        if (!listState.isScrollInProgress && listState.firstVisibleItemIndex != selectedIndex) {
+            listState.animateScrollToItem(selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0)))
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        flingBehavior = fling,
+        modifier = modifier.height(220.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        contentPadding = PaddingValues(vertical = 88.dp)
+    ) {
+        items(items.size) { i ->
+            val selected = i == selectedIndex
+            Box(
+                Modifier.height(itemH).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    items[i],
+                    color = if (selected) Color.White else Color.White.copy(alpha = 0.28f),
+                    fontSize = 28.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+        }
     }
 }

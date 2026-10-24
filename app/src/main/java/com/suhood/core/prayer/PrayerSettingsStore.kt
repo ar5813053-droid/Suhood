@@ -88,6 +88,34 @@ class PrayerSettingsStore(private val context: Context) {
 
     suspend fun current(): PrayerSettings = settings.first()
 
+    /** Persist a user-picked HH:mm for one prayer and switch to MASJID mode so it applies app-wide.
+     *  When leaving AUTO, seed other masjid slots from the current calculated times so only the
+     *  edited prayer changes. */
+    suspend fun setCustomSalahTime(prayerName: String, hhmm: String) {
+        update { cur ->
+            val seeded = if (cur.mode != PrayerTimeMode.MASJID) {
+                val calc = EffectivePrayerTimes.compute(cur).associate { it.name.lowercase() to it.startHhmm }
+                cur.copy(
+                    mode = PrayerTimeMode.MASJID,
+                    masjidFajr = calc["fajr"] ?: cur.masjidFajr,
+                    masjidDhuhr = calc["dhuhr"] ?: cur.masjidDhuhr,
+                    masjidAsr = calc["asr"] ?: cur.masjidAsr,
+                    masjidMaghrib = calc["maghrib"] ?: cur.masjidMaghrib,
+                    masjidIsha = calc["isha"] ?: cur.masjidIsha
+                )
+            } else cur.copy(mode = PrayerTimeMode.MASJID)
+            when (prayerName.lowercase()) {
+                "fajr" -> seeded.copy(masjidFajr = hhmm)
+                "dhuhr" -> seeded.copy(masjidDhuhr = hhmm)
+                "asr" -> seeded.copy(masjidAsr = hhmm)
+                "maghrib" -> seeded.copy(masjidMaghrib = hhmm)
+                "isha" -> seeded.copy(masjidIsha = hhmm)
+                else -> seeded
+            }
+        }
+    }
+
+
     suspend fun update(block: (PrayerSettings) -> PrayerSettings) {
         val cur = current()
         val n = block(cur)
@@ -168,5 +196,42 @@ object EffectivePrayerTimes {
         var total = h * 60 + m + delta
         total = ((total % (24 * 60)) + (24 * 60)) % (24 * 60)
         return "%02d:%02d".format(total / 60, total % 60)
+    }
+
+    /** Build a [PrayerTimesCalculator.Result] so SmartNextSalah / home bar use custom times. */
+    fun toCalculatorResult(settings: PrayerSettings): PrayerTimesCalculator.Result {
+        val entries = compute(settings)
+        val times = entries.map { e ->
+            val parts = e.startHhmm.split(":")
+            val mins = if (parts.size == 2) {
+                (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 0)
+            } else 0
+            com.suhood.core.model.PrayerTime(
+                name = e.name,
+                time = e.startHhmm,
+                minutesSinceMidnight = mins
+            )
+        }
+        val method = runCatching {
+            PrayerTimesCalculator.Method.valueOf(settings.methodName)
+        }.getOrDefault(PrayerTimesCalculator.Method.MWL)
+        return PrayerTimesCalculator.Result(
+            dateLabel = java.text.SimpleDateFormat("EEEE, d MMM yyyy", java.util.Locale.US)
+                .format(java.util.Date()),
+            times = times,
+            method = method,
+            latitude = settings.latitude,
+            longitude = settings.longitude,
+            isCalculated = settings.mode != PrayerTimeMode.MASJID
+        )
+    }
+
+    fun masjidTimeFor(settings: PrayerSettings, name: String): String = when (name.lowercase()) {
+        "fajr" -> settings.masjidFajr
+        "dhuhr" -> settings.masjidDhuhr
+        "asr" -> settings.masjidAsr
+        "maghrib" -> settings.masjidMaghrib
+        "isha" -> settings.masjidIsha
+        else -> "12:00"
     }
 }

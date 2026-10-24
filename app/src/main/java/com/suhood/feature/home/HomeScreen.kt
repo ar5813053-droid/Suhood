@@ -87,6 +87,9 @@ import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
 import com.suhood.feature.quest.WorshipQuestHomeCard
 import com.suhood.core.prayer.PrayerTimesCalculator
+import com.suhood.core.prayer.EffectivePrayerTimes
+import com.suhood.core.prayer.PrayerTimeMode
+import com.suhood.core.prayer.PrayerSettingsStore
 import com.suhood.core.prayer.SmartNextSalah
 import com.suhood.core.prayer.PrayerTimesCache
 import androidx.compose.material3.HorizontalDivider
@@ -169,6 +172,10 @@ fun HomeScreen(
         }
     }
 
+    val prayerSettingsStore = remember { PrayerSettingsStore(context.applicationContext) }
+    val prayerSettings by prayerSettingsStore.settings.collectAsState(
+        initial = com.suhood.core.prayer.PrayerSettings()
+    )
     var prayerResult by remember {
         mutableStateOf(
             PrayerTimesCalculator.calculate(
@@ -181,15 +188,28 @@ fun HomeScreen(
     var smart by remember {
         mutableStateOf(SmartNextSalah.resolve(prayerResult))
     }
-    LaunchedEffect(userLat, userLng, prayerMethod) {
+    LaunchedEffect(userLat, userLng, prayerMethod, prayerSettings) {
         while (true) {
             val cal = Calendar.getInstance()
-            prayerResult = PrayerTimesCalculator.calculate(
-                latitude = userLat,
-                longitude = userLng,
-                method = prayerMethod,
-                calendar = cal
-            )
+            // Prefer user-custom (MASJID) / adjusted times so home bar matches Salah screen
+            prayerResult = if (prayerSettings.mode == PrayerTimeMode.MASJID ||
+                prayerSettings.mode == PrayerTimeMode.ADJUSTED
+            ) {
+                // Keep lat/lng/method in sync for AUTO offsets
+                val synced = prayerSettings.copy(
+                    latitude = userLat,
+                    longitude = userLng,
+                    methodName = prayerMethod.name
+                )
+                EffectivePrayerTimes.toCalculatorResult(synced)
+            } else {
+                PrayerTimesCalculator.calculate(
+                    latitude = userLat,
+                    longitude = userLng,
+                    method = prayerMethod,
+                    calendar = cal
+                )
+            }
             PrayerTimesCache.save(
                 context.applicationContext,
                 userLat,
