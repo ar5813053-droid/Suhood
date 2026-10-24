@@ -234,15 +234,33 @@ object SalahScreens {
         }
         val scope = rememberCoroutineScope()
         var editPrayer by remember { mutableStateOf<String?>(null) }
-        var wheelHour by remember { mutableIntStateOf(12) }
+        var wheelHour12 by remember { mutableIntStateOf(12) }
         var wheelMinute by remember { mutableIntStateOf(0) }
+        var wheelAmPm by remember { mutableIntStateOf(0) }
 
         fun openTimeEditor(name: String) {
             val hhmm = effectiveTimes[name] ?: "12:00"
             val parts = hhmm.split(":")
-            wheelHour = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 12
-            wheelMinute = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+            val h24 = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 12
+            val m = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+            when {
+                h24 == 0 -> { wheelHour12 = 12; wheelAmPm = 0 }
+                h24 < 12 -> { wheelHour12 = h24; wheelAmPm = 0 }
+                h24 == 12 -> { wheelHour12 = 12; wheelAmPm = 1 }
+                else -> { wheelHour12 = h24 - 12; wheelAmPm = 1 }
+            }
+            wheelMinute = m
             editPrayer = name
+        }
+
+        fun toHhmm24(hour12: Int, minute: Int, amPm: Int): String {
+            val h24 = when {
+                amPm == 0 && hour12 == 12 -> 0
+                amPm == 0 -> hour12
+                amPm == 1 && hour12 == 12 -> 12
+                else -> hour12 + 12
+            }
+            return "%02d:%02d".format(h24.coerceIn(0, 23), minute.coerceIn(0, 59))
         }
         val icons = mapOf(
             "Fajr" to Icons.Filled.WbSunny,
@@ -454,29 +472,42 @@ object SalahScreens {
                         )
                     },
                     text = {
-                        Row(
-                            Modifier.fillMaxWidth().height(220.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            SalahTimeWheel(
-                                items = (0..23).map { "%02d".format(it) },
-                                selectedIndex = wheelHour,
-                                onSelected = { wheelHour = it },
-                                modifier = Modifier.weight(1f)
+                        Column(Modifier.fillMaxWidth()) {
+                            val preview = "%d:%02d %s".format(
+                                wheelHour12, wheelMinute, if (wheelAmPm == 0) "AM" else "PM"
                             )
-                            Text(":", color = colors.textPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                            SalahTimeWheel(
-                                items = (0..59).map { "%02d".format(it) },
-                                selectedIndex = wheelMinute,
-                                onSelected = { wheelMinute = it },
-                                modifier = Modifier.weight(1f)
-                            )
+                            Text(preview, color = colors.textMuted, style = SuhoodTypography.labelMedium)
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                Modifier.fillMaxWidth().height(220.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SalahTimeWheel(
+                                    items = (1..12).map { "%02d".format(it) },
+                                    selectedIndex = (wheelHour12 - 1).coerceIn(0, 11),
+                                    onSelected = { wheelHour12 = it + 1 },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(":", color = colors.textPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                                SalahTimeWheel(
+                                    items = (0..59).map { "%02d".format(it) },
+                                    selectedIndex = wheelMinute,
+                                    onSelected = { wheelMinute = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                SalahTimeWheel(
+                                    items = listOf("AM", "PM"),
+                                    selectedIndex = wheelAmPm,
+                                    onSelected = { wheelAmPm = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     },
                     confirmButton = {
                         TextButton(onClick = {
-                            val hhmm = "%02d:%02d".format(wheelHour, wheelMinute)
+                            val hhmm = toHhmm24(wheelHour12, wheelMinute, wheelAmPm)
                             scope.launch {
                                 withContext(Dispatchers.IO) {
                                     prayerStore.setCustomSalahTime(prayer, hhmm)
