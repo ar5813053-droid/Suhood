@@ -36,6 +36,10 @@ class SalahReminderReceiver : BroadcastReceiver() {
             )
             // Foreground monitor (Usage Access) + Accessibility both enforce
             SalahLockMonitorService.start(app)
+            // Immediately leave current app (e.g. Instagram) and show lock
+            runCatching {
+                com.suhood.feature.focus.FocusAccessibilityService.onSalahLockActivated(app, name)
+            }
         }
 
         // 2) Full-screen intent notification → SalahLockActivity (works when phone is locked)

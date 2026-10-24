@@ -66,8 +66,15 @@ object SalahLockLogic {
         suhoodPackage: String
     ): Boolean {
         if (packageName == suhoodPackage) return false
+        if (packageName.startsWith("com.android.") || packageName == "android") return false
         if (!isActive(snap, nowWallMs)) return false
-        return packageName in snap.blockedPackages
+        if (packageName in snap.blockedPackages) return true
+        // Match sibling packages (e.g. Instagram variants under same prefix)
+        return snap.blockedPackages.any { blocked ->
+            packageName == blocked ||
+                packageName.startsWith("$blocked.") ||
+                (blocked.startsWith("com.instagram") && packageName.startsWith("com.instagram"))
+        }
     }
 }
 
