@@ -1,4 +1,14 @@
 package com.suhood.feature.settings
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.ExperimentalFoundationApi
 import com.suhood.app.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.painterResource
@@ -620,8 +630,15 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
             "Isha" to settings.masjidIsha
         )
         var editing by remember { mutableStateOf<String?>(null) }
-        var hourText by remember { mutableStateOf("05") }
-        var minuteText by remember { mutableStateOf("00") }
+        var wheelHour by remember { mutableIntStateOf(5) }
+        var wheelMinute by remember { mutableIntStateOf(0) }
+
+        fun openEditor(name: String, time: String) {
+            val parts = time.split(":")
+            wheelHour = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 5
+            wheelMinute = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+            editing = name
+        }
 
         Column(
             Modifier
@@ -633,7 +650,7 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
         ) {
             ScreenHeader(title = "Customize Salah times", onBack = onBack)
             Text(
-                "Masjid timetable mode. These times are used when Prayer mode is Masjid, and Fajr auto uses Fajr start − lead minutes.",
+                "Tap a prayer to set time with the wheel (same as Alarms). Saved times apply to the Home Salah bar, reminders, and Focus block when Prayer mode is Masjid.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted
             )
@@ -645,6 +662,7 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
                         store.update {
                             it.copy(mode = com.suhood.core.prayer.PrayerTimeMode.MASJID)
                         }
+                        com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context)
                         com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
                     }
                 },
@@ -654,68 +672,142 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
             prayers.forEach { (name, time) ->
                 GlassCard(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    onClick = {
-                        editing = name
-                        val parts = time.split(":")
-                        hourText = parts.getOrNull(0) ?: "05"
-                        minuteText = parts.getOrNull(1) ?: "00"
-                    }
+                    onClick = { openEditor(name, time) }
                 ) {
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(name, style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                         Text(time, style = SuhoodTypography.headlineSmall, color = colors.silverBright)
                     }
                 }
             }
-            if (editing != null) {
-                Spacer(Modifier.height(16.dp))
-                GlassCard(modifier = Modifier.fillMaxWidth()) {
-                    Text("Edit $editing", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GlassSearchField(
-                            query = hourText,
-                            onQueryChange = { hourText = it.filter { c -> c.isDigit() }.take(2) },
-                            placeholder = "HH",
+        }
+
+        // Alarm-style hour / minute wheel dialog
+        if (editing != null) {
+            val prayer = editing!!
+            AlertDialog(
+                onDismissRequest = { editing = null },
+                title = {
+                    Text(
+                        "Set $prayer time",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                text = {
+                    Row(
+                        Modifier.fillMaxWidth().height(220.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SalahSettingsTimeWheel(
+                            items = (0..23).map { "%02d".format(it) },
+                            selectedIndex = wheelHour,
+                            onSelected = { wheelHour = it },
                             modifier = Modifier.weight(1f)
                         )
-                        GlassSearchField(
-                            query = minuteText,
-                            onQueryChange = { minuteText = it.filter { c -> c.isDigit() }.take(2) },
-                            placeholder = "MM",
+                        Text(
+                            ":",
+                            color = colors.textPrimary,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        SalahSettingsTimeWheel(
+                            items = (0..59).map { "%02d".format(it) },
+                            selectedIndex = wheelMinute,
+                            onSelected = { wheelMinute = it },
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    Spacer(Modifier.height(12.dp))
-                    GlassButton(
-                        text = "Save",
+                },
+                confirmButton = {
+                    TextButton(
                         onClick = {
-                            val h = hourText.toIntOrNull()?.coerceIn(0, 23)
-                            val m = minuteText.toIntOrNull()?.coerceIn(0, 59)
-                            if (h != null && m != null) {
-                                val hhmm = "%02d:%02d".format(h, m)
-                                scope.launch {
-                                    store.update { s ->
-                                        when (editing) {
-                                            "Fajr" -> s.copy(masjidFajr = hhmm)
-                                            "Dhuhr" -> s.copy(masjidDhuhr = hhmm)
-                                            "Asr" -> s.copy(masjidAsr = hhmm)
-                                            "Maghrib" -> s.copy(masjidMaghrib = hhmm)
-                                            "Isha" -> s.copy(masjidIsha = hhmm)
-                                            else -> s
-                                        }
-                                    }
-                                    com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
-                                    editing = null
-                                }
+                            val hhmm = "%02d:%02d".format(wheelHour, wheelMinute)
+                            scope.launch {
+                                // Seeds other slots + switches to MASJID so times apply app-wide
+                                store.setCustomSalahTime(prayer, hhmm)
+                                com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context)
+                                com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                                editing = null
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                        }
+                    ) {
+                        Text("Done", color = colors.accentLavender, fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editing = null }) {
+                        Text("Cancel", color = colors.textMuted)
+                    }
+                },
+                containerColor = colors.surfaceElevated
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SalahSettingsTimeWheel(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val itemH = 44.dp
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
+    )
+    val fling = rememberSnapFlingBehavior(lazyListState = listState)
+    var lastTickIndex by remember { mutableIntStateOf(selectedIndex) }
+
+    LaunchedEffect(listState.firstVisibleItemIndex, listState.isScrollInProgress) {
+        val idx = listState.firstVisibleItemIndex
+        if (listState.isScrollInProgress && idx != lastTickIndex) {
+            lastTickIndex = idx
+            runCatching {
+                val am = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                am.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 0.55f)
+            }
+        }
+    }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val idx = listState.firstVisibleItemIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
+            if (idx != selectedIndex) onSelected(idx)
+        }
+    }
+    LaunchedEffect(selectedIndex) {
+        if (!listState.isScrollInProgress && listState.firstVisibleItemIndex != selectedIndex) {
+            listState.animateScrollToItem(selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0)))
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        flingBehavior = fling,
+        modifier = modifier.height(220.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        contentPadding = PaddingValues(vertical = 88.dp)
+    ) {
+        items(items.size) { i ->
+            val selected = i == selectedIndex
+            Box(
+                Modifier.height(itemH).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    items[i],
+                    color = if (selected) Color.White else Color.White.copy(alpha = 0.28f),
+                    fontSize = 28.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                )
             }
         }
     }
