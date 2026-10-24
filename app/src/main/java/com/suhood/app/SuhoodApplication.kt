@@ -85,13 +85,25 @@ class SuhoodApplication : Application() {
                 }
             }
 
-            // New IDs so OS applies custom sound (old channel settings are immutable)
+            // Adhan for Salah / prayer / focus / quran — NOT for alarms
             nm.createNotificationChannel(channel(CHANNEL_SALAH_LOCK, "Salah time & app lock", NotificationManager.IMPORTANCE_HIGH))
             nm.createNotificationChannel(channel(CHANNEL_PRAYER, "Prayer reminders", NotificationManager.IMPORTANCE_HIGH))
             nm.createNotificationChannel(channel(CHANNEL_FOCUS, "Focus sessions", NotificationManager.IMPORTANCE_DEFAULT))
-            nm.createNotificationChannel(channel(CHANNEL_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH))
             nm.createNotificationChannel(channel(CHANNEL_QURAN, "Quran Companion", NotificationManager.IMPORTANCE_DEFAULT))
-            // Audio playback stays quiet
+            // Alarms: no fixed channel sound — AlarmRingActivity plays the user-selected music
+            val alarmAttrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Alarm alerts — uses your selected alarm sound"
+                    setSound(null, alarmAttrs) // silent channel; ring activity plays chosen track
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 500, 200, 500)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                }
+            )
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_AUDIO, "Audio playback", NotificationManager.IMPORTANCE_LOW).apply {
                     setSound(null, null)
@@ -106,7 +118,7 @@ class SuhoodApplication : Application() {
         /** High-importance channel with custom Adhan; new ID so channel settings apply on upgrade. */
         const val CHANNEL_SALAH_LOCK = "salah_lock_v2"
         const val CHANNEL_FOCUS = "focus_v2"
-        const val CHANNEL_ALARM = "alarm_v2"
+        const val CHANNEL_ALARM = "alarm_v3"
         const val CHANNEL_AUDIO = "audio"
         const val CHANNEL_QURAN = "quran_v2"
     }
