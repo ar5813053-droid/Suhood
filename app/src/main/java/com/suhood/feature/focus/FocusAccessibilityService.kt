@@ -43,8 +43,12 @@ class FocusAccessibilityService : AccessibilityService() {
         instanceRef = WeakReference(this)
         val snap = SalahLockStore.get(applicationContext).reconcileNow()
         if (SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
+            // Process may have been killed from Recents — resume overlay immediately
             handler.removeCallbacks(pollWhileLocked)
             handler.post(pollWhileLocked)
+            val fg = rootInActiveWindow?.packageName?.toString() ?: "app"
+            enforceLock(fg, snap.prayerName)
+            SalahLockMonitorService.start(applicationContext)
         }
     }
 

@@ -28,15 +28,17 @@ class SalahReminderReceiver : BroadcastReceiver() {
             .filter { it != app.packageName && it.isNotBlank() }
             .toSet()
         if (packages.isNotEmpty()) {
-            SalahLockStore.get(app).activate(
+            val lockStore = SalahLockStore.get(app)
+            lockStore.activate(
                 prayerName = name,
                 packages = packages,
                 nowWallMs = System.currentTimeMillis(),
                 elapsedRealtimeMs = SystemClock.elapsedRealtime()
             )
-            // Foreground monitor (Usage Access) + Accessibility both enforce
+            val snap = lockStore.read()
+            // Watchdog alarms survive swipe-from-recents / process death
+            com.suhood.feature.focus.SalahLockWatchdog.schedule(app, snap.expiryWallMs)
             SalahLockMonitorService.start(app)
-            // Immediately leave current app (e.g. Instagram) and show lock
             runCatching {
                 com.suhood.feature.focus.FocusAccessibilityService.onSalahLockActivated(app, name)
             }

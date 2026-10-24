@@ -38,7 +38,14 @@ class SuhoodApplication : Application() {
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(this) }
             runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(this) }
             runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(this) }
-            runCatching { com.suhood.feature.focus.SalahLockStore.get(this).reconcileNow() }
+            runCatching {
+                val store = com.suhood.feature.focus.SalahLockStore.get(this)
+                val snap = store.reconcileNow()
+                if (com.suhood.feature.focus.SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
+                    com.suhood.feature.focus.SalahLockWatchdog.schedule(this, snap.expiryWallMs)
+                    com.suhood.feature.focus.SalahLockMonitorService.start(this)
+                }
+            }
         }, 1500)
         preferencesRepository = PreferencesRepository(this)
         database = SuhoodDatabase.get(this)

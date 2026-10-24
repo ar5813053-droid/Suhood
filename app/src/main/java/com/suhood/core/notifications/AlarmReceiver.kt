@@ -73,7 +73,14 @@ class BootReceiver : BroadcastReceiver() {
             runCatching { AlarmScheduler.rescheduleAll(context) }
             runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context) }
             runCatching { com.suhood.core.prayer.FajrAutoScheduler.reschedule(context) }
-            runCatching { com.suhood.feature.focus.SalahLockStore.get(context).reconcileNow() }
+            runCatching {
+                val store = com.suhood.feature.focus.SalahLockStore.get(context)
+                val snap = store.reconcileNow()
+                if (com.suhood.feature.focus.SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
+                    com.suhood.feature.focus.SalahLockWatchdog.schedule(context, snap.expiryWallMs)
+                    com.suhood.feature.focus.SalahLockMonitorService.start(context)
+                }
+            }
             runCatching { QuranReminderScheduler.rescheduleFromPrefs(context) }
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(context) }
             runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(context) }
