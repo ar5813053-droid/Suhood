@@ -93,6 +93,15 @@
             android:showOnLockScreen="true"
             android:turnScreenOn="true" />
 
+        <service
+            android:name="com.suhood.feature.focus.SalahLockMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="salah_app_lock_monitor" />
+        </service>
+
         <activity
             android:name="com.suhood.feature.alarms.AlarmRingActivity"
             android:exported="false"

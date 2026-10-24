@@ -32,7 +32,7 @@ class FocusSessionController(context: Context) {
     fun setBlockedApps(packages: Set<String>) {
         prefs.edit()
             .putString(KEY_BLOCKED_APPS, packages.joinToString(","))
-            .apply()
+            .commit()
     }
 
     fun toggleBlockedApp(packageName: String): Set<String> {

@@ -1,6 +1,9 @@
 package com.suhood.app
 
 import android.app.Application
+import android.net.Uri
+import android.media.AudioAttributes
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -65,25 +68,46 @@ class SuhoodApplication : Application() {
     private fun createChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java)
+
+            // Legacy generic prayer channel (no custom sound — keep for old installs)
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_PRAYER, "Prayer reminders", NotificationManager.IMPORTANCE_DEFAULT)
+            )
+
+            // New Salah lock channel with Adhan sound + vibration (v2 ID so OS picks up new settings)
+            val soundUri = Uri.parse("android.resource://$packageName/${R.raw.allahu_akbar_short}")
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val salahCh = NotificationChannel(
+                CHANNEL_SALAH_LOCK,
+                "Salah time & app lock",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Salah time alerts with Adhan and 10-minute app lock"
+                setSound(soundUri, attrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 600)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            nm.createNotificationChannel(salahCh)
+
             listOf(
-                CHANNEL_PRAYER to "Prayer reminders",
-                CHANNEL_FOCUS to "Focus sessions",
-                CHANNEL_ALARM to "Alarms",
-                CHANNEL_AUDIO to "Audio playback",
-                CHANNEL_QURAN to "Quran Companion"
-            ).forEach { (id, name) ->
-                val importance = if (id == CHANNEL_ALARM)
-                    NotificationManager.IMPORTANCE_HIGH
-                else if (id == CHANNEL_AUDIO)
-                    NotificationManager.IMPORTANCE_LOW
-                else NotificationManager.IMPORTANCE_DEFAULT
-                nm.createNotificationChannel(NotificationChannel(id, name, importance))
+                CHANNEL_FOCUS to ("Focus sessions" to NotificationManager.IMPORTANCE_DEFAULT),
+                CHANNEL_ALARM to ("Alarms" to NotificationManager.IMPORTANCE_HIGH),
+                CHANNEL_AUDIO to ("Audio playback" to NotificationManager.IMPORTANCE_LOW),
+                CHANNEL_QURAN to ("Quran Companion" to NotificationManager.IMPORTANCE_DEFAULT)
+            ).forEach { (id, pair) ->
+                nm.createNotificationChannel(NotificationChannel(id, pair.first, pair.second))
             }
         }
     }
 
     companion object {
         const val CHANNEL_PRAYER = "prayer"
+        /** High-importance channel with custom Adhan; new ID so channel settings apply on upgrade. */
+        const val CHANNEL_SALAH_LOCK = "salah_lock_v2"
         const val CHANNEL_FOCUS = "focus"
         const val CHANNEL_ALARM = "alarm"
         const val CHANNEL_AUDIO = "audio"

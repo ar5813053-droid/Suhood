@@ -9,10 +9,10 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.suhood.app.MainActivity
 import com.suhood.app.SuhoodApplication
 import com.suhood.feature.focus.FocusSessionController
 import com.suhood.feature.focus.SalahLockActivity
+import com.suhood.feature.focus.SalahLockMonitorService
 import com.suhood.feature.focus.SalahLockStore
 import java.util.Calendar
 import kotlinx.coroutines.flow.first
@@ -23,54 +23,67 @@ class SalahReminderReceiver : BroadcastReceiver() {
         val name = intent.getStringExtra(EXTRA_PRAYER) ?: "Salah"
         val app = context.applicationContext
 
-        // Notification (separate from blocking)
-        val open = PendingIntent.getActivity(
-            context, name.hashCode(),
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("open", "salah")
-            },
+        // 1) Activate persistent 10-minute lock for selected apps
+        val packages = FocusSessionController.get(app).getBlockedApps()
+            .filter { it != app.packageName && it.isNotBlank() }
+            .toSet()
+        if (packages.isNotEmpty()) {
+            SalahLockStore.get(app).activate(
+                prayerName = name,
+                packages = packages,
+                nowWallMs = System.currentTimeMillis(),
+                elapsedRealtimeMs = SystemClock.elapsedRealtime()
+            )
+            // Foreground monitor (Usage Access) + Accessibility both enforce
+            SalahLockMonitorService.start(app)
+        }
+
+        // 2) Full-screen intent notification → SalahLockActivity (works when phone is locked)
+        //    Uses CHANNEL_SALAH_LOCK with custom Adhan sound + vibration.
+        val lockIntent = Intent(app, SalahLockActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(SalahLockActivity.EXTRA_PRAYER, name)
+        }
+        val fullScreen = PendingIntent.getActivity(
+            app,
+            name.hashCode() xor 0x51A1,
+            lockIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val n = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_PRAYER)
-            .setSmallIcon(android.R.drawable.ic_menu_recent_history)
-            .setContentTitle("$name time")
-            .setContentText("It's Salah time. Selected apps are limited for 10 minutes.")
-            .setContentIntent(open)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+        val content = if (packages.isEmpty()) {
+            "It's time for $name. Select apps in Focus → Apps to enable locking."
+        } else {
+            "It's time for $name. Selected apps are locked for 10 minutes."
+        }
+        val notification = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_SALAH_LOCK)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle("$name — It's Salah Time")
+            .setContentText(content)
+            .setContentIntent(fullScreen)
+            .setFullScreenIntent(fullScreen, true)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setDefaults(0) // sound/vibration come from channel
             .build()
         runCatching {
-            NotificationManagerCompat.from(context).notify(name.hashCode() and 0x7FFF, n)
+            NotificationManagerCompat.from(app).notify(NOTIF_BASE + name.hashCode() and 0x0FFF, notification)
         }
 
-        // Activate 10-minute Salah lock for user's selected distracting apps
-        runCatching {
-            val packages = FocusSessionController.get(app).getBlockedApps()
-            if (packages.isNotEmpty()) {
-                SalahLockStore.get(app).activate(
-                    prayerName = name,
-                    packages = packages,
-                    nowWallMs = System.currentTimeMillis(),
-                    elapsedRealtimeMs = SystemClock.elapsedRealtime()
-                )
-                // Surface the lock screen immediately if possible
-                context.startActivity(
-                    Intent(context, SalahLockActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        putExtra(SalahLockActivity.EXTRA_PRAYER, name)
-                    }
-                )
-            }
+        // Best-effort activity start (may be blocked in background on Android 10+)
+        if (packages.isNotEmpty()) {
+            runCatching { app.startActivity(lockIntent) }
         }
 
-        // Reschedule tomorrow's occurrence (does not extend current lock)
+        // 3) Reschedule next day (does not extend current lock)
         runCatching { SalahReminderScheduler.rescheduleAll(app) }
     }
 
     companion object {
         const val EXTRA_PRAYER = "prayer"
+        private const val NOTIF_BASE = 72000
     }
 }
 

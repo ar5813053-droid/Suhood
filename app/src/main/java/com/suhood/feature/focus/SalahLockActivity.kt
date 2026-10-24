@@ -54,7 +54,10 @@ class SalahLockActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Reconcile on entry — expired locks must not stick
-        SalahLockStore.get(this).reconcileNow()
+        val initial = SalahLockStore.get(this).reconcileNow()
+        if (SalahLockLogic.isActive(initial, System.currentTimeMillis())) {
+            SalahLockMonitorService.start(this)
+        }
 
         setContent {
             val store = remember { SalahLockStore.get(this@SalahLockActivity) }
@@ -69,7 +72,7 @@ class SalahLockActivity : ComponentActivity() {
                     val snap = store.reconcileNow()
                     remainingMs = SalahLockLogic.remainingMs(snap, System.currentTimeMillis())
                     if (!SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
-                        // Restriction ended — leave without unlocking early
+                        SalahLockMonitorService.stop(this@SalahLockActivity)
                         goHomeAndFinish()
                         break
                     }
