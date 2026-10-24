@@ -918,6 +918,7 @@ private fun ContactDetailScreen(
 ) {
     val em = prefs.contactEmoji(contact.number)
     val av = prefs.contactAvatarAsset(contact.number)
+    val photo = prefs.contactPhotoUri(contact.number)
     val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().background(PhoneBg).statusBarsPadding()
@@ -1938,8 +1939,9 @@ private fun BlockedNumbersScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var blocked by remember { mutableStateOf(prefs.blocked().toList().sorted()) }
-    var contacts by remember { mutableStateOf(repo.loadContacts()) }
+    var contacts by remember { mutableStateOf<List<PhoneContact>>(emptyList()) }
     var query by remember { mutableStateOf("") }
     var showPick by remember { mutableStateOf(false) }
     var pendingBlock by remember { mutableStateOf<String?>(null) }
@@ -1948,7 +1950,13 @@ private fun BlockedNumbersScreen(
 
     fun refresh() {
         blocked = prefs.blocked().toList().sorted()
-        contacts = repo.loadContacts()
+        scope.launch {
+            contacts = withContext(Dispatchers.IO) { repo.loadContacts() }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        contacts = withContext(Dispatchers.IO) { repo.loadContacts() }
     }
 
     if (pendingBlock != null) {
