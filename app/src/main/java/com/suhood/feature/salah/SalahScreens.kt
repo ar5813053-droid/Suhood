@@ -216,7 +216,6 @@ object SalahScreens {
         val colors = suhoodColors
         // Cycle: unmarked -> on time -> late -> not prayed -> unmarked
         val cycle = listOf(null, SalahStatus.ON_TIME, SalahStatus.JAMA_AH, SalahStatus.LATE, SalahStatus.QAZA, SalahStatus.NOT_PRAYED)
-        val context = LocalContext.current
         val prayerStore = remember { PrayerSettingsStore(context.applicationContext) }
         val prayerSettings by prayerStore.settings.collectAsState(
             initial = com.suhood.core.prayer.PrayerSettings()
