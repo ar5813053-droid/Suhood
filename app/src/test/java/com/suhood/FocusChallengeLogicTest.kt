@@ -11,8 +11,8 @@ class FocusChallengeLogicTest {
     }
 
     @Test
-    fun passDurationThreeMinutes() {
-        assertEquals(3 * 60 * 1000L, com.suhood.feature.focus.FocusChallengeStore.PASS_DURATION_MS)
+    fun passDurationFiveMinutes() {
+        assertEquals(5 * 60 * 1000L, com.suhood.feature.focus.FocusChallengeStore.PASS_DURATION_MS)
         assertTrue(com.suhood.feature.focus.FocusChallengeStore.PASS_DURATION_MS > 0)
     }
 }
