@@ -19,7 +19,13 @@ class FocusChallengeStore(context: Context) {
 
     fun challengesRemaining(): Int = (MAX_PER_DAY - challengesUsedToday()).coerceAtLeast(0)
 
-    fun canOfferChallenge(): Boolean = challengesRemaining() > 0
+    fun isFeatureEnabled(): Boolean = prefs.getBoolean(KEY_ENABLED, true)
+
+    fun setFeatureEnabled(on: Boolean) {
+        prefs.edit().putBoolean(KEY_ENABLED, on).commit()
+    }
+
+    fun canOfferChallenge(): Boolean = isFeatureEnabled() && challengesRemaining() > 0
 
     /** Call when user completes a mini-game successfully. */
     fun recordChallengeCompleted() {
@@ -63,11 +69,12 @@ class FocusChallengeStore(context: Context) {
 
     companion object {
         const val MAX_PER_DAY = 3
-        const val PASS_DURATION_MS = 3 * 60 * 1000L // 3 minutes after completing challenge
+        const val PASS_DURATION_MS = 5 * 60 * 1000L // 5 minutes after completing challenge
         private const val PREFS = "focus_challenge_v1"
         private const val KEY_DAY = "day"
         private const val KEY_USED = "used"
         private const val KEY_PASS_UNTIL = "pass_until"
+        private const val KEY_ENABLED = "enabled"
 
         @Volatile private var instance: FocusChallengeStore? = null
         fun get(context: Context): FocusChallengeStore =

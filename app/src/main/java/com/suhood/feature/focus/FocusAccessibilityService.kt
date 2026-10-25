@@ -19,7 +19,39 @@ class FocusAccessibilityService : AccessibilityService() {
     private var lastActionMs = 0L
     private var lastPkg = ""
 
-    private val pollWhileLocked = object : Runnable {
+    private val pollWhileFocusGate = object : Runnable {
+        override fun run() {
+            val challenge = FocusChallengeStore.get(applicationContext)
+            if (!challenge.isFeatureEnabled()) return
+            if (challenge.hasActivePass()) {
+                FocusChallengeOverlay.hide(this@FocusAccessibilityService)
+                return
+            }
+            // Don't fight Salah lock
+            val now = System.currentTimeMillis()
+            if (SalahLockLogic.isActive(SalahLockStore.get(applicationContext).reconcileNow(now), now)) {
+                return
+            }
+            val fg = rootInActiveWindow?.packageName?.toString() ?: return
+            if (fg == packageName) {
+                handler.postDelayed(this, 800L)
+                return
+            }
+            val blocked = FocusSessionController.get(applicationContext).getBlockedApps()
+            val isBlocked = blocked.isNotEmpty() && (
+                fg in blocked || blocked.any {
+                    fg.startsWith("$it.") ||
+                        (it.startsWith("com.instagram") && fg.startsWith("com.instagram"))
+                }
+            )
+            if (isBlocked && !FocusChallengeOverlay.isShowing()) {
+                FocusChallengeOverlay.show(this@FocusAccessibilityService, fg, challenge.challengesRemaining())
+            }
+            handler.postDelayed(this, 800L)
+        }
+    }
+
+        private val pollWhileLocked = object : Runnable {
         override fun run() {
             val store = SalahLockStore.get(applicationContext)
             val now = System.currentTimeMillis()
@@ -51,12 +83,17 @@ class FocusAccessibilityService : AccessibilityService() {
             if (fg != null && SalahLockLogic.shouldBlockPackage(snap, now, fg, packageName)) {
                 enforceLock(fg, snap.prayerName)
             }
+        } else {
+            handler.removeCallbacks(pollWhileFocusGate)
+            handler.post(pollWhileFocusGate)
         }
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(pollWhileLocked)
+        handler.removeCallbacks(pollWhileFocusGate)
         SalahLockOverlay.hide(this)
+        FocusChallengeOverlay.hide(this)
         if (instanceRef?.get() === this) instanceRef = null
         super.onDestroy()
     }
@@ -100,8 +137,12 @@ class FocusAccessibilityService : AccessibilityService() {
         lastActionMs = now
 
         val challenge = FocusChallengeStore.get(applicationContext)
+        if (!challenge.isFeatureEnabled()) return
         // Short pass after completing a mini-game
         if (challenge.hasActivePass()) return
+
+        handler.removeCallbacks(pollWhileFocusGate)
+        handler.post(pollWhileFocusGate)
 
         // Prayer-Pause style: overlay on top of the blocked app (reliable)
         if (FocusChallengeOverlay.isShowing()) return

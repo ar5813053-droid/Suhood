@@ -145,7 +145,7 @@ object FocusChallengeOverlay {
     ) {
         val phrases = listOf("SubhanAllah", "Alhamdulillah", "Allahu Akbar")
         val target = phrases.random()
-        val need = 11
+        val need = 33
         var count = 0
         val countTv = tv(ctx, "0 / $need", 36, "#9FE8C8").apply {
             typeface = Typeface.DEFAULT_BOLD
@@ -153,7 +153,7 @@ object FocusChallengeOverlay {
         }
         col.addView(card(ctx, dp) {
             it.addView(tv(ctx, "Tasbeeh", 13, "#C7CBD1"))
-            it.addView(tv(ctx, "Tap $need times", 14, "#9AA3AE"), lp(dp(4)))
+            it.addView(tv(ctx, "Count $need — like classic dhikr", 14, "#9AA3AE"), lp(dp(4)))
             it.addView(tv(ctx, target, 28, "#FFFFFF").apply {
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER

@@ -320,18 +320,32 @@ object FocusScreens {
 
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
+            val challengeStore = remember { FocusChallengeStore.get(context) }
+            var mindfulOn by remember { mutableStateOf(challengeStore.isFeatureEnabled()) }
+            val left = remember(mindfulOn) { challengeStore.challengesRemaining() }
             Text(
-                "When you open a selected app, Suhood shows a short Islamic pause (Tasbeeh, Dhikr quiz, or Quran ayah). Complete it to continue. Max 3 times per day · same method as Salah lock (Accessibility).",
+                "Prayer Pause style: when you open a selected app, Suhood overlays a short Islamic pause (33 dhikr, quiz, or Quran ayah). Complete it to continue. Max 3 per day. Uses Accessibility — same method as Salah lock.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted
             )
             Spacer(Modifier.height(8.dp))
-            val left = remember { FocusChallengeStore.get(context).challengesRemaining() }
-            Text(
-                "Mindful pauses left today: $left / 3",
-                style = SuhoodTypography.labelMedium,
-                color = colors.silverBright
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Mindful pause when opening apps", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text("Mindful pauses left today: $left / 3", style = SuhoodTypography.labelMedium, color = colors.silverBright)
+                }
+                Switch(
+                    checked = mindfulOn,
+                    onCheckedChange = {
+                        mindfulOn = it
+                        challengeStore.setFeatureEnabled(it)
+                    }
+                )
+            }
             Spacer(Modifier.height(8.dp))
 
             if (!a11yOk) {
