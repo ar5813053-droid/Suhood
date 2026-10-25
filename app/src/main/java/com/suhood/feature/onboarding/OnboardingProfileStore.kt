@@ -6,7 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Local-only onboarding answers + resume step. Not uploaded.
+ * Local-only onboarding answers, resume step, and generated plan. Not uploaded.
  */
 class OnboardingProfileStore(context: Context) {
     private val prefs: SharedPreferences =
@@ -40,6 +40,7 @@ class OnboardingProfileStore(context: Context) {
         get() = prefs.getString(KEY_PHONE, "") ?: ""
         set(v) { prefs.edit().putString(KEY_PHONE, v).apply() }
 
+    /** When distractions are strongest (maps from HTML disttime). */
     var socialUsage: String
         get() = prefs.getString(KEY_SOCIAL, "") ?: ""
         set(v) { prefs.edit().putString(KEY_SOCIAL, v).apply() }
@@ -64,6 +65,19 @@ class OnboardingProfileStore(context: Context) {
         get() = prefs.getString(KEY_REMINDER, "Balanced") ?: "Balanced"
         set(v) { prefs.edit().putString(KEY_REMINDER, v).apply() }
 
+    var consistency: String
+        get() = prefs.getString(KEY_CONSISTENCY, "") ?: ""
+        set(v) { prefs.edit().putString(KEY_CONSISTENCY, v).apply() }
+
+    /** quran | dhikr | both | none */
+    var practice: String
+        get() = prefs.getString(KEY_PRACTICE, "both") ?: "both"
+        set(v) { prefs.edit().putString(KEY_PRACTICE, v).apply() }
+
+    var dailyMinutes: Int
+        get() = prefs.getInt(KEY_DAILY_MIN, 10)
+        set(v) { prefs.edit().putInt(KEY_DAILY_MIN, v.coerceIn(5, 60)).apply() }
+
     fun prayerStatus(name: String): String =
         prefs.getString("prayer_$name", "") ?: ""
 
@@ -83,6 +97,81 @@ class OnboardingProfileStore(context: Context) {
         get() = prefs.getBoolean(KEY_QURAN_REM, true)
         set(v) { prefs.edit().putBoolean(KEY_QURAN_REM, v).apply() }
 
+    var planJson: String
+        get() = prefs.getString(KEY_PLAN, "") ?: ""
+        set(v) { prefs.edit().putString(KEY_PLAN, v).commit() }
+
+    fun toAnswers(appLabels: List<String> = emptyList()): OnboardingAnswers = OnboardingAnswers(
+        goals = goals,
+        hardestPrayer = hardestPrayer,
+        consistency = consistency.ifBlank { checkFrequency },
+        reminderStyle = reminderStyle,
+        phoneUsage = phoneUsage,
+        disttime = socialUsage,
+        selectedAppLabels = appLabels,
+        practice = practice,
+        dailyMinutes = dailyMinutes.takeIf { it > 0 } ?: quranMinutes.coerceAtLeast(5),
+        lifestyle = dailyLife,
+        language = language
+    )
+
+    fun savePlan(plan: PersonalizedPlan) {
+        val o = JSONObject()
+        o.put("mainFocus", plan.mainFocus)
+        o.put("mainFocusReason", plan.mainFocusReason)
+        o.put("dailyRoutine", JSONArray(plan.dailyRoutine))
+        o.put("salahSupport", JSONArray(plan.salahSupport))
+        o.put("distractionStrategy", JSONArray(plan.distractionStrategy))
+        o.put("worshipRoutine", JSONArray(plan.worshipRoutine))
+        o.put("weeklyProgression", JSONArray(plan.weeklyProgression))
+        val actions = JSONArray()
+        plan.firstDayActions.forEach { a ->
+            actions.put(
+                JSONObject()
+                    .put("id", a.id)
+                    .put("title", a.title)
+                    .put("detail", a.detail)
+                    .put("feature", a.feature)
+                    .put("reason", a.reason)
+            )
+        }
+        o.put("firstDayActions", actions)
+        planJson = o.toString()
+    }
+
+    fun loadPlan(): PersonalizedPlan? {
+        val raw = planJson
+        if (raw.isBlank()) return null
+        return runCatching {
+            val o = JSONObject(raw)
+            fun arr(key: String): List<String> {
+                val a = o.optJSONArray(key) ?: return emptyList()
+                return (0 until a.length()).map { a.getString(it) }
+            }
+            val actionsJson = o.optJSONArray("firstDayActions") ?: JSONArray()
+            val actions = (0 until actionsJson.length()).map { i ->
+                val a = actionsJson.getJSONObject(i)
+                PlanAction(
+                    id = a.optString("id"),
+                    title = a.optString("title"),
+                    detail = a.optString("detail"),
+                    feature = a.optString("feature"),
+                    reason = a.optString("reason")
+                )
+            }
+            PersonalizedPlan(
+                mainFocus = o.optString("mainFocus"),
+                mainFocusReason = o.optString("mainFocusReason"),
+                dailyRoutine = arr("dailyRoutine"),
+                salahSupport = arr("salahSupport"),
+                distractionStrategy = arr("distractionStrategy"),
+                worshipRoutine = arr("worshipRoutine"),
+                firstDayActions = actions,
+                weeklyProgression = arr("weeklyProgression")
+            )
+        }.getOrNull()
+    }
+
     companion object {
         private const val PREFS = "onboarding_profile_v1"
         private const val KEY_STEP = "step"
@@ -98,9 +187,13 @@ class OnboardingProfileStore(context: Context) {
         private const val KEY_NOTIF_INT = "notif_int"
         private const val KEY_HARD_PRAYER = "hard_prayer"
         private const val KEY_REMINDER = "reminder"
+        private const val KEY_CONSISTENCY = "consistency"
+        private const val KEY_PRACTICE = "practice"
+        private const val KEY_DAILY_MIN = "daily_min"
         private const val KEY_QURAN_MIN = "quran_min"
         private const val KEY_DHIKR_MIN = "dhikr_min"
         private const val KEY_QURAN_REM = "quran_rem"
+        private const val KEY_PLAN = "plan_json"
 
         @Volatile private var instance: OnboardingProfileStore? = null
         fun get(context: Context): OnboardingProfileStore =

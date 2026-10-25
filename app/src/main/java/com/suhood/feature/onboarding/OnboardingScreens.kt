@@ -206,6 +206,8 @@ private fun StepScaffold(
     onBack: (() -> Unit)? = null,
     onContinue: (() -> Unit)? = null,
     continueLabel: String = "Continue",
+    canContinue: Boolean = true,
+    validationHint: String? = null,
     content: @Composable () -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -227,10 +229,19 @@ private fun StepScaffold(
         }
         Spacer(Modifier.height(16.dp))
         Box(Modifier.weight(1f)) { content() }
+        if (!canContinue && validationHint != null) {
+            Text(
+                validationHint,
+                color = Color(0xFFD4A574),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
         if (onContinue != null) {
             GlassButton(
                 text = continueLabel,
-                onClick = onContinue,
+                onClick = { if (canContinue) onContinue() },
+                enabled = canContinue,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp, top = 8.dp)
@@ -318,7 +329,10 @@ private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, 
     var gender by remember { mutableStateOf(store.gender) }
     var life by remember { mutableStateOf(store.dailyLife) }
     var lang by remember { mutableStateOf(store.language) }
+    val valid = OnboardingValidation.aboutValid(age, life)
     StepScaffold(
+        canContinue = valid,
+        validationHint = if (!valid) "Select your age group and daily life to continue." else null,
         title = "About you",
         subtitle = "Optional — used only for personalization on this device. Not judgment.",
         onBack = onBack,
@@ -360,37 +374,55 @@ private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
-    var selected by remember { mutableStateOf(store.goals) }
-    val options = listOf(
-        "Salah consistency",
-        "Quran reading",
-        "Dhikr and Tasbeeh",
-        "Reducing phone distractions",
-        "Improving daily routine"
+    // Store engine ids; display labels for UI
+    val goalOptions = listOf(
+        "salah" to "Salah consistency",
+        "quran" to "Quran reading",
+        "dhikr" to "Dhikr and Tasbeeh",
+        "focus" to "Reducing phone distractions",
+        "routine" to "Improving daily routine"
     )
+    var selected by remember {
+        mutableStateOf(
+            store.goals.map { g ->
+                when {
+                    g in setOf("salah", "quran", "dhikr", "focus", "routine") -> g
+                    "Salah" in g -> "salah"
+                    "Quran" in g -> "quran"
+                    "Dhikr" in g -> "dhikr"
+                    "distraction" in g.lowercase() || "phone" in g.lowercase() -> "focus"
+                    "routine" in g.lowercase() -> "routine"
+                    else -> g
+                }
+            }.toSet()
+        )
+    }
+    val valid = OnboardingValidation.goalsValid(selected)
     StepScaffold(
-        title = "What would you like to improve?",
-        subtitle = "Select all that apply.",
+        title = "What matters most right now?",
+        subtitle = "Select at least one. You can change this anytime in Settings.",
         onBack = onBack,
+        canContinue = valid,
+        validationHint = if (!valid) "Select at least one goal to continue." else null,
         onContinue = {
             store.goals = selected
             onContinue()
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            options.forEach { opt ->
-                val on = opt in selected
+            goalOptions.forEach { (id, label) ->
+                val on = id in selected
                 GlassCardBox {
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selected = if (on) selected - opt else selected + opt
+                                selected = if (on) selected - id else selected + id
                             },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(opt, color = Color(0xFFF5F6F7), fontSize = 16.sp)
+                        Text(label, color = Color(0xFFF5F6F7), fontSize = 16.sp)
                         if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF9FE8C8))
                     }
                 }
@@ -407,10 +439,13 @@ private fun HabitsStep(store: OnboardingProfileStore, onContinue: () -> Unit, on
     var check by remember { mutableStateOf(store.checkFrequency) }
     var notif by remember { mutableStateOf(store.notifInterrupt) }
     val times = listOf("< 1 hour", "1–2 hours", "2–4 hours", "4–6 hours", "6+ hours", "Prefer not to say")
+    val valid = OnboardingValidation.habitsValid(phone, social.ifBlank { late })
     StepScaffold(
-        title = "Your phone habits",
-        subtitle = "Estimates only — unless Usage Access is on later. You can skip any question.",
+        title = "How do you use your phone?",
+        subtitle = "Estimates help shape distraction strategy. Usage Access can refine this later.",
         onBack = onBack,
+        canContinue = valid,
+        validationHint = if (!valid) "Select phone usage and when distractions are strongest." else null,
         onContinue = {
             store.phoneUsage = phone
             store.socialUsage = social
@@ -535,6 +570,7 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
 
 @Composable
 private fun SalahRoutineStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    // validation applied below after state
     val prayers = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
     val statuses = listOf("Usually on time", "Sometimes delayed", "I want to improve", "Prefer not to answer")
     var local by remember {
@@ -542,14 +578,19 @@ private fun SalahRoutineStep(store: OnboardingProfileStore, onContinue: () -> Un
     }
     var hardest by remember { mutableStateOf(store.hardestPrayer) }
     var style by remember { mutableStateOf(store.reminderStyle) }
+    var consistency by remember { mutableStateOf(store.consistency.ifBlank { store.checkFrequency }) }
+    val valid = OnboardingValidation.salahValid(consistency.ifBlank { "improving" }, hardest)
     StepScaffold(
-        title = "Your Salah routine",
-        subtitle = "Optional. There is no shame in wanting to improve.",
+        title = "Your prayer routine",
+        subtitle = "Helps tailor Salah support. Pick the prayer that is hardest to protect.",
         onBack = onBack,
+        canContinue = valid,
+        validationHint = if (!valid) "Select your hardest prayer to continue." else null,
         onContinue = {
             local.forEach { (k, v) -> store.setPrayerStatus(k, v) }
             store.hardestPrayer = hardest
             store.reminderStyle = style
+            store.consistency = consistency.ifBlank { "improving" }
             onContinue()
         }
     ) {
@@ -584,7 +625,14 @@ private fun QuranDhikrStep(
             store.quranMinutes = qMin
             store.dhikrMinutes = dMin
             store.quranReminder = rem
-            // Wire to existing daily goal if ViewModel supports pages-ish target
+            store.dailyMinutes = maxOf(qMin, dMin).coerceIn(5, 60)
+            val g = store.goals
+            store.practice = when {
+                "quran" in g && "dhikr" in g -> "both"
+                "quran" in g -> "quran"
+                "dhikr" in g -> "dhikr"
+                else -> "both"
+            }
             runCatching {
                 settingsViewModel.setQuranCompanion(qMin, 9, 0, rem)
             }
@@ -604,34 +652,57 @@ private fun QuranDhikrStep(
     }
 }
 
+
 @Composable
 private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
-    val apps = remember { FocusSessionController.get(context).getBlockedApps().size }
+    val appLabels = remember {
+        FocusSessionController.get(context).getBlockedApps().toList()
+    }
+    val plan = remember(store.goals, store.hardestPrayer, store.reminderStyle, store.practice) {
+        val p = PersonalizedPlanEngine.generate(store.toAnswers(appLabels))
+        store.savePlan(p)
+        p
+    }
     StepScaffold(
-        title = "Your Suhood plan",
-        subtitle = "Recommendations from your answers. Editable anytime in the app.",
+        title = "Here's what we've built together",
+        subtitle = "A plan from your answers — not a generic template.",
         onBack = onBack,
         onContinue = onContinue,
         continueLabel = "Looks good"
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            PlanRow("Reminder style", store.reminderStyle)
-            PlanRow("Distracting apps selected", "$apps apps")
-            PlanRow("Quran daily", "${store.quranMinutes} min")
-            PlanRow("Dhikr daily", "${store.dhikrMinutes} min")
-            PlanRow("Goals", store.goals.joinToString().ifBlank { "—" })
-            PlanRow("Hardest prayer", store.hardestPrayer.ifBlank { "—" })
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             GlassCardBox {
-                Text(
-                    "Next: enable notifications, Usage Access, and Accessibility so Salah lock and mindful pauses can work.",
-                    color = Color(0xFF9AA3AE),
-                    fontSize = 13.sp
-                )
+                Text(plan.mainFocus, color = Color(0xFFF5F6F7), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Spacer(Modifier.height(6.dp))
+                Text(plan.mainFocusReason, color = Color(0xFF9AA3AE), fontSize = 12.sp)
+            }
+            Text("First-day actions", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            plan.firstDayActions.forEach { a ->
+                GlassCardBox {
+                    Text(a.title, color = Color(0xFFF5F6F7), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(a.detail, color = Color(0xFF9AA3AE), fontSize = 12.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(a.reason, color = Color(0xFF6B7280), fontSize = 11.sp)
+                }
+            }
+            Text("Salah support", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            plan.salahSupport.forEach {
+                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
+            }
+            Text("Distraction strategy", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            plan.distractionStrategy.forEach {
+                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
+            }
+            Text("Weekly progression", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            plan.weeklyProgression.forEach {
+                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
             }
         }
     }
 }
+
 
 @Composable
 private fun PlanRow(label: String, value: String) {
@@ -864,10 +935,12 @@ private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
                 fontSize = 14.sp
             )
             Spacer(Modifier.height(8.dp))
+            val plan = store.loadPlan()
             Text(
-                "${store.goals.size} goals · ${store.reminderStyle} reminders",
+                plan?.mainFocus ?: "${store.goals.size} goals · ${store.reminderStyle} reminders",
                 color = Color(0xFFC7CBD1),
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(32.dp))
             GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
