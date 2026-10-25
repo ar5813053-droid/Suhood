@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -60,7 +61,19 @@ class AlarmReceiver : BroadcastReceiver() {
             NotificationManagerCompat.from(context).notify(alarmId.hashCode(), notification)
         }
 
-        // Also try direct activity start (works when app is not restricted)
+        // Wake screen briefly so full-screen alarm can appear without unlock / notification tap
+        runCatching {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("DEPRECATION")
+            val wl = pm.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK or
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                    PowerManager.ON_AFTER_RELEASE,
+                "suhood:alarm"
+            )
+            wl.acquire(15_000L)
+        }
+        // Direct activity start when allowed; FSI notification is the compliant fallback
         runCatching { context.startActivity(ringIntent) }
     }
 

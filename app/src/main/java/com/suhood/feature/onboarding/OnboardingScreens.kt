@@ -828,6 +828,11 @@ private fun PermissionsStep(onContinue: () -> Unit) {
     }
     var usageOk by remember { mutableStateOf(hasUsageAccess(context)) }
     var a11yOk by remember { mutableStateOf(FocusAccessibilityService.isEnabled(context)) }
+    var overlayOk by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+        )
+    }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -866,12 +871,29 @@ private fun PermissionsStep(onContinue: () -> Unit) {
             )
             PermCard(
                 title = "Accessibility",
-                body = "Return you to Home and show the Salah lock screen",
+                body = "Show lock overlay and return you to Home when a blocked app opens",
                 granted = a11yOk,
                 action = { AppBlockHelper.openAccessibilitySettings(context) }
             )
+            PermCard(
+                title = "Display over other apps",
+                body = "Backup for mini-games and lock UI if Accessibility is delayed",
+                granted = overlayOk,
+                action = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                    overlayOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                        Settings.canDrawOverlays(context)
+                }
+            )
             Text(
-                "You can continue and enable these later in Settings. Blocking needs Accessibility + Usage Access.",
+                "Blocking needs Accessibility + Usage Access. Overlay is optional backup. Enable anytime in Settings.",
                 color = T3,
                 fontSize = 12.sp
             )
@@ -945,43 +967,99 @@ private fun PreviewStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
 @Composable
 private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
     val plan = store.loadPlan()
-    Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("🌙", fontSize = 42.sp)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            "A fresh start,\none prayer at a time.",
-            color = T1,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.ExtraBold,
-            textAlign = TextAlign.Center,
-            lineHeight = 30.sp
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Your plan is ready. Suhood will walk alongside you — gently, at your pace.",
-            color = T2,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(18.dp))
-        GlassCard {
-            Text(plan?.mainFocus ?: "Your personal plan is saved on this device.", color = T1, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Goals: ${store.goals.joinToString()}\nPractice: ${store.practice} · ${store.dailyMinutes} min",
-                color = T2,
-                fontSize = 12.sp,
-                lineHeight = 18.sp
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(16)
+            tick++
+        }
+    }
+    val particles = remember {
+        List(48) { i ->
+            ConfettiP(
+                x = (i * 37 % 100) / 100f,
+                speed = 0.004f + (i % 7) * 0.0012f,
+                color = listOf(Moon, Color(0xFFC7D4E0), Color(0xFF9FE8C8), Color(0xFFE8D5A3))[i % 4],
+                size = 3f + (i % 5),
+                phase = (i * 13 % 100) / 100f
             )
         }
-        Spacer(Modifier.height(28.dp))
-        PrimaryButton("Enter Suhood", onClick = onEnter)
+    }
+    Box(Modifier.fillMaxSize()) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val h = size.height
+            val w = size.width
+            particles.forEach { p ->
+                val y = ((tick * p.speed + p.phase) % 1.25f) * h
+                val x = p.x * w
+                drawCircle(color = p.color, radius = p.size, center = androidx.compose.ui.geometry.Offset(x, y))
+            }
+        }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("🌙", fontSize = 42.sp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "A fresh start,",
+                color = T1,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "one prayer at a time.",
+                color = T1,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Your plan is ready. Suhood will walk with you — gently, at your pace.",
+                color = T2,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            Spacer(Modifier.height(18.dp))
+            GlassCard {
+                Text(
+                    plan?.mainFocus ?: "Your personal plan is saved on this device.",
+                    color = T1,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Goals: ${store.goals.joinToString()}",
+                    color = T2,
+                    fontSize = 12.sp
+                )
+                Text(
+                    "Practice: ${store.practice} · ${store.dailyMinutes} min",
+                    color = T2,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(28.dp))
+            PrimaryButton("Enter Suhood", onClick = onEnter)
+            Spacer(Modifier.height(16.dp))
+        }
     }
 }
+
+private data class ConfettiP(
+    val x: Float,
+    val speed: Float,
+    val color: Color,
+    val size: Float,
+    val phase: Float
+)
+
 
 private fun hasUsageAccess(context: Context): Boolean {
     return try {

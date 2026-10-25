@@ -10,6 +10,7 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.SuhoodApplication
+import com.suhood.feature.focus.FocusChallengeStore
 import com.suhood.feature.focus.FocusSessionController
 import com.suhood.feature.focus.SalahLockActivity
 import com.suhood.feature.focus.SalahLockMonitorService
@@ -28,6 +29,8 @@ class SalahReminderReceiver : BroadcastReceiver() {
             .filter { it != app.packageName && it.isNotBlank() }
             .toSet()
         if (packages.isNotEmpty()) {
+            // Ensure open-time mini-games / gating is on when apps are selected
+            FocusChallengeStore.get(app).setFeatureEnabled(true)
             val lockStore = SalahLockStore.get(app)
             lockStore.activate(
                 prayerName = name,

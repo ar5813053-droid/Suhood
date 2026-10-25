@@ -184,14 +184,17 @@ class FocusAccessibilityService : AccessibilityService() {
     /** Show overlay + mild HOME — no notification spam. */
     private fun enforceLock(pkg: String, prayer: String) {
         val now = System.currentTimeMillis()
-        if (pkg == lastPkg && now - lastActionMs < 500 && SalahLockOverlay.isShowing()) return
+        if (pkg == lastPkg && now - lastActionMs < 450 && SalahLockOverlay.isShowing()) return
         lastPkg = pkg
         lastActionMs = now
         FocusChallengeOverlay.hide(this)
+        // 1) Full-screen accessibility overlay ON TOP of the blocked app (no notification tap)
         SalahLockOverlay.show(this)
-        // Pull blocked app down under the overlay
-        handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 60L)
-        // Also try activity (some devices prefer it for recents)
+        // 2) Send user to Home so they leave the blocked app (overlay may dismiss on some OEMs)
+        handler.postDelayed({
+            runCatching { performGlobalAction(GLOBAL_ACTION_HOME) }
+        }, 120L)
+        // 3) Backup: full-screen SalahLockActivity with remaining countdown
         handler.postDelayed({
             runCatching {
                 startActivity(
@@ -200,14 +203,18 @@ class FocusAccessibilityService : AccessibilityService() {
                             Intent.FLAG_ACTIVITY_NEW_TASK or
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                                Intent.FLAG_ACTIVITY_NO_USER_ACTION
                         )
                         putExtra(SalahLockActivity.EXTRA_PACKAGE, pkg)
                         putExtra(SalahLockActivity.EXTRA_PRAYER, prayer)
                     }
                 )
             }
-        }, 200L)
+        }, 280L)
+        // Keep polling while lock is active
+        handler.removeCallbacks(pollWhileLocked)
+        handler.postDelayed(pollWhileLocked, 700L)
     }
 
     companion object {
@@ -215,13 +222,15 @@ class FocusAccessibilityService : AccessibilityService() {
         private var instanceRef: WeakReference<FocusAccessibilityService>? = null
 
         fun isEnabled(context: android.content.Context): Boolean {
-            val expected =
-                "${context.packageName}/${FocusAccessibilityService::class.java.canonicalName}"
             val enabled = Settings.Secure.getString(
                 context.contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
             ) ?: return false
-            return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
+            val needle = FocusAccessibilityService::class.java.name
+            return enabled.split(':').any { part ->
+                part.contains(needle, ignoreCase = true) ||
+                    part.endsWith("/${FocusAccessibilityService::class.java.simpleName}", ignoreCase = true)
+            }
         }
 
         fun openSettings(context: android.content.Context) {
@@ -232,14 +241,16 @@ class FocusAccessibilityService : AccessibilityService() {
         }
 
         fun onSalahLockActivated(context: android.content.Context, prayer: String) {
-            val svc = instanceRef?.get() ?: return
-            svc.handler.removeCallbacks(svc.pollWhileLocked)
-            svc.handler.post(svc.pollWhileLocked)
+            val svc = instanceRef?.get()
             val now = System.currentTimeMillis()
             val snap = SalahLockStore.get(context).reconcileNow(now)
             if (!SalahLockLogic.isActive(snap, now)) return
+            // Always start monitor FGS for live countdown notification
+            SalahLockMonitorService.start(context.applicationContext)
+            if (svc == null) return
+            svc.handler.removeCallbacks(svc.pollWhileLocked)
+            svc.handler.post(svc.pollWhileLocked)
             val fg = svc.rootInActiveWindow?.packageName?.toString()
-            // Only pull out / show overlay when the foreground app is actually blocked
             if (fg != null && SalahLockLogic.shouldBlockPackage(snap, now, fg, context.packageName)) {
                 svc.enforceLock(fg, prayer.ifBlank { snap.prayerName })
             }

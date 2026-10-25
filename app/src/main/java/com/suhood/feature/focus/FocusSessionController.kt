@@ -15,8 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * and screen navigation.
  */
 class FocusSessionController(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("focus_session", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("focus_session", Context.MODE_PRIVATE)
 
     private val _session = MutableStateFlow(read())
     val session: StateFlow<FocusSession> = _session.asStateFlow()
@@ -33,6 +34,10 @@ class FocusSessionController(context: Context) {
         prefs.edit()
             .putString(KEY_BLOCKED_APPS, packages.joinToString(","))
             .commit()
+        // Selecting apps implies the user wants open-time pauses + Salah blocking
+        if (packages.isNotEmpty()) {
+            FocusChallengeStore.get(appContext).setFeatureEnabled(true)
+        }
     }
 
     fun toggleBlockedApp(packageName: String): Set<String> {
