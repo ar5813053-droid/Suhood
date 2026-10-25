@@ -1,8 +1,5 @@
 package com.suhood.feature.settings
 
-import com.suhood.core.designsystem.SuModifier
-
-
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -46,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -189,7 +187,7 @@ fun PersonalizationEditScreen(
     }
 
     Column(
-        SuModifier
+        Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .background(colors.background)
@@ -199,12 +197,12 @@ fun PersonalizationEditScreen(
             Text(
                 "Saved",
                 color = Color(0xFF9FE8C8),
-                modifier = SuModifier.padding(horizontal = SuhoodSpacing.screenHorizontal),
+                modifier = Modifier.padding(horizontal = SuhoodSpacing.screenHorizontal),
                 style = SuhoodTypography.labelMedium
             )
         }
         Column(
-            SuModifier
+            Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
@@ -262,7 +260,7 @@ fun PersonalizationEditScreen(
             OutlinedTextField(
                 value = appQuery,
                 onValueChange = { appQuery = it },
-                modifier = SuModifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search") },
                 singleLine = true
             )
@@ -271,7 +269,7 @@ fun PersonalizationEditScreen(
             filtered.take(40).forEach { app ->
                 val on = app.packageName in selectedApps
                 Row(
-                    SuModifier
+                    Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (on) Color(0xFF1A2E2A) else colors.surface)
@@ -287,12 +285,12 @@ fun PersonalizationEditScreen(
                         app.icon?.let { drawableToBitmap(it) }
                     }
                     if (bmp != null) {
-                        Image(bmp.asImageBitmap(), null, SuModifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
+                        Image(bmp.asImageBitmap(), null, Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
                     } else {
-                        Box(SuModifier.size(32.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
+                        Box(Modifier.size(32.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
                     }
-                    Spacer(SuModifier.size(10.dp))
-                    Column(SuModifier.weight(1f)) {
+                    Spacer(Modifier.size(10.dp))
+                    Column(Modifier.weight(1f)) {
                         Text(app.label, color = colors.textPrimary, style = SuhoodTypography.bodyMedium)
                         Text(app.packageName, color = colors.textMuted, style = SuhoodTypography.labelSmall, maxLines = 1)
                     }
@@ -321,7 +319,7 @@ fun PersonalizationEditScreen(
             Label("Daily Dhikr (minutes)")
             ChipRow(listOf("5", "10", "15", "20"), dMin.toString()) { dMin = it.toInt(); markDirty() }
             Row(
-                SuModifier.fillMaxWidth(),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -338,7 +336,7 @@ fun PersonalizationEditScreen(
         GlassButton(
             text = if (saving) "Saving…" else "Save changes",
             onClick = { if (!saving) saveAll() },
-            modifier = SuModifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = SuhoodSpacing.screenHorizontal)
                 .padding(bottom = 20.dp)
@@ -353,7 +351,7 @@ private fun SectionTitle(t: String) {
         color = Color(0xFFC7CBD1),
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
-        modifier = SuModifier.padding(top = 8.dp)
+        modifier = Modifier.padding(top = 8.dp)
     )
 }
 
@@ -369,7 +367,7 @@ private fun ChipRow(options: List<String>, selected: String, onSelect: (String) 
         options.forEach { opt ->
             val on = selected == opt
             Box(
-                SuModifier
+                Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (on) Color(0xFF1A2E2A) else Color(0xFF141519))
                     .border(1.dp, if (on) Color(0x669FE8C8) else Color(0x33FFFFFF), RoundedCornerShape(20.dp))
@@ -385,7 +383,7 @@ private fun ChipRow(options: List<String>, selected: String, onSelect: (String) 
 @Composable
 private fun SelectRow(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        SuModifier
+        Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) Color(0xFF1A2E2A) else Color(0xFF141519))
