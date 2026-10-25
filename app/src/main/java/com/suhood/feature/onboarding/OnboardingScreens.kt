@@ -1,5 +1,7 @@
 package com.suhood.feature.onboarding
 
+import androidx.compose.ui.Modifier
+
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Intent
@@ -61,7 +63,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -160,12 +161,12 @@ fun OnboardingFlow(
                     2 -> GoalsStep(store, onContinue = { go(3) }, onBack = { go(1) })
                     3 -> HabitsStep(store, onContinue = { go(4) }, onBack = { go(2) })
                     4 -> EducationStep(onContinue = { go(5) }, onBack = { go(3) })
-                    5 -> AppsStep(onContinue = { go(6) }, onBack = { go(4) })
-                    6 -> SalahRoutineStep(store, onContinue = { go(7) }, onBack = { go(5) })
-                    7 -> QuranDhikrStep(store, settingsViewModel, onContinue = { go(8) }, onBack = { go(6) })
-                    8 -> PlanStep(store, onContinue = { go(9) }, onBack = { go(7) })
-                    9 -> PermissionsStep(onContinue = { go(10) }, onBack = { go(8) })
-                    10 -> TestSetupStep(onContinue = { go(11) }, onBack = { go(9) })
+                    5 -> SalahRoutineStep(store, onContinue = { go(6) }, onBack = { go(4) })
+                    6 -> QuranDhikrStep(store, settingsViewModel, onContinue = { go(7) }, onBack = { go(5) })
+                    7 -> PlanStep(store, onContinue = { go(8) }, onBack = { go(6) })
+                    8 -> PermissionsStep(onContinue = { go(9) }, onBack = { go(7) })
+                    9 -> TestSetupStep(onContinue = { go(10) }, onBack = { go(8) })
+                    10 -> AppsStep(onContinue = { go(11) }, onBack = { go(9) })
                     else -> CompleteStep(
                         store = store,
                         onEnter = {
@@ -476,8 +477,8 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
         }
     }
     StepScaffold(
-        title = "Choose distracting apps",
-        subtitle = "When these open, Suhood can show a short Islamic pause (max 3/day). Nothing is selected without you.",
+        title = "Apps to block at Salah",
+        subtitle = "Selected apps are blocked during prayer time and can show a short Islamic pause. Choose at least the apps that distract you most.",
         onBack = onBack,
         onContinue = {
             controller.setBlockedApps(selected)
@@ -707,6 +708,17 @@ private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
                     )
                 }
             }
+            PermRow(
+                "Location",
+                "Accurate prayer times for your city (or set city manually later)",
+                true,
+                "Open"
+            ) {
+                context.startActivity(
+                    Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
             Text(
                 "Opening a settings screen does not mean protection is on. We verify on the next step.",
                 color = Color(0xFF6B7280),
@@ -797,27 +809,81 @@ private fun StatusLine(label: String, ok: Boolean) {
     }
 }
 
+
 @Composable
 private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("✓", color = Color(0xFF9FE8C8), fontSize = 48.sp)
-        Spacer(Modifier.height(16.dp))
-        Text("Welcome to your Suhood", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Preferences saved on this device.\n${store.goals.size} goals · ${store.reminderStyle} reminders",
-            color = Color(0xFF9AA3AE),
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp
-        )
-        Spacer(Modifier.height(32.dp))
-        GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
+    val particles = remember {
+        List(42) {
+            ConfettiParticle(
+                x = kotlin.random.Random.nextFloat(),
+                speed = 0.004f + kotlin.random.Random.nextFloat() * 0.012f,
+                color = listOf(
+                    Color(0xFF9FE8C8), Color(0xFFC7CBD1), Color(0xFFE8C07A),
+                    Color(0xFF7EB6FF), Color(0xFFE8A0A0)
+                ).random(),
+                size = 4f + kotlin.random.Random.nextFloat() * 8f,
+                phase = kotlin.random.Random.nextFloat()
+            )
+        }
+    }
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(16)
+            tick++
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val h = size.height
+            val w = size.width
+            particles.forEach { p ->
+                val y = ((tick * p.speed + p.phase) % 1.2f) * h
+                val x = p.x * w
+                drawCircle(color = p.color, radius = p.size, center = androidx.compose.ui.geometry.Offset(x, y))
+            }
+        }
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("✓", color = Color(0xFF9FE8C8), fontSize = 56.sp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "You're all set",
+                color = Color.White,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Preferences saved on this device.\nSalah lock and mindful pauses are ready when permissions stay on.",
+                color = Color(0xFF9AA3AE),
+                textAlign = TextAlign.Center,
+                fontSize = 14.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${store.goals.size} goals · ${store.reminderStyle} reminders",
+                color = Color(0xFFC7CBD1),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(32.dp))
+            GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
+        }
     }
 }
+
+private data class ConfettiParticle(
+    val x: Float,
+    val speed: Float,
+    val color: Color,
+    val size: Float,
+    val phase: Float
+)
+
 
 private fun drawableToBitmap(drawable: Drawable): Bitmap? {
     return try {
