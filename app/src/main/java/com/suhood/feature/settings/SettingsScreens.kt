@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PrivacyTip
@@ -80,7 +81,7 @@ object SettingsScreens {
         val more = listOf(
             Row("Appearance", Routes.SETTINGS_APPEARANCE, Icons.Filled.DarkMode),
             Row("Language", Routes.SETTINGS_LANGUAGE, Icons.Filled.Language),
-            Row("Edit personalization", Routes.SETTINGS_PERSONALIZATION, Icons.Filled.Person),
+            Row("Edit personalization", Routes.SETTINGS_PERSONALIZATION, Icons.Filled.AccountCircle),
             Row("Prayer preferences", Routes.SETTINGS_PRAYER, Icons.Filled.Mosque),
             Row("Customize Salah times", Routes.SETTINGS_SALAH_TIMES, Icons.Filled.Timer),
             Row("Notifications", Routes.SETTINGS_NOTIFICATIONS, Icons.Filled.Notifications),

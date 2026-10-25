@@ -1,6 +1,7 @@
 package com.suhood.feature.onboarding
 
-import androidx.compose.ui.Modifier
+import com.suhood.core.designsystem.SuModifier
+
 
 import android.Manifest
 import android.app.AlarmManager
@@ -110,12 +111,12 @@ fun OnboardingFlow(
     }
 
     Box(
-        Modifier
+        SuModifier
             .fillMaxSize()
             .background(Color(0xFF08090B))
     ) {
         Box(
-            Modifier
+            SuModifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
@@ -124,19 +125,19 @@ fun OnboardingFlow(
                 )
         )
         Column(
-            Modifier
+            SuModifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = SuhoodSpacing.xl)
         ) {
             Row(
-                Modifier
+                SuModifier
                     .fillMaxWidth()
                     .padding(top = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OnboardingProgress(step, TOTAL_STEPS, Modifier.weight(1f))
+                OnboardingProgress(step, TOTAL_STEPS, SuModifier.weight(1f))
                 if (step in 1..10) {
                     TextButton(onClick = {
                         if (step < 9) go(9) else if (step < 11) go(11)
@@ -152,7 +153,7 @@ fun OnboardingFlow(
                     (slideInHorizontally { it / 4 } + fadeIn(tween(220)))
                         .togetherWith(slideOutHorizontally { -it / 4 } + fadeOut(tween(180)))
                 },
-                modifier = Modifier.weight(1f),
+                modifier = SuModifier.weight(1f),
                 label = "onboarding"
             ) { page ->
                 when (page) {
@@ -186,11 +187,11 @@ fun OnboardingFlow(
 }
 
 @Composable
-private fun OnboardingProgress(step: Int, total: Int, modifier: Modifier = Modifier) {
+private fun OnboardingProgress(step: Int, total: Int, modifier: modifier = SuModifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(total) { i ->
             Box(
-                Modifier
+                SuModifier
                     .weight(1f)
                     .height(3.dp)
                     .clip(CircleShape)
@@ -209,7 +210,7 @@ private fun StepScaffold(
     continueLabel: String = "Continue",
     content: @Composable () -> Unit
 ) {
-    Column(Modifier.fillMaxSize()) {
+    Column(SuModifier.fillMaxSize()) {
         if (onBack != null) {
             TextButton(onClick = onBack) {
                 Text("Back", color = Color(0xFF9AA3AE))
@@ -223,16 +224,16 @@ private fun StepScaffold(
             lineHeight = 32.sp
         )
         if (subtitle != null) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             Text(subtitle, color = Color(0xFF9AA3AE), fontSize = 14.sp, lineHeight = 20.sp)
         }
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.weight(1f)) { content() }
+        Spacer(SuModifier.height(16.dp))
+        Box(SuModifier.weight(1f)) { content() }
         if (onContinue != null) {
             GlassButton(
                 text = continueLabel,
                 onClick = onContinue,
-                modifier = Modifier
+                modifier = SuModifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp, top = 8.dp)
             )
@@ -247,7 +248,7 @@ private fun Chip(
     onClick: () -> Unit
 ) {
     Box(
-        Modifier
+        SuModifier
             .clip(RoundedCornerShape(20.dp))
             .background(if (selected) Color(0xFF1A2E2A) else Color(0xFF141519))
             .border(1.dp, if (selected) Color(0x669FE8C8) else Color(0x33FFFFFF), RoundedCornerShape(20.dp))
@@ -271,7 +272,7 @@ private fun ChipRow(options: List<String>, selected: String, onSelect: (String) 
 @Composable
 private fun GlassCardBox(content: @Composable () -> Unit) {
     Box(
-        Modifier
+        SuModifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFF141519))
@@ -285,14 +286,14 @@ private fun GlassCardBox(content: @Composable () -> Unit) {
 @Composable
 private fun WelcomeStep(onContinue: () -> Unit) {
     Column(
-        Modifier.fillMaxSize(),
+        SuModifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text("◆", color = Color(0xFFC7CBD1), fontSize = 40.sp)
-        Spacer(Modifier.height(12.dp))
+        Spacer(SuModifier.height(12.dp))
         Text("Suhood", color = Color(0xFFF5F6F7), fontSize = 32.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(24.dp))
+        Spacer(SuModifier.height(24.dp))
         Text(
             "Make room for what matters.",
             color = Color.White,
@@ -300,15 +301,15 @@ private fun WelcomeStep(onContinue: () -> Unit) {
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(SuModifier.height(12.dp))
         Text(
             "Reconnect with Salah. Refocus your life.",
             color = Color(0xFF9AA3AE),
             fontSize = 16.sp,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(40.dp))
-        GlassButton(text = "Get Started", onClick = onContinue, modifier = Modifier.fillMaxWidth())
+        Spacer(SuModifier.height(40.dp))
+        GlassButton(text = "Get Started", onClick = onContinue, modifier = SuModifier.fillMaxWidth())
     }
 }
 
@@ -331,29 +332,29 @@ private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, 
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column(SuModifier.verticalScroll(rememberScrollState())) {
             Text("Age group", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             ChipRow(
                 listOf("Under 18", "18–24", "25–34", "35–44", "45+", "Prefer not to say"),
                 age
             ) { age = it }
-            Spacer(Modifier.height(16.dp))
+            Spacer(SuModifier.height(16.dp))
             Text("Gender", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             ChipRow(listOf("Male", "Female", "Prefer not to say"), gender) { gender = it }
-            Spacer(Modifier.height(16.dp))
+            Spacer(SuModifier.height(16.dp))
             Text("Daily life", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             ChipRow(
                 listOf("Student", "Employed", "Business/Self-employed", "Freelancer/Remote", "Homemaker", "Looking for work", "Other"),
                 life
             ) { life = it }
-            Spacer(Modifier.height(16.dp))
+            Spacer(SuModifier.height(16.dp))
             Text("Preferred language", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             ChipRow(listOf("English", "Hindi", "Hinglish", "Urdu"), lang) { lang = it }
-            Spacer(Modifier.height(24.dp))
+            Spacer(SuModifier.height(24.dp))
         }
     }
 }
@@ -383,7 +384,7 @@ private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onB
                 val on = opt in selected
                 GlassCardBox {
                     Row(
-                        Modifier
+                        SuModifier
                             .fillMaxWidth()
                             .clickable {
                                 selected = if (on) selected - opt else selected + opt
@@ -421,7 +422,7 @@ private fun HabitsStep(store: OnboardingProfileStore, onContinue: () -> Unit, on
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(SuModifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Average daily phone use", color = Color(0xFFC7CBD1), fontSize = 13.sp)
             ChipRow(times, phone) { phone = it }
             Text("Daily social media", color = Color(0xFFC7CBD1), fontSize = 13.sp)
@@ -450,7 +451,7 @@ private fun EducationStep(onContinue: () -> Unit, onBack: () -> Unit) {
         onBack = onBack,
         onContinue = onContinue
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = SuModifier.verticalScroll(rememberScrollState())) {
             cards.forEach { line ->
                 GlassCardBox {
                     Text(line, color = Color(0xFFF5F6F7), fontSize = 15.sp, lineHeight = 22.sp)
@@ -490,18 +491,18 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
             androidx.compose.material3.OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = SuModifier.fillMaxWidth(),
                 placeholder = { Text("Search apps", color = Color(0xFF6B7280)) },
                 singleLine = true
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             Text("${selected.size} selected", color = Color(0xFF9AA3AE), fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(filtered, key = { it.packageName }) { app ->
                     val on = app.packageName in selected
                     Row(
-                        Modifier
+                        SuModifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
                             .background(if (on) Color(0xFF1A2E2A) else Color(0xFF141519))
@@ -517,12 +518,12 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
                             }.getOrNull()
                         }
                         if (bmp != null) {
-                            Image(bmp.asImageBitmap(), null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
+                            Image(bmp.asImageBitmap(), null, SuModifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
                         } else {
-                            Box(Modifier.size(36.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
+                            Box(SuModifier.size(36.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
                         }
-                        Spacer(Modifier.size(12.dp))
-                        Column(Modifier.weight(1f)) {
+                        Spacer(SuModifier.size(12.dp))
+                        Column(SuModifier.weight(1f)) {
                             Text(app.label, color = Color(0xFFF5F6F7), fontSize = 15.sp)
                             Text(app.packageName, color = Color(0xFF6B7280), fontSize = 11.sp, maxLines = 1)
                         }
@@ -554,7 +555,7 @@ private fun SalahRoutineStep(store: OnboardingProfileStore, onContinue: () -> Un
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(SuModifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             prayers.forEach { p ->
                 Text(p, color = Color(0xFFC7CBD1), fontSize = 13.sp)
                 ChipRow(statuses, local[p] ?: "") { local = local + (p to it) }
@@ -597,7 +598,7 @@ private fun QuranDhikrStep(
             ChipRow(listOf("5", "10", "20", "30"), qMin.toString()) { qMin = it.toInt() }
             Text("Daily Dhikr time", color = Color(0xFFC7CBD1), fontSize = 13.sp)
             ChipRow(listOf("5", "10", "15", "20"), dMin.toString()) { dMin = it.toInt() }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(SuModifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Optional Quran reminder", color = Color(0xFFF5F6F7))
                 Switch(checked = rem, onCheckedChange = { rem = it })
             }
@@ -637,7 +638,7 @@ private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBa
 @Composable
 private fun PlanRow(label: String, value: String) {
     GlassCardBox {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(SuModifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = Color(0xFF9AA3AE), fontSize = 13.sp)
             Text(value, color = Color(0xFFF5F6F7), fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
@@ -672,7 +673,7 @@ private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
             onContinue()
         }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = SuModifier.verticalScroll(rememberScrollState())) {
             PermRow(
                 "Notifications",
                 "Salah reminders and Adhan sound",
@@ -731,13 +732,13 @@ private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
 @Composable
 private fun PermRow(title: String, sub: String, ok: Boolean, btn: String, onClick: () -> Unit) {
     GlassCardBox {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
+        Row(SuModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(SuModifier.weight(1f)) {
                 Text(title, color = Color(0xFFF5F6F7), fontWeight = FontWeight.Medium)
                 Text(sub, color = Color(0xFF9AA3AE), fontSize = 12.sp)
             }
             Box(
-                Modifier
+                SuModifier
                     .clip(RoundedCornerShape(16.dp))
                     .background(if (ok) Color(0xFF1A2E2A) else Color(0xFF2A2D33))
                     .clickable(onClick = onClick)
@@ -780,7 +781,7 @@ private fun TestSetupStep(onContinue: () -> Unit, onBack: () -> Unit) {
                         notifMsg = "Notification sent — check shade / sound."
                     }.onFailure { notifMsg = "Could not send: ${it.message}" }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = SuModifier.fillMaxWidth()
             )
             if (notifMsg != null) Text(notifMsg!!, color = Color(0xFF9AA3AE), fontSize = 13.sp)
             GlassButton(
@@ -789,7 +790,7 @@ private fun TestSetupStep(onContinue: () -> Unit, onBack: () -> Unit) {
                     usageOk = AppBlockHelper.hasUsageAccess(context)
                     a11yOk = FocusAccessibilityService.isEnabled(context)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = SuModifier.fillMaxWidth(),
                 primary = false
             )
             Text(
@@ -803,7 +804,7 @@ private fun TestSetupStep(onContinue: () -> Unit, onBack: () -> Unit) {
 
 @Composable
 private fun StatusLine(label: String, ok: Boolean) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(SuModifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = Color(0xFFF5F6F7))
         Text(if (ok) "OK" else "Missing", color = if (ok) Color(0xFF9FE8C8) else Color(0xFFE8A0A0))
     }
@@ -833,8 +834,8 @@ private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
             tick++
         }
     }
-    Box(Modifier.fillMaxSize()) {
-        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+    Box(SuModifier.fillMaxSize()) {
+        androidx.compose.foundation.Canvas(SuModifier.fillMaxSize()) {
             val h = size.height
             val w = size.width
             particles.forEach { p ->
@@ -844,12 +845,12 @@ private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
             }
         }
         Column(
-            Modifier.fillMaxSize().padding(24.dp),
+            SuModifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text("✓", color = Color(0xFF9FE8C8), fontSize = 56.sp)
-            Spacer(Modifier.height(16.dp))
+            Spacer(SuModifier.height(16.dp))
             Text(
                 "You're all set",
                 color = Color.White,
@@ -857,21 +858,21 @@ private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(SuModifier.height(12.dp))
             Text(
                 "Preferences saved on this device.\nSalah lock and mindful pauses are ready when permissions stay on.",
                 color = Color(0xFF9AA3AE),
                 textAlign = TextAlign.Center,
                 fontSize = 14.sp
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(SuModifier.height(8.dp))
             Text(
                 "${store.goals.size} goals · ${store.reminderStyle} reminders",
                 color = Color(0xFFC7CBD1),
                 fontSize = 13.sp
             )
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
+            Spacer(SuModifier.height(32.dp))
+            GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = SuModifier.fillMaxWidth())
         }
     }
 }
