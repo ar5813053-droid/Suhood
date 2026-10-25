@@ -21,7 +21,11 @@ class AlarmReceiver : BroadcastReceiver() {
         val challenge = intent.getStringExtra(AlarmRingActivity.EXTRA_CHALLENGE) ?: "NONE"
 
         val ringIntent = Intent(context, AlarmRingActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                Intent.FLAG_ACTIVITY_NO_USER_ACTION
             putExtra(EXTRA_LABEL, label)
             putExtra(EXTRA_ALARM_ID, alarmId)
             putExtra(AlarmRingActivity.EXTRA_SOUND_URI, soundUri)
@@ -34,17 +38,19 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // High-importance alarm channel is silent; AlarmRingActivity plays the selected track once.
         val notification = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_ALARM)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(label)
-            .setContentText("Alarm — tap to open")
+            .setContentText("Alarm ringing — open to dismiss")
             .setContentIntent(fullScreen)
             .setFullScreenIntent(fullScreen, true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(false)
             .setOngoing(true)
-            .setSilent(true) // channel silent; AlarmRingActivity plays selected music
+            .setSilent(true)
             .build()
 
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)

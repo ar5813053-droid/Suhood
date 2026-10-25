@@ -324,7 +324,7 @@ object FocusScreens {
             var mindfulOn by remember { mutableStateOf(challengeStore.isFeatureEnabled()) }
             val left = remember(mindfulOn) { challengeStore.challengesRemaining() }
             Text(
-                "Prayer Pause style: when you open a selected app, Suhood overlays a short Islamic pause (33 dhikr, quiz, or Quran ayah). Complete it to continue. Max 3 per day. Uses Accessibility — same method as Salah lock.",
+                "Apps selected here are limited during Salah and can show a short Islamic pause when opened. Max 3 pauses per day.",
                 style = SuhoodTypography.bodySmall,
                 color = colors.textMuted
             )
@@ -335,8 +335,8 @@ object FocusScreens {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Mindful pause when opening apps", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
-                    Text("Mindful pauses left today: $left / 3", style = SuhoodTypography.labelMedium, color = colors.silverBright)
+                    Text("Pause when opening apps", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                    Text("Pauses left today: $left / 3", style = SuhoodTypography.labelMedium, color = colors.silverBright)
                 }
                 Switch(
                     checked = mindfulOn,

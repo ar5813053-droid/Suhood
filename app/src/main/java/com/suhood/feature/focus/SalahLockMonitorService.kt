@@ -8,18 +8,24 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.SuhoodApplication
 
 /**
- * While a Salah lock is active, periodically checks the foreground package via Usage Access
- * and opens [SalahLockActivity] if a selected app is in front.
- * Complements AccessibilityService (which can be delayed or restricted on some OEMs).
+ * Foreground service while a Salah lock is active.
+ *
+ * - Persists nothing itself; [SalahLockStore] wall-clock expiry is source of truth.
+ * - Shows an ongoing notification with a live MM:SS countdown derived from expiry.
+ * - Polls Usage Access as a fallback when Accessibility is slow (OEM).
+ * - On restart, recovers remaining time from saved expiry (does not reset to 10:00).
  */
 class SalahLockMonitorService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var running = false
+    private var lastNotifText: String = ""
 
     private val tick = object : Runnable {
         override fun run() {
@@ -28,16 +34,19 @@ class SalahLockMonitorService : Service() {
             val now = System.currentTimeMillis()
             val snap = store.reconcileNow(now)
             if (!SalahLockLogic.isActive(snap, now)) {
+                NotificationManagerCompat.from(applicationContext).cancel(NOTIF_ID)
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
             }
-            // Usage-stats fallback when Accessibility is slow/missing
+            // Refresh countdown notification from wall-clock expiry (no drift)
+            updateCountdownNotification(snap, now)
+
             val blockedFg = AppBlockHelper.isBlockedAppForeground(
                 applicationContext,
                 snap.blockedPackages
             )
             if (blockedFg != null) {
-                // Accessibility overlay + HOME (no notification spam)
                 FocusAccessibilityService.onSalahLockActivated(
                     applicationContext,
                     snap.prayerName.ifBlank { "Salah" }
@@ -49,12 +58,15 @@ class SalahLockMonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val store = SalahLockStore.get(applicationContext)
-        val snap = store.reconcileNow()
-        if (!SalahLockLogic.isActive(snap, System.currentTimeMillis())) {
+        val now = System.currentTimeMillis()
+        val snap = store.reconcileNow(now)
+        if (!SalahLockLogic.isActive(snap, now)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        startForeground(NOTIF_ID, buildOngoing(snap.prayerName.ifBlank { "Salah" }))
+        val notif = buildCountdownNotification(snap, now)
+        startForeground(NOTIF_ID, notif)
+        lastNotifText = notif.extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
         if (!running) {
             running = true
             handler.post(tick)
@@ -70,40 +82,53 @@ class SalahLockMonitorService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun launchLock(pkg: String, prayer: String) {
-        startActivity(
-            Intent(this, SalahLockActivity::class.java).apply {
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                )
-                putExtra(SalahLockActivity.EXTRA_PACKAGE, pkg)
-                putExtra(SalahLockActivity.EXTRA_PRAYER, prayer)
-            }
-        )
+    private fun updateCountdownNotification(snap: SalahLockSnapshot, now: Long) {
+        val remaining = SalahLockLogic.remainingMs(snap, now)
+        val mmss = SalahLockLogic.formatMmSs(remaining)
+        val text = "Return to Allah • $mmss remaining"
+        // Avoid hammering NotificationManager when text unchanged
+        if (text == lastNotifText) return
+        lastNotifText = text
+        val notif = buildCountdownNotification(snap, now)
+        runCatching {
+            NotificationManagerCompat.from(this).notify(NOTIF_ID, notif)
+        }
     }
 
-    private fun buildOngoing(prayer: String): Notification {
+    private fun buildCountdownNotification(snap: SalahLockSnapshot, now: Long): Notification {
+        val remaining = SalahLockLogic.remainingMs(snap, now)
+        val mmss = SalahLockLogic.formatMmSs(remaining)
+        val prayer = snap.prayerName.ifBlank { "Salah" }
         val open = PendingIntent.getActivity(
             this, 0,
-            Intent(this, SalahLockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(this, SalahLockActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra(SalahLockActivity.EXTRA_PRAYER, prayer)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        return NotificationCompat.Builder(this, SuhoodApplication.CHANNEL_SALAH_LOCK)
+        val builder = NotificationCompat.Builder(this, SuhoodApplication.CHANNEL_SALAH_LOCK)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("Salah lock active")
-            .setContentText("$prayer — selected apps limited for 10 minutes")
+            .setContentTitle("Salah Time")
+            .setContentText("Return to Allah • $mmss remaining")
             .setContentIntent(open)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            // Native countdown chronometer when supported (API 24+)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setWhen(snap.expiryWallMs)
+            .setShowWhen(true)
+        return builder.build()
     }
 
     companion object {
         private const val NOTIF_ID = 71001
+        /** Poll blocked apps ~1s; notification text updates only when MM:SS changes. */
         private const val POLL_MS = 1000L
 
         fun start(context: Context) {
@@ -115,7 +140,7 @@ class SalahLockMonitorService : Service() {
                     context.startService(i)
                 }
             } catch (_: Exception) {
-                // OEM may block FGS from background; Accessibility remains primary path
+                // OEM may block FGS from background; Accessibility + watchdog remain
             }
         }
 

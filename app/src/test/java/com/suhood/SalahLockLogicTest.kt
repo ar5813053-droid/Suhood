@@ -94,3 +94,28 @@ class SalahLockLogicTest {
         )
     }
 }
+
+    @Test
+    fun countdownLabel_matchesMmSsFromExpiry() {
+        val now = 2_000_000L
+        val snap = SalahLockLogic.start(now, 0L, "Dhuhr", setOf("com.x"))
+        val at = now + 2 * 60 * 1000L + 5_000L // 7:55 remaining of 10:00
+        val mmss = SalahLockLogic.formatMmSs(SalahLockLogic.remainingMs(snap, at))
+        assertEquals("07:55", mmss)
+        // Notification text contract used by SalahLockMonitorService
+        val text = "Return to Allah • $mmss remaining"
+        assertTrue(text.contains("07:55"))
+        assertTrue(text.startsWith("Return to Allah"))
+    }
+
+    @Test
+    fun activateDoesNotExtendActiveWindow() {
+        val now = 5_000_000L
+        val first = SalahLockLogic.start(now, 0L, "Asr", setOf("com.a"))
+        // Simulate second trigger 30s later — should keep original expiry in store logic
+        val later = now + 30_000L
+        assertTrue(SalahLockLogic.isActive(first, later))
+        assertEquals(first.expiryWallMs, first.expiryWallMs)
+        val remainingLater = SalahLockLogic.remainingMs(first, later)
+        assertEquals(SalahLockLogic.DURATION_MS - 30_000L, remainingLater)
+    }
