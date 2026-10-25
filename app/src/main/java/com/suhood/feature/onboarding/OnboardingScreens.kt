@@ -74,6 +74,7 @@ import com.suhood.feature.focus.AppBlockHelper
 import com.suhood.feature.focus.FocusAccessibilityService
 import com.suhood.feature.focus.FocusChallengeStore
 import com.suhood.feature.focus.FocusSessionController
+import com.suhood.feature.focus.InstalledAppInfo
 import com.suhood.feature.focus.InstalledAppsRepository
 import com.suhood.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
