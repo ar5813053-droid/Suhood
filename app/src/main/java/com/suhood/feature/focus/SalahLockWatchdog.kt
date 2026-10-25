@@ -86,8 +86,9 @@ class SalahLockWatchdogReceiver : BroadcastReceiver() {
         val blockedFg = AppBlockHelper.isBlockedAppForeground(app, snap.blockedPackages)
 
         if (blockedFg != null) {
-            FocusAccessibilityService.onSalahLockActivated(
+            SalahLockEnforcer.enforce(
                 app,
+                blockedFg,
                 snap.prayerName.ifBlank { "Salah" }
             )
             val lockIntent = Intent(app, SalahLockActivity::class.java).apply {

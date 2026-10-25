@@ -5,19 +5,33 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Process
 import android.provider.Settings
 
 object AppBlockHelper {
 
     fun hasUsageAccess(context: Context): Boolean {
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOps.checkOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(),
-            context.packageName
-        )
-        return mode == AppOpsManager.MODE_ALLOWED
+        return try {
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
+                    context.packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
+                    context.packageName
+                )
+            }
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun openUsageAccessSettings(context: Context) {
@@ -34,25 +48,29 @@ object AppBlockHelper {
 
     fun foregroundPackage(context: Context): String? {
         if (!hasUsageAccess(context)) return null
-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val end = System.currentTimeMillis()
-        val events = usm.queryEvents(end - 8_000, end)
-        val event = UsageEvents.Event()
-        var last: String? = null
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
-                event.eventType == UsageEvents.Event.ACTIVITY_RESUMED
-            ) {
-                last = event.packageName
+        return try {
+            val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val end = System.currentTimeMillis()
+            val events = usm.queryEvents(end - 15_000, end)
+            val event = UsageEvents.Event()
+            var last: String? = null
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                    event.eventType == UsageEvents.Event.ACTIVITY_RESUMED
+                ) {
+                    last = event.packageName
+                }
             }
+            last
+        } catch (_: Exception) {
+            null
         }
-        return last
     }
 
     fun isBlockedAppForeground(context: Context, blockedPackages: Set<String>): String? {
         val fg = foregroundPackage(context) ?: return null
-        if (fg == context.packageName) return null
-        return if (fg in blockedPackages) fg else null
+        if (SalahLockEnforcer.matchesBlocked(fg, blockedPackages, context.packageName)) return fg
+        return null
     }
 }

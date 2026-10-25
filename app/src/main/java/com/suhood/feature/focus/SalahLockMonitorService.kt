@@ -47,8 +47,10 @@ class SalahLockMonitorService : Service() {
                 snap.blockedPackages
             )
             if (blockedFg != null) {
-                FocusAccessibilityService.onSalahLockActivated(
+                // Launch lock screen + HOME even if Accessibility is slow/off
+                SalahLockEnforcer.enforce(
                     applicationContext,
+                    blockedFg,
                     snap.prayerName.ifBlank { "Salah" }
                 )
             }

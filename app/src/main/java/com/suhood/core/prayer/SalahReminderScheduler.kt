@@ -43,7 +43,7 @@ class SalahReminderReceiver : BroadcastReceiver() {
             com.suhood.feature.focus.SalahLockWatchdog.schedule(app, snap.expiryWallMs)
             SalahLockMonitorService.start(app)
             runCatching {
-                com.suhood.feature.focus.FocusAccessibilityService.onSalahLockActivated(app, name)
+                com.suhood.feature.focus.SalahLockEnforcer.onLockActivated(app, name)
             }
         }
 
