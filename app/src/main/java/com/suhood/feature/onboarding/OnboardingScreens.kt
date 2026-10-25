@@ -1,34 +1,33 @@
 package com.suhood.feature.onboarding
 
-import com.suhood.core.prayer.LocationHelper
-import com.suhood.core.datastore.PreferencesRepository
-import kotlinx.coroutines.launch
-
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,168 +37,148 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.Modifier.modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.suhood.app.SuhoodApplication
 import com.suhood.core.designsystem.components.GlassButton
-import com.suhood.core.designsystem.components.GlassCard
-import com.suhood.core.designsystem.components.GlassSegmentedControl
 import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
-import com.suhood.core.designsystem.theme.ThemeMode
 import com.suhood.core.designsystem.theme.suhoodColors
+import com.suhood.core.datastore.PreferencesRepository
+import com.suhood.feature.focus.AppBlockHelper
+import com.suhood.feature.focus.FocusAccessibilityService
+import com.suhood.feature.focus.FocusChallengeStore
+import com.suhood.feature.focus.FocusSessionController
+import com.suhood.feature.focus.InstalledAppsRepository
 import com.suhood.feature.settings.SettingsViewModel
-import com.suhood.core.notifications.QuranReminderScheduler
-import kotlinx.coroutines.delay
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.foundation.layout.PaddingValues
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-private const val TOTAL_STEPS = 7 // 0-3 intro, 4 quran goal, 5 permissions, 6 jazakallah
+private const val TOTAL_STEPS = 12
 
 @Composable
 fun OnboardingFlow(
     onComplete: () -> Unit,
     settingsViewModel: SettingsViewModel
 ) {
-    var step by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    val store = remember { OnboardingProfileStore.get(context) }
+    var step by remember { mutableIntStateOf(store.step) }
     val colors = suhoodColors
+    val scope = rememberCoroutineScope()
+
+    fun go(to: Int) {
+        step = to.coerceIn(0, TOTAL_STEPS - 1)
+        store.step = step
+    }
 
     Box(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
-            .background(colors.background)
+            .background(Color(0xFF08090B))
     ) {
         Box(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            colors.surfaceElevated.copy(alpha = 0.35f),
-                            colors.background,
-                            colors.background
-                        )
+                        listOf(Color(0xFF111316), Color(0xFF08090B), Color(0xFF08090B))
                     )
                 )
         )
-
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = SuhoodSpacing.xl)
         ) {
             Row(
-                modifier = Modifier
+                Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OnboardingProgress(step = step, total = TOTAL_STEPS, modifier = Modifier.weight(1f))
-                // Skip only before permissions; permissions page has its own Skip
-                if (step < 5) {
-                    Spacer(Modifier.width(12.dp))
-                    GlassButton(
-                        text = "Skip",
-                        onClick = { step = 5 }, // jump to permissions
-                        primary = false,
-                        modifier = Modifier.height(36.dp)
-                    )
+                OnboardingProgress(step, TOTAL_STEPS, Modifier.weight(1f))
+                if (step in 1..10) {
+                    TextButton(onClick = {
+                        if (step < 9) go(9) else if (step < 11) go(11)
+                    }) {
+                        Text("Skip", color = Color(0xFF9AA3AE))
+                    }
                 }
             }
 
             AnimatedContent(
                 targetState = step,
                 transitionSpec = {
-                    val forward = targetState > initialState
-                    (fadeIn(tween(160)) + slideInHorizontally(tween(180)) {
-                        if (forward) it / 8 else -it / 8
-                    }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(160)) {
-                        if (forward) -it / 10 else it / 10
-                    })
+                    (slideInHorizontally { it / 4 } + fadeIn(tween(220)))
+                        .togetherWith(slideOutHorizontally { -it / 4 } + fadeOut(tween(180)))
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                label = "onboardingPage"
+                modifier = Modifier.weight(1f),
+                label = "onboarding"
             ) { page ->
                 when (page) {
-                    0 -> OnboardingPage(
-                        illustration = { CrescentIllustration() },
-                        title = "Make space for what matters.",
-                        body = "A calmer way to reconnect with Salah, Quran and the habits that bring you closer to Allah."
+                    0 -> WelcomeStep(onContinue = { go(1) })
+                    1 -> AboutYouStep(store, onContinue = { go(2) }, onBack = { go(0) })
+                    2 -> GoalsStep(store, onContinue = { go(3) }, onBack = { go(1) })
+                    3 -> HabitsStep(store, onContinue = { go(4) }, onBack = { go(2) })
+                    4 -> EducationStep(onContinue = { go(5) }, onBack = { go(3) })
+                    5 -> AppsStep(onContinue = { go(6) }, onBack = { go(4) })
+                    6 -> SalahRoutineStep(store, onContinue = { go(7) }, onBack = { go(5) })
+                    7 -> QuranDhikrStep(store, settingsViewModel, onContinue = { go(8) }, onBack = { go(6) })
+                    8 -> PlanStep(store, onContinue = { go(9) }, onBack = { go(7) })
+                    9 -> PermissionsStep(onContinue = { go(10) }, onBack = { go(8) })
+                    10 -> TestSetupStep(onContinue = { go(11) }, onBack = { go(9) })
+                    else -> CompleteStep(
+                        store = store,
+                        onEnter = {
+                            scope.launch {
+                                FocusChallengeStore.get(context).setFeatureEnabled(
+                                    FocusSessionController.get(context).getBlockedApps().isNotEmpty()
+                                )
+                                store.step = 0
+                                onComplete()
+                            }
+                        }
                     )
-                    1 -> OnboardingPage(
-                        illustration = { FocusIllustration() },
-                        title = "Small steps. Meaningful consistency.",
-                        body = "Keep track of your worship routine, Dhikr and personal goals with a gentle, distraction-free experience."
-                    )
-                    2 -> LanguagePage()
-                    3 -> AppearancePage(onSelect = { settingsViewModel.setThemeMode(it) })
-                    4 -> QuranGoalPage(
-                        settingsViewModel = settingsViewModel,
-                        onContinue = { step = 5 },
-                        onSkip = { step = 5 }
-                    )
-                    5 -> PermissionsPage(
-                        onContinue = { step = 6 },
-                        onSkip = { step = 6 }
-                    )
-                    else -> JazakallahPage(onFinished = onComplete)
                 }
-            }
-
-            // Primary CTA — hidden on quran goal, permissions, jazakallah
-            if (step < 4) {
-                val cta = when (step) {
-                    0 -> "Get Started"
-                    else -> "Continue"
-                }
-                GlassButton(
-                    text = cta,
-                    onClick = { step++ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp, top = 8.dp)
-                )
-            } else if (step == 6) {
-                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -207,670 +186,652 @@ fun OnboardingFlow(
 
 @Composable
 private fun OnboardingProgress(step: Int, total: Int, modifier: Modifier = Modifier) {
-    val colors = suhoodColors
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(total) { i ->
             Box(
-                modifier = Modifier
+                Modifier
                     .weight(1f)
-                    .height(4.dp)
+                    .height(3.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (i <= step) colors.accentLavender else colors.surfaceSelected
-                    )
+                    .background(if (i <= step) Color(0xFFC7CBD1) else Color(0xFF2A2D33))
             )
         }
     }
 }
 
 @Composable
-private fun OnboardingPage(
-    illustration: @Composable () -> Unit,
+private fun StepScaffold(
     title: String,
-    body: String
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    onContinue: (() -> Unit)? = null,
+    continueLabel: String = "Continue",
+    content: @Composable () -> Unit
 ) {
-    val colors = suhoodColors
+    Column(Modifier.fillMaxSize()) {
+        if (onBack != null) {
+            TextButton(onClick = onBack) {
+                Text("Back", color = Color(0xFF9AA3AE))
+            }
+        }
+        Text(
+            title,
+            color = Color(0xFFF5F6F7),
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 32.sp
+        )
+        if (subtitle != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(subtitle, color = Color(0xFF9AA3AE), fontSize = 14.sp, lineHeight = 20.sp)
+        }
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.weight(1f)) { content() }
+        if (onContinue != null) {
+            GlassButton(
+                text = continueLabel,
+                onClick = onContinue,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp, top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun Chip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) Color(0xFF1A2E2A) else Color(0xFF141519))
+            .border(1.dp, if (selected) Color(0x669FE8C8) else Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Text(label, color = if (selected) Color(0xFF9FE8C8) else Color(0xFFF5F6F7), fontSize = 13.sp)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipRow(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { opt ->
+            Chip(opt, selected == opt) { onSelect(opt) }
+        }
+    }
+}
+
+@Composable
+private fun GlassCardBox(content: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFF141519))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(18.dp))
+            .padding(16.dp)
+    ) { content() }
+}
+
+// —— Screens ——
+
+@Composable
+private fun WelcomeStep(onContinue: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        illustration()
-        Spacer(Modifier.height(32.dp))
-        Text(
-            title,
-            style = SuhoodTypography.headlineLarge,
-            color = colors.textPrimary,
-            textAlign = TextAlign.Center
-        )
+        Text("◆", color = Color(0xFFC7CBD1), fontSize = 40.sp)
         Spacer(Modifier.height(12.dp))
-        Text(
-            body,
-            style = SuhoodTypography.bodyLarge,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun LanguagePage() {
-    val colors = suhoodColors
-    var selected by remember { mutableIntStateOf(0) }
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        GlobeIllustration()
-        Spacer(Modifier.height(28.dp))
-        Text("Language", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Choose your interface language. Arabic layout support improves in later phases.",
-            style = SuhoodTypography.bodyMedium,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center
-        )
+        Text("Suhood", color = Color(0xFFF5F6F7), fontSize = 32.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(24.dp))
-        GlassSegmentedControl(
-            options = listOf("English", "العربية"),
-            selectedIndex = selected,
-            onSelect = { selected = it },
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun AppearancePage(onSelect: (ThemeMode) -> Unit) {
-    val colors = suhoodColors
-    var selected by remember { mutableIntStateOf(0) }
-    val modes = listOf(ThemeMode.SYSTEM, ThemeMode.DARK, ThemeMode.LIGHT)
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        PaletteIllustration()
-        Spacer(Modifier.height(28.dp))
-        Text("Appearance", style = SuhoodTypography.headlineLarge, color = colors.textPrimary)
-        Spacer(Modifier.height(8.dp))
         Text(
-            "Pick a theme that feels calm and readable.",
-            style = SuhoodTypography.bodyMedium,
-            color = colors.textSecondary,
+            "Make room for what matters.",
+            color = Color.White,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(24.dp))
-        GlassSegmentedControl(
-            options = listOf("System", "Dark", "Light"),
-            selectedIndex = selected,
-            onSelect = {
-                selected = it
-                onSelect(modes[it])
-            },
-            modifier = Modifier.fillMaxWidth()
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Reconnect with Salah. Refocus your life.",
+            color = Color(0xFF9AA3AE),
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center
         )
+        Spacer(Modifier.height(40.dp))
+        GlassButton(text = "Get Started", onClick = onContinue, modifier = Modifier.fillMaxWidth())
     }
 }
 
-/* ── Lightweight Canvas illustrations (no network assets) ── */
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CrescentIllustration() {
-    val colors = suhoodColors
-    Canvas(Modifier.size(160.dp)) {
-        val c = Offset(size.width * 0.48f, size.height * 0.5f)
-        val r = size.minDimension * 0.32f
-        drawCircle(color = colors.silver.copy(alpha = 0.15f), radius = r * 1.55f, center = c)
-        drawCircle(color = colors.silverBright.copy(alpha = 0.9f), radius = r, center = c)
-        drawCircle(color = colors.background, radius = r * 0.78f, center = c + Offset(r * 0.38f, -r * 0.12f))
-        // soft stars
-        listOf(
-            Offset(size.width * 0.78f, size.height * 0.28f),
-            Offset(size.width * 0.82f, size.height * 0.55f),
-            Offset(size.width * 0.18f, size.height * 0.32f)
-        ).forEach { drawCircle(colors.silverBright.copy(alpha = 0.7f), radius = 3.dp.toPx(), center = it) }
-    }
-}
-
-@Composable
-private fun FocusIllustration() {
-    val colors = suhoodColors
-    Canvas(Modifier.size(160.dp)) {
-        val cx = size.width / 2
-        val cy = size.height / 2
-        // rings
-        for (i in 1..3) {
-            drawCircle(
-                color = colors.silver.copy(alpha = 0.2f * (4 - i)),
-                radius = size.minDimension * (0.18f + i * 0.1f),
-                center = Offset(cx, cy),
-                style = Stroke(width = 2.dp.toPx())
-            )
+private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    var age by remember { mutableStateOf(store.ageGroup) }
+    var gender by remember { mutableStateOf(store.gender) }
+    var life by remember { mutableStateOf(store.dailyLife) }
+    var lang by remember { mutableStateOf(store.language) }
+    StepScaffold(
+        title = "About you",
+        subtitle = "Optional — used only for personalization on this device. Not judgment.",
+        onBack = onBack,
+        onContinue = {
+            store.ageGroup = age
+            store.gender = gender
+            store.dailyLife = life
+            store.language = lang
+            onContinue()
         }
-        drawCircle(colors.silverBright.copy(alpha = 0.85f), radius = size.minDimension * 0.12f, center = Offset(cx, cy))
-        // phone silhouette blocked
-        val path = Path().apply {
-            val w = size.width * 0.18f
-            val h = size.height * 0.32f
-            val left = size.width * 0.72f
-            val top = size.height * 0.34f
-            addRoundRect(
-                androidx.compose.ui.geometry.RoundRect(
-                    left, top, left + w, top + h,
-                    androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
-                )
-            )
-        }
-        drawPath(path, colors.surfaceSelected)
-        drawLine(
-            colors.error.copy(alpha = 0.85f),
-            start = Offset(size.width * 0.74f, size.height * 0.4f),
-            end = Offset(size.width * 0.88f, size.height * 0.62f),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round
-        )
-    }
-}
-
-@Composable
-private fun GlobeIllustration() {
-    val colors = suhoodColors
-    Canvas(Modifier.size(140.dp)) {
-        val c = Offset(size.width / 2, size.height / 2)
-        val r = size.minDimension * 0.38f
-        drawCircle(colors.surfaceSelected, radius = r, center = c)
-        drawCircle(colors.silver.copy(alpha = 0.5f), radius = r, center = c, style = Stroke(2.dp.toPx()))
-        // meridians
-        drawArc(
-            colors.silver.copy(alpha = 0.45f),
-            startAngle = -90f, sweepAngle = 180f, useCenter = false,
-            topLeft = Offset(c.x - r * 0.45f, c.y - r),
-            size = Size(r * 0.9f, r * 2),
-            style = Stroke(1.5.dp.toPx())
-        )
-        drawLine(colors.silver.copy(alpha = 0.4f), Offset(c.x - r, c.y), Offset(c.x + r, c.y), 1.5.dp.toPx())
-        drawLine(colors.silver.copy(alpha = 0.35f), Offset(c.x - r * 0.85f, c.y - r * 0.4f), Offset(c.x + r * 0.85f, c.y - r * 0.4f), 1.dp.toPx())
-    }
-}
-
-@Composable
-private fun PaletteIllustration() {
-    val colors = suhoodColors
-    Canvas(Modifier.size(140.dp)) {
-        val spots = listOf(
-            colors.silverBright to Offset(size.width * 0.35f, size.height * 0.4f),
-            colors.silver to Offset(size.width * 0.58f, size.height * 0.38f),
-            colors.surfaceSelected to Offset(size.width * 0.48f, size.height * 0.58f),
-            colors.textMuted to Offset(size.width * 0.68f, size.height * 0.55f)
-        )
-        spots.forEach { (col, off) ->
-            drawCircle(col.copy(alpha = 0.9f), radius = size.minDimension * 0.16f, center = off)
-        }
-    }
-}
-
-@Composable
-private fun CheckIllustration() {
-    val colors = suhoodColors
-    Canvas(Modifier.size(140.dp)) {
-        val c = Offset(size.width / 2, size.height / 2)
-        val r = size.minDimension * 0.36f
-        drawCircle(colors.success.copy(alpha = 0.2f), radius = r * 1.15f, center = c)
-        drawCircle(colors.success.copy(alpha = 0.85f), radius = r, center = c)
-        // check mark
-        val path = Path().apply {
-            moveTo(c.x - r * 0.35f, c.y)
-            lineTo(c.x - r * 0.08f, c.y + r * 0.28f)
-            lineTo(c.x + r * 0.4f, c.y - r * 0.28f)
-        }
-        drawPath(path, Color.White, style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
-    }
-}
-
-/**
- * Claude-style permission cards, Suhood Hybrid Glass theme.
- * Only permissions that improve core UX: notifications, exact alarms, music library.
- */
-
-@Composable
-private fun GreenTickIllustration() {
-    // Soft green tick for Jazakallah celebration (not brand lavender)
-    val green = Color(0xFF34D399)
-    Canvas(Modifier.size(140.dp)) {
-        val c = Offset(size.width / 2, size.height / 2)
-        val r = size.minDimension * 0.36f
-        drawCircle(green.copy(alpha = 0.22f), radius = r * 1.2f, center = c)
-        drawCircle(green.copy(alpha = 0.9f), radius = r, center = c)
-        val path = Path().apply {
-            moveTo(c.x - r * 0.35f, c.y)
-            lineTo(c.x - r * 0.08f, c.y + r * 0.28f)
-            lineTo(c.x + r * 0.4f, c.y - r * 0.28f)
-        }
-        drawPath(path, Color.White, style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
-    }
-}
-
-
-@Composable
-private fun QuranGoalPage(
-    settingsViewModel: SettingsViewModel,
-    onContinue: () -> Unit,
-    onSkip: () -> Unit
-) {
-    val colors = suhoodColors
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var minutes by remember { mutableIntStateOf(10) }
-    var hour by remember { mutableIntStateOf(9) }
-    var remind by remember { mutableStateOf(true) }
-    val options = listOf(5, 10, 20)
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 16.dp)
     ) {
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Quran Companion",
-            style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = colors.textPrimary
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "How much time would you like to spend with the Quran daily?",
-            style = SuhoodTypography.bodyMedium,
-            color = colors.textSecondary
-        )
-        Spacer(Modifier.height(18.dp))
-        options.forEach { m ->
-            val sel = minutes == m
-            GlassCard(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                onClick = { minutes = m },
-                selected = sel,
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                Text(
-                    "$m minutes",
-                    style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (sel) colors.accentLavender else colors.textPrimary
-                )
-                Text(
-                    when (m) {
-                        5 -> "About 2 Mushaf pages · gentle pace"
-                        10 -> "About 4 Mushaf pages · steady"
-                        else -> "About 8 Mushaf pages · focused"
-                    },
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.textMuted
-                )
-            }
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text("Age group", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            ChipRow(
+                listOf("Under 18", "18–24", "25–34", "35–44", "45+", "Prefer not to say"),
+                age
+            ) { age = it }
+            Spacer(Modifier.height(16.dp))
+            Text("Gender", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            ChipRow(listOf("Male", "Female", "Prefer not to say"), gender) { gender = it }
+            Spacer(Modifier.height(16.dp))
+            Text("Daily life", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            ChipRow(
+                listOf("Student", "Employed", "Business/Self-employed", "Freelancer/Remote", "Homemaker", "Looking for work", "Other"),
+                life
+            ) { life = it }
+            Spacer(Modifier.height(16.dp))
+            Text("Preferred language", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            ChipRow(listOf("English", "Hindi", "Hinglish", "Urdu"), lang) { lang = it }
+            Spacer(Modifier.height(24.dp))
         }
-        Spacer(Modifier.height(12.dp))
-        Text("Daily reminder", style = SuhoodTypography.titleSmall, color = colors.textMuted)
-        Spacer(Modifier.height(8.dp))
-        GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (remind) "Reminder on" else "Reminder off",
-                    style = SuhoodTypography.titleSmall,
-                    color = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                androidx.compose.material3.Switch(
-                    checked = remind,
-                    onCheckedChange = { remind = it }
-                )
-            }
-            if (remind) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "Pick a time. Notification permission is requested on the next step.",
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.textMuted
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(6, 9, 12, 18, 21).forEach { h ->
-                        val sel = hour == h
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (sel) colors.accentLavender.copy(alpha = 0.2f) else colors.surfaceElevated)
-                                .border(1.dp, if (sel) colors.accentLavender else colors.borderSubtle, RoundedCornerShape(12.dp))
-                                .clickable { hour = h }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                "%02d:00".format(h),
-                                color = if (sel) colors.accentLavender else colors.textSecondary,
-                                style = SuhoodTypography.labelMedium
-                            )
-                        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    var selected by remember { mutableStateOf(store.goals) }
+    val options = listOf(
+        "Salah consistency",
+        "Quran reading",
+        "Dhikr and Tasbeeh",
+        "Reducing phone distractions",
+        "Improving daily routine"
+    )
+    StepScaffold(
+        title = "What would you like to improve?",
+        subtitle = "Select all that apply.",
+        onBack = onBack,
+        onContinue = {
+            store.goals = selected
+            onContinue()
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            options.forEach { opt ->
+                val on = opt in selected
+                GlassCardBox {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selected = if (on) selected - opt else selected + opt
+                            },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(opt, color = Color(0xFFF5F6F7), fontSize = 16.sp)
+                        if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF9FE8C8))
                     }
                 }
             }
         }
-        Spacer(Modifier.height(20.dp))
-        GlassButton(
-            text = "Continue",
-            onClick = {
-                scope.launch {
-                    settingsViewModel.setQuranCompanion(minutes, hour, 0, remind)
-                    QuranReminderScheduler.cachePrefs(context, hour, 0, remind)
-                    onContinue()
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(8.dp))
-        GlassButton(
-            text = "Skip for now",
-            onClick = {
-                scope.launch {
-                    settingsViewModel.setQuranCompanion(10, 9, 0, false)
-                    QuranReminderScheduler.cachePrefs(context, 9, 0, false)
-                    onSkip()
-                }
-            },
-            primary = false,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
 @Composable
-private fun PermissionsPage(
-    onContinue: () -> Unit,
-    onSkip: () -> Unit
-) {
-    val colors = suhoodColors
-    val context = LocalContext.current
-    var notifGranted by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT < 33) true
-            else ContextCompat.checkSelfPermission(
-                context, Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        )
+private fun HabitsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    var phone by remember { mutableStateOf(store.phoneUsage) }
+    var social by remember { mutableStateOf(store.socialUsage) }
+    var late by remember { mutableStateOf(store.lateNight) }
+    var check by remember { mutableStateOf(store.checkFrequency) }
+    var notif by remember { mutableStateOf(store.notifInterrupt) }
+    val times = listOf("< 1 hour", "1–2 hours", "2–4 hours", "4–6 hours", "6+ hours", "Prefer not to say")
+    StepScaffold(
+        title = "Your phone habits",
+        subtitle = "Estimates only — unless Usage Access is on later. You can skip any question.",
+        onBack = onBack,
+        onContinue = {
+            store.phoneUsage = phone
+            store.socialUsage = social
+            store.lateNight = late
+            store.checkFrequency = check
+            store.notifInterrupt = notif
+            onContinue()
+        }
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Average daily phone use", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(times, phone) { phone = it }
+            Text("Daily social media", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(times, social) { social = it }
+            Text("Late-night scrolling", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("Rarely", "Sometimes", "Often", "Prefer not to say"), late) { late = it }
+            Text("How often you check your phone", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("A few times/day", "Hourly", "Constantly", "Prefer not to say"), check) { check = it }
+            Text("Do notifications interrupt Salah or focus?", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("Yes", "Sometimes", "No", "Prefer not to say"), notif) { notif = it }
+        }
     }
-    var audioGranted by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= 33) {
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.READ_MEDIA_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
-            } else if (Build.VERSION.SDK_INT >= 23) {
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            } else true
-        )
-    }
-    var alarmOk by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= 31) {
-                val am = context.getSystemService(AlarmManager::class.java)
-                am?.canScheduleExactAlarms() == true
-            } else true
-        )
-    }
-    var locationGranted by remember {
-        mutableStateOf(LocationHelper.hasLocationPermission(context))
-    }
-    val scope = rememberCoroutineScope()
-    val prefsRepo = remember { PreferencesRepository(context.applicationContext) }
+}
 
-    val locationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        locationGranted = ok
-        if (ok) {
-            scope.launch {
-                LocationHelper.refreshAndPersist(context.applicationContext, prefsRepo)
+@Composable
+private fun EducationStep(onContinue: () -> Unit, onBack: () -> Unit) {
+    val cards = listOf(
+        "Notifications can pull attention away at the wrong moment.",
+        "Endless feeds are designed to keep you longer than you planned.",
+        "Habit loops make opening apps automatic — a short pause helps.",
+        "Late scrolling can crowd out sleep and Salah preparation."
+    )
+    StepScaffold(
+        title = "How distraction works",
+        subtitle = "Your phone is a tool. You decide what deserves your attention.",
+        onBack = onBack,
+        onContinue = onContinue
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+            cards.forEach { line ->
+                GlassCardBox {
+                    Text(line, color = Color(0xFFF5F6F7), fontSize = 15.sp, lineHeight = 22.sp)
+                }
             }
         }
     }
+}
 
-    val notifLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> notifGranted = granted }
-
-    val audioLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> audioGranted = granted }
-
-    val alarmLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        alarmOk = if (Build.VERSION.SDK_INT >= 31) {
-            context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
-        } else true
+@Composable
+private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val controller = remember { FocusSessionController.get(context) }
+    var selected by remember { mutableStateOf(controller.getBlockedApps()) }
+    var apps by remember { mutableStateOf(emptyList<com.suhood.feature.focus.InstalledAppInfo>()) }
+    var query by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        apps = withContext(Dispatchers.IO) { InstalledAppsRepository.loadLauncherApps(context) }
     }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    val filtered = remember(apps, query) {
+        if (query.isBlank()) apps
+        else apps.filter {
+            it.label.contains(query, true) || it.packageName.contains(query, true)
+        }
+    }
+    StepScaffold(
+        title = "Choose distracting apps",
+        subtitle = "When these open, Suhood can show a short Islamic pause (max 3/day). Nothing is selected without you.",
+        onBack = onBack,
+        onContinue = {
+            controller.setBlockedApps(selected)
+            FocusChallengeStore.get(context).setFeatureEnabled(selected.isNotEmpty())
+            onContinue()
+        }
     ) {
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Enable\npermissions",
-            style = SuhoodTypography.headlineLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 34.sp,
-                lineHeight = 40.sp
-            ),
-            color = colors.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Suhood works best with these permissions",
-            style = SuhoodTypography.bodyLarge,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(28.dp))
+        Column {
+            androidx.compose.material3.OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search apps", color = Color(0xFF6B7280)) },
+                singleLine = true
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("${selected.size} selected", color = Color(0xFF9AA3AE), fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(filtered, key = { it.packageName }) { app ->
+                    val on = app.packageName in selected
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (on) Color(0xFF1A2E2A) else Color(0xFF141519))
+                            .clickable {
+                                selected = if (on) selected - app.packageName else selected + app.packageName
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val bmp = remember(app.packageName) {
+                            runCatching {
+                                drawableToBitmap(context.packageManager.getApplicationIcon(app.packageName))
+                            }.getOrNull()
+                        }
+                        if (bmp != null) {
+                            Image(bmp.asImageBitmap(), null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
+                        } else {
+                            Box(Modifier.size(36.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
+                        }
+                        Spacer(Modifier.size(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(app.label, color = Color(0xFFF5F6F7), fontSize = 15.sp)
+                            Text(app.packageName, color = Color(0xFF6B7280), fontSize = 11.sp, maxLines = 1)
+                        }
+                        if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF9FE8C8))
+                    }
+                }
+            }
+        }
+    }
+}
 
-        PermissionCard(
-            icon = Icons.Filled.LocationOn,
-            title = "Location for Salah times",
-            body = "Used only to calculate accurate local prayer times for your city. Never shared. You can set a city manually later in Settings.",
-            enabled = locationGranted,
-            onClick = {
-                if (locationGranted) return@PermissionCard
-                locationLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
+@Composable
+private fun SalahRoutineStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    val prayers = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
+    val statuses = listOf("Usually on time", "Sometimes delayed", "I want to improve", "Prefer not to answer")
+    var local by remember {
+        mutableStateOf(prayers.associateWith { store.prayerStatus(it) })
+    }
+    var hardest by remember { mutableStateOf(store.hardestPrayer) }
+    var style by remember { mutableStateOf(store.reminderStyle) }
+    StepScaffold(
+        title = "Your Salah routine",
+        subtitle = "Optional. There is no shame in wanting to improve.",
+        onBack = onBack,
+        onContinue = {
+            local.forEach { (k, v) -> store.setPrayerStatus(k, v) }
+            store.hardestPrayer = hardest
+            store.reminderStyle = style
+            onContinue()
+        }
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            prayers.forEach { p ->
+                Text(p, color = Color(0xFFC7CBD1), fontSize = 13.sp)
+                ChipRow(statuses, local[p] ?: "") { local = local + (p to it) }
+            }
+            Text("Which prayer is hardest to maintain?", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(prayers + "Prefer not to say", hardest) { hardest = it }
+            Text("Reminder style", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("Gentle", "Balanced", "Firm"), style) { style = it }
+        }
+    }
+}
+
+@Composable
+private fun QuranDhikrStep(
+    store: OnboardingProfileStore,
+    settingsViewModel: SettingsViewModel,
+    onContinue: () -> Unit,
+    onBack: () -> Unit
+) {
+    var qMin by remember { mutableIntStateOf(store.quranMinutes) }
+    var dMin by remember { mutableIntStateOf(store.dhikrMinutes) }
+    var rem by remember { mutableStateOf(store.quranReminder) }
+    StepScaffold(
+        title = "Quran & Dhikr goals",
+        subtitle = "Small daily targets. You can change these anytime in Settings.",
+        onBack = onBack,
+        onContinue = {
+            store.quranMinutes = qMin
+            store.dhikrMinutes = dMin
+            store.quranReminder = rem
+            // Wire to existing daily goal if ViewModel supports pages-ish target
+            runCatching {
+                settingsViewModel.setQuranCompanion(qMin, 9, 0, rem)
+            }
+            onContinue()
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Daily Quran time", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("5", "10", "20", "30"), qMin.toString()) { qMin = it.toInt() }
+            Text("Daily Dhikr time", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+            ChipRow(listOf("5", "10", "15", "20"), dMin.toString()) { dMin = it.toInt() }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Optional Quran reminder", color = Color(0xFFF5F6F7))
+                Switch(checked = rem, onCheckedChange = { rem = it })
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val apps = remember { FocusSessionController.get(context).getBlockedApps().size }
+    StepScaffold(
+        title = "Your Suhood plan",
+        subtitle = "Recommendations from your answers. Editable anytime in the app.",
+        onBack = onBack,
+        onContinue = onContinue,
+        continueLabel = "Looks good"
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PlanRow("Reminder style", store.reminderStyle)
+            PlanRow("Distracting apps selected", "$apps apps")
+            PlanRow("Quran daily", "${store.quranMinutes} min")
+            PlanRow("Dhikr daily", "${store.dhikrMinutes} min")
+            PlanRow("Goals", store.goals.joinToString().ifBlank { "—" })
+            PlanRow("Hardest prayer", store.hardestPrayer.ifBlank { "—" })
+            GlassCardBox {
+                Text(
+                    "Next: enable notifications, Usage Access, and Accessibility so Salah lock and mindful pauses can work.",
+                    color = Color(0xFF9AA3AE),
+                    fontSize = 13.sp
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PlanRow(label: String, value: String) {
+    GlassCardBox {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = Color(0xFF9AA3AE), fontSize = 13.sp)
+            Text(value, color = Color(0xFFF5F6F7), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Composable
+private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var notifOk by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < 33 ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
         )
-        Spacer(Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Filled.Notifications,
-            title = "Notifications",
-            body = "Prayer reminders, alarms and Focus session alerts when it is time to return to Allah.",
-            enabled = notifGranted,
-            onClick = {
-                if (Build.VERSION.SDK_INT >= 33 && !notifGranted) {
+    }
+    var usageOk by remember { mutableStateOf(AppBlockHelper.hasUsageAccess(context)) }
+    var a11yOk by remember { mutableStateOf(FocusAccessibilityService.isEnabled(context)) }
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        notifOk = it || Build.VERSION.SDK_INT < 33
+    }
+    LaunchedEffect(Unit) {
+        // refresh when returning — simple loop not needed; user taps refresh via continue
+    }
+    StepScaffold(
+        title = "Permissions & protection",
+        subtitle = "Each item is explained. Blocking is only active after Accessibility is really on.",
+        onBack = onBack,
+        onContinue = {
+            usageOk = AppBlockHelper.hasUsageAccess(context)
+            a11yOk = FocusAccessibilityService.isEnabled(context)
+            onContinue()
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+            PermRow(
+                "Notifications",
+                "Salah reminders and Adhan sound",
+                notifOk,
+                if (notifOk) "Enabled" else "Enable"
+            ) {
+                if (Build.VERSION.SDK_INT >= 33) {
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
-        )
-        Spacer(Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Filled.Alarm,
-            title = "Alarms & reminders",
-            body = "Exact alarms so Fajr and custom wake-up times ring on time, even in Do Not Disturb.",
-            enabled = alarmOk,
-            onClick = {
-                if (Build.VERSION.SDK_INT >= 31 && !alarmOk) {
-                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                        data = android.net.Uri.parse("package:${context.packageName}")
-                    }
-                    runCatching { alarmLauncher.launch(intent) }
+            PermRow(
+                "Usage Access",
+                "Detect which app is open for lock / pause",
+                usageOk,
+                if (usageOk) "Enabled" else "Open settings"
+            ) { AppBlockHelper.openUsageAccessSettings(context) }
+            PermRow(
+                "Accessibility (Suhood Focus)",
+                "Required for app blocking & mindful pauses",
+                a11yOk,
+                if (a11yOk) "Enabled" else "Open settings"
+            ) { FocusAccessibilityService.openSettings(context) }
+            PermRow(
+                "Exact alarms",
+                "Reliable Salah-time triggers",
+                true,
+                "Check"
+            ) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    context.startActivity(
+                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
                 }
             }
-        )
-        Spacer(Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Filled.MusicNote,
-            title = "Music & audio",
-            body = "Play nasheeds and tilawat from your device library in Nasheedify.",
-            enabled = audioGranted,
-            onClick = {
-                if (audioGranted) return@PermissionCard
-                if (Build.VERSION.SDK_INT >= 33) {
-                    audioLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
-                } else {
-                    audioLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                }
-            }
-        )
-
-        Spacer(Modifier.height(28.dp))
-        GlassButton(
-            text = "Continue",
-            onClick = onContinue,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(10.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .border(1.dp, colors.borderSubtle, RoundedCornerShape(28.dp))
-                .clickable(onClick = onSkip)
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
             Text(
-                "Skip for now",
-                style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = colors.textSecondary
+                "Opening a settings screen does not mean protection is on. We verify on the next step.",
+                color = Color(0xFF6B7280),
+                fontSize = 12.sp
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "You can change these later in Settings → Permissions.",
-            style = SuhoodTypography.labelSmall,
-            color = colors.textMuted,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
 @Composable
-private fun PermissionCard(
-    icon: ImageVector,
-    title: String,
-    body: String,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val colors = suhoodColors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(colors.surfaceElevated.copy(alpha = 0.95f))
-            .border(1.dp, colors.borderSubtle.copy(alpha = 0.8f), RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun PermRow(title: String, sub: String, ok: Boolean, btn: String, onClick: () -> Unit) {
+    GlassCardBox {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = Color(0xFFF5F6F7), fontWeight = FontWeight.Medium)
+                Text(sub, color = Color(0xFF9AA3AE), fontSize = 12.sp)
+            }
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (ok) Color(0xFF1A2E2A) else Color(0xFF2A2D33))
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(btn, color = if (ok) Color(0xFF9FE8C8) else Color(0xFFF5F6F7), fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TestSetupStep(onContinue: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var usageOk by remember { mutableStateOf(AppBlockHelper.hasUsageAccess(context)) }
+    var a11yOk by remember { mutableStateOf(FocusAccessibilityService.isEnabled(context)) }
+    var notifMsg by remember { mutableStateOf<String?>(null) }
+    val protection = usageOk && a11yOk
+    StepScaffold(
+        title = "Test your setup",
+        subtitle = if (protection) "Protection checks passed." else "Some checks still need attention.",
+        onBack = onBack,
+        onContinue = onContinue,
+        continueLabel = if (protection) "Continue" else "Continue anyway"
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.accentLavender.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (enabled) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = colors.success, modifier = Modifier.size(24.dp))
-            } else {
-                Icon(icon, contentDescription = null, tint = colors.accentLavender, modifier = Modifier.size(24.dp))
-            }
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                title,
-                style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = colors.textPrimary
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatusLine("Usage Access", usageOk)
+            StatusLine("Accessibility", a11yOk)
+            GlassButton(
+                text = "Send test notification",
+                onClick = {
+                    runCatching {
+                        val n = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_SALAH_LOCK)
+                            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                            .setContentTitle("Suhood test")
+                            .setContentText("Notifications are working.")
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .build()
+                        NotificationManagerCompat.from(context).notify(99101, n)
+                        notifMsg = "Notification sent — check shade / sound."
+                    }.onFailure { notifMsg = "Could not send: ${it.message}" }
+                },
+                modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                body,
-                style = SuhoodTypography.bodySmall,
-                color = colors.textSecondary
+            if (notifMsg != null) Text(notifMsg!!, color = Color(0xFF9AA3AE), fontSize = 13.sp)
+            GlassButton(
+                text = "Refresh permission status",
+                onClick = {
+                    usageOk = AppBlockHelper.hasUsageAccess(context)
+                    a11yOk = FocusAccessibilityService.isEnabled(context)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                primary = false
             )
-            if (enabled) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Enabled",
-                    style = SuhoodTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = colors.success
-                )
-            }
+            Text(
+                "Android limit: Force Stop or turning off Accessibility stops blocking. OEM battery settings can also delay alarms.",
+                color = Color(0xFF6B7280),
+                fontSize = 12.sp
+            )
         }
     }
 }
 
 @Composable
-private fun JazakallahPage(onFinished: () -> Unit) {
-    val colors = suhoodColors
-    val scale = remember { Animatable(0.4f) }
-    LaunchedEffect(Unit) {
-        scale.animateTo(
-            1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-        delay(1600)
-        onFinished()
+private fun StatusLine(label: String, ok: Boolean) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Color(0xFFF5F6F7))
+        Text(if (ok) "OK" else "Missing", color = if (ok) Color(0xFF9FE8C8) else Color(0xFFE8A0A0))
     }
+}
+
+@Composable
+private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(modifier = Modifier.scale(scale.value)) {
-            GreenTickIllustration()
+        Text("✓", color = Color(0xFF9FE8C8), fontSize = 48.sp)
+        Spacer(Modifier.height(16.dp))
+        Text("Welcome to your Suhood", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Preferences saved on this device.\n${store.goals.size} goals · ${store.reminderStyle} reminders",
+            color = Color(0xFF9AA3AE),
+            textAlign = TextAlign.Center,
+            fontSize = 14.sp
+        )
+        Spacer(Modifier.height(32.dp))
+        GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+private fun drawableToBitmap(drawable: Drawable): Bitmap? {
+    return try {
+        if (drawable is BitmapDrawable && drawable.bitmap != null && !drawable.bitmap.isRecycled) {
+            return drawable.bitmap
         }
-        Spacer(Modifier.height(28.dp))
-        Text(
-            "JazakAllah Khair",
-            style = SuhoodTypography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-            color = colors.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "You're all set. May Allah put barakah in your time.",
-            style = SuhoodTypography.bodyLarge,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
-        GlassButton(
-            text = "Enter Suhood",
-            onClick = onFinished,
-            modifier = Modifier.fillMaxWidth()
-        )
+        val w = drawable.intrinsicWidth.coerceIn(1, 192)
+        val h = drawable.intrinsicHeight.coerceIn(1, 192)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        bmp
+    } catch (_: Exception) {
+        null
     }
 }
