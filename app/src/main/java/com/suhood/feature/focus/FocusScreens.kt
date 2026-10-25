@@ -320,6 +320,19 @@ object FocusScreens {
 
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ScreenHeader(title = "Distracting apps", onBack = onBack)
+            Text(
+                "When you open a selected app, Suhood shows a short Islamic pause (Tasbeeh, Dhikr quiz, or Quran ayah). Complete it to continue. Max 3 times per day · same method as Salah lock (Accessibility).",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted
+            )
+            Spacer(Modifier.height(8.dp))
+            val left = remember { FocusChallengeStore.get(context).challengesRemaining() }
+            Text(
+                "Mindful pauses left today: $left / 3",
+                style = SuhoodTypography.labelMedium,
+                color = colors.silverBright
+            )
+            Spacer(Modifier.height(8.dp))
 
             if (!a11yOk) {
                 AccessibilityWarningBanner(

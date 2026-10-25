@@ -77,6 +77,16 @@
         </activity>
 
         <activity
+            android:name="com.suhood.feature.focus.FocusChallengeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Suhood"
+            android:showWhenLocked="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true" />
+
+        <activity
             android:name="com.suhood.feature.focus.FocusBlockActivity"
             android:exported="false"
             android:excludeFromRecents="true"

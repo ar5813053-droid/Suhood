@@ -88,24 +88,54 @@ class FocusAccessibilityService : AccessibilityService() {
             SalahLockOverlay.hide(this)
         }
 
-        val session = FocusSessionController.get(applicationContext).session.value
-        if (session.state != com.suhood.core.model.FocusSessionState.RUNNING) return
-        val blocked = session.selectedAppIds.toSet()
-        if (blocked.isEmpty() || pkg !in blocked) return
-        if (pkg == lastPkg && now - lastActionMs < 600) return
+        // Focus / distracting-app gate (any time, not only active Focus session)
+        val blocked = FocusSessionController.get(applicationContext).getBlockedApps()
+        if (blocked.isEmpty()) return
+        val isBlocked = pkg in blocked || blocked.any {
+            pkg.startsWith("$it.") || (it.startsWith("com.instagram") && pkg.startsWith("com.instagram"))
+        }
+        if (!isBlocked) return
+        if (pkg == lastPkg && now - lastActionMs < 700) return
         lastPkg = pkg
         lastActionMs = now
-        performGlobalAction(GLOBAL_ACTION_HOME)
-        startActivity(
-            Intent(this, FocusBlockActivity::class.java).apply {
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+        val challenge = FocusChallengeStore.get(applicationContext)
+        // Short pass after completing a mini-game
+        if (challenge.hasActivePass()) return
+
+        // Prayer-Pause style: overlay on top of the blocked app (reliable)
+        if (FocusChallengeOverlay.isShowing()) return
+        val remaining = challenge.challengesRemaining()
+        FocusChallengeOverlay.show(this, pkg, remaining)
+        // Also try activity as backup
+        if (challenge.canOfferChallenge()) {
+            runCatching {
+                startActivity(
+                    Intent(this, FocusChallengeActivity::class.java).apply {
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        )
+                        putExtra(FocusChallengeActivity.EXTRA_PACKAGE, pkg)
+                    }
                 )
-                putExtra(FocusBlockActivity.EXTRA_PACKAGE, pkg)
             }
-        )
+        } else {
+            runCatching {
+                startActivity(
+                    Intent(this, FocusBlockActivity::class.java).apply {
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        )
+                        putExtra(FocusBlockActivity.EXTRA_PACKAGE, pkg)
+                    }
+                )
+            }
+        }
     }
 
     override fun onInterrupt() {}
@@ -116,6 +146,7 @@ class FocusAccessibilityService : AccessibilityService() {
         if (pkg == lastPkg && now - lastActionMs < 500 && SalahLockOverlay.isShowing()) return
         lastPkg = pkg
         lastActionMs = now
+        FocusChallengeOverlay.hide(this)
         SalahLockOverlay.show(this)
         // Pull blocked app down under the overlay
         handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 60L)
