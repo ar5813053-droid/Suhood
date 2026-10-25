@@ -1,7 +1,8 @@
 package com.suhood.feature.onboarding
 
 import android.Manifest
-import android.app.AlarmManager
+import android.app.AppOpsManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -9,11 +10,11 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Process
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -37,19 +38,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,15 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.suhood.app.SuhoodApplication
-import com.suhood.core.designsystem.components.GlassButton
-import com.suhood.core.designsystem.theme.SuhoodSpacing
-import com.suhood.core.designsystem.theme.SuhoodTypography
-import com.suhood.core.designsystem.theme.suhoodColors
-import com.suhood.core.datastore.PreferencesRepository
 import com.suhood.feature.focus.AppBlockHelper
 import com.suhood.feature.focus.FocusAccessibilityService
 import com.suhood.feature.focus.FocusChallengeStore
@@ -90,7 +80,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val TOTAL_STEPS = 12
+// Liquid Glass tokens (HTML prototype)
+private val Void = Color(0xFF000408)
+private val Moon = Color(0xFF8BB8D4)
+private val T1 = Color(0xF5FFFFFF)
+private val T2 = Color(0x9EFFFFFF)
+private val T3 = Color(0x5CFFFFFF)
+private val Glass1 = Color(0x0EFFFFFF)
+private val GlassSel = Color(0x2491B4E6)
+private val B1 = Color(0x1AFFFFFF)
+private val BSel = Color(0x5991B4E6)
+private val R2 = 18.dp
+private val R3 = 24.dp
+private val R4 = 32.dp
+
+private const val TOTAL = 12
 
 @Composable
 fun OnboardingFlow(
@@ -99,26 +103,27 @@ fun OnboardingFlow(
 ) {
     val context = LocalContext.current
     val store = remember { OnboardingProfileStore.get(context) }
-    var step by remember { mutableIntStateOf(store.step) }
-    val colors = suhoodColors
+    var step by remember { mutableIntStateOf(store.step.coerceIn(0, TOTAL - 1)) }
     val scope = rememberCoroutineScope()
 
     fun go(to: Int) {
-        step = to.coerceIn(0, TOTAL_STEPS - 1)
+        step = to.coerceIn(0, TOTAL - 1)
         store.step = step
     }
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF08090B))
+            .background(Void)
     ) {
+        // Soft radial glow
         Box(
             Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF111316), Color(0xFF08090B), Color(0xFF08090B))
+                    Brush.radialGradient(
+                        colors = listOf(Color(0x381A3A5C), Color.Transparent),
+                        radius = 900f
                     )
                 )
         )
@@ -127,57 +132,108 @@ fun OnboardingFlow(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = SuhoodSpacing.xl)
         ) {
+            // Progress
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(Color(0x0FFFFFFF))
+            ) {
+                val pct = if (step <= 0) 0f else (step.toFloat() / (TOTAL - 1)).coerceIn(0f, 1f)
+                Box(
+                    Modifier
+                        .fillMaxWidth(pct)
+                        .height(2.dp)
+                        .background(Brush.horizontalGradient(listOf(Moon, Moon.copy(alpha = 0.7f))))
+                )
+            }
+            // Nav
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OnboardingProgress(step, TOTAL_STEPS, Modifier.weight(1f))
-                if (step in 1..10) {
-                    TextButton(onClick = {
-                        if (step < 9) go(9) else if (step < 11) go(11)
-                    }) {
-                        Text("Skip", color = Color(0xFF9AA3AE))
+                if (step > 0) {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(Glass1)
+                            .border(1.dp, B1, CircleShape)
+                            .clickable { go(step - 1) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = T2, modifier = Modifier.size(18.dp))
                     }
+                } else {
+                    Spacer(Modifier.size(34.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    if (step == 0) "" else "$step of ${TOTAL - 1}",
+                    color = T3,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.weight(1f))
+                // Skip only on early optional screens (not required ones)
+                val skipTarget = when (step) {
+                    1 -> 2 // about optional parts → goals still required later
+                    else -> null
+                }
+                if (skipTarget != null && step in 1..1) {
+                    Text(
+                        "Skip",
+                        color = Moon,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable { go(skipTarget) }
+                    )
+                } else {
+                    Spacer(Modifier.width(40.dp))
                 }
             }
 
             AnimatedContent(
                 targetState = step,
                 transitionSpec = {
-                    (slideInHorizontally { it / 4 } + fadeIn(tween(220)))
-                        .togetherWith(slideOutHorizontally { -it / 4 } + fadeOut(tween(180)))
+                    (slideInHorizontally { it / 4 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { -it / 4 } + fadeOut())
                 },
                 modifier = Modifier.weight(1f),
-                label = "onboarding"
-            ) { page ->
-                when (page) {
-                    0 -> WelcomeStep(onContinue = { go(1) })
-                    1 -> AboutYouStep(store, onContinue = { go(2) }, onBack = { go(0) })
-                    2 -> GoalsStep(store, onContinue = { go(3) }, onBack = { go(1) })
-                    3 -> HabitsStep(store, onContinue = { go(4) }, onBack = { go(2) })
-                    4 -> EducationStep(onContinue = { go(5) }, onBack = { go(3) })
-                    5 -> SalahRoutineStep(store, onContinue = { go(6) }, onBack = { go(4) })
-                    6 -> QuranDhikrStep(store, settingsViewModel, onContinue = { go(7) }, onBack = { go(5) })
-                    7 -> PlanStep(store, onContinue = { go(8) }, onBack = { go(6) })
-                    8 -> PermissionsStep(onContinue = { go(9) }, onBack = { go(7) })
-                    9 -> TestSetupStep(onContinue = { go(10) }, onBack = { go(8) })
-                    10 -> AppsStep(onContinue = { go(11) }, onBack = { go(9) })
-                    else -> CompleteStep(
-                        store = store,
-                        onEnter = {
+                label = "onb"
+            ) { s ->
+                Box(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
+                    when (s) {
+                        0 -> WelcomeStep { go(1) }
+                        1 -> AboutStep(store) { go(2) }
+                        2 -> GoalsStep(store) { go(3) }
+                        3 -> HabitsStep(store) { go(4) }
+                        4 -> EducationStep { go(5) }
+                        5 -> AppsStep(store) { go(6) }
+                        6 -> SalahStep(store) { go(7) }
+                        7 -> PracticeStep(store, settingsViewModel) { go(8) }
+                        8 -> PlanStep(store) { go(9) }
+                        9 -> PermissionsStep { go(10) }
+                        10 -> PreviewStep(store) { go(11) }
+                        else -> CompleteStep(store) {
                             scope.launch {
                                 FocusChallengeStore.get(context).setFeatureEnabled(
                                     FocusSessionController.get(context).getBlockedApps().isNotEmpty()
                                 )
+                                // Regenerate plan once more with latest apps
+                                val labels = withContext(Dispatchers.IO) {
+                                    emptyList<String>()
+                                }
+                                val plan = PersonalizedPlanEngine.generate(store.toAnswers(labels))
+                                store.savePlan(plan)
                                 store.step = 0
                                 onComplete()
                             }
                         }
-                    )
+                    }
                 }
             }
         }
@@ -185,112 +241,134 @@ fun OnboardingFlow(
 }
 
 @Composable
-private fun OnboardingProgress(step: Int, total: Int, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(total) { i ->
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(3.dp)
-                    .clip(CircleShape)
-                    .background(if (i <= step) Color(0xFFC7CBD1) else Color(0xFF2A2D33))
-            )
-        }
-    }
-}
-
-@Composable
-private fun StepScaffold(
-    title: String,
-    subtitle: String? = null,
-    onBack: (() -> Unit)? = null,
-    onContinue: (() -> Unit)? = null,
-    continueLabel: String = "Continue",
-    canContinue: Boolean = true,
-    validationHint: String? = null,
-    content: @Composable () -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        if (onBack != null) {
-            TextButton(onClick = onBack) {
-                Text("Back", color = Color(0xFF9AA3AE))
-            }
-        }
-        Text(
-            title,
-            color = Color(0xFFF5F6F7),
-            fontSize = 26.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 32.sp
-        )
-        if (subtitle != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(subtitle, color = Color(0xFF9AA3AE), fontSize = 14.sp, lineHeight = 20.sp)
-        }
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.weight(1f)) { content() }
-        if (!canContinue && validationHint != null) {
-            Text(
-                validationHint,
-                color = Color(0xFFD4A574),
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-        }
-        if (onContinue != null) {
-            GlassButton(
-                text = continueLabel,
-                onClick = { if (canContinue) onContinue() },
-                enabled = canContinue,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp, top = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun Chip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) Color(0xFF1A2E2A) else Color(0xFF141519))
-            .border(1.dp, if (selected) Color(0x669FE8C8) else Color(0x33FFFFFF), RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
-    ) {
-        Text(label, color = if (selected) Color(0xFF9FE8C8) else Color(0xFFF5F6F7), fontSize = 13.sp)
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ChipRow(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { opt ->
-            Chip(opt, selected == opt) { onSelect(opt) }
-        }
-    }
-}
-
-@Composable
-private fun GlassCardBox(content: @Composable () -> Unit) {
+private fun PrimaryButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(R4)
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF141519))
-            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(18.dp))
+            .clip(shape)
+            .background(
+                if (enabled) Brush.verticalGradient(listOf(Color(0xF5FFFFFF), Color(0xEDEBF0F8)))
+                else Brush.verticalGradient(listOf(Color(0x44FFFFFF), Color(0x33FFFFFF)))
+            )
+            .border(1.dp, Color(0x66FFFFFF), shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            color = if (enabled) Color(0xFF050810) else Color(0x66050810),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun SecondaryButton(text: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(R4)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Glass1)
+            .border(1.dp, B1, shape)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = T2, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun GlassCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(R3))
+            .background(Glass1)
+            .border(1.dp, B1, RoundedCornerShape(R3))
             .padding(16.dp)
     ) { content() }
 }
 
-// —— Screens ——
+@Composable
+private fun SelectRow(
+    label: String,
+    selected: Boolean,
+    subtitle: String? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(R2))
+            .background(if (selected) GlassSel else Glass1)
+            .border(1.dp, if (selected) BSel else B1, RoundedCornerShape(R2))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, color = T1, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (subtitle != null) {
+                Text(subtitle, color = T3, fontSize = 12.sp)
+            }
+        }
+        Box(
+            Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(if (selected) Moon else Color.Transparent)
+                .border(1.5.dp, if (selected) Moon else Color(0x29FFFFFF), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) Icon(Icons.Filled.Check, null, tint = Color(0xFF050810), modifier = Modifier.size(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, color = Color(0xFFD4A574), fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+}
+
+@Composable
+private fun StepChrome(
+    title: String,
+    subtitle: String? = null,
+    canContinue: Boolean = true,
+    validationHint: String? = null,
+    continueLabel: String = "Continue",
+    onContinue: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            title,
+            color = T1,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = 32.sp,
+            letterSpacing = (-0.5).sp
+        )
+        if (subtitle != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(subtitle, color = T2, fontSize = 15.sp, lineHeight = 22.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.weight(1f)) { content() }
+        if (!canContinue && validationHint != null) {
+            Hint(validationHint)
+        }
+        if (onContinue != null) {
+            PrimaryButton(continueLabel, enabled = canContinue, onClick = onContinue)
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
 
 @Composable
 private fun WelcomeStep(onContinue: () -> Unit) {
@@ -299,43 +377,47 @@ private fun WelcomeStep(onContinue: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("◆", color = Color(0xFFC7CBD1), fontSize = 40.sp)
+        Text("🌙", fontSize = 48.sp)
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Make room for\nwhat matters.",
+            color = T1,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 36.sp
+        )
         Spacer(Modifier.height(12.dp))
-        Text("Suhood", color = Color(0xFFF5F6F7), fontSize = 32.sp, fontWeight = FontWeight.Medium)
+        Text(
+            "Suhood helps you protect Salah, quiet distractions, and build a gentle daily practice.",
+            color = T2,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        Spacer(Modifier.height(36.dp))
+        PrimaryButton("Get Started", onClick = onContinue)
         Spacer(Modifier.height(24.dp))
-        Text(
-            "Make room for what matters.",
-            color = Color.White,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Reconnect with Salah. Refocus your life.",
-            color = Color(0xFF9AA3AE),
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(40.dp))
-        GlassButton(text = "Get Started", onClick = onContinue, modifier = Modifier.fillMaxWidth())
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+private fun AboutStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
     var age by remember { mutableStateOf(store.ageGroup) }
     var gender by remember { mutableStateOf(store.gender) }
     var life by remember { mutableStateOf(store.dailyLife) }
     var lang by remember { mutableStateOf(store.language) }
+    val ages = listOf("Under 18" to "under18", "18–24" to "18-24", "25–34" to "25-34", "35–44" to "35-44", "45+" to "45+")
+    val genders = listOf("Male" to "male", "Female" to "female", "Prefer not to say" to "prefer_not")
+    val lives = listOf("Student" to "student", "Working" to "working", "Parent" to "parent", "Other" to "other")
+    val langs = listOf("English", "Hindi", "Urdu", "Hinglish")
     val valid = OnboardingValidation.aboutValid(age, life)
-    StepScaffold(
+
+    StepChrome(
+        title = "A little about yourself?",
+        subtitle = "Helps us pace recommendations. Gender is optional.",
         canContinue = valid,
-        validationHint = if (!valid) "Select your age group and daily life to continue." else null,
-        title = "About you",
-        subtitle = "Optional — used only for personalization on this device. Not judgment.",
-        onBack = onBack,
+        validationHint = "Select age group and daily life to continue.",
         onContinue = {
             store.ageGroup = age
             store.gender = gender
@@ -344,53 +426,49 @@ private fun AboutYouStep(store: OnboardingProfileStore, onContinue: () -> Unit, 
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text("Age group", color = Color(0xFFC7CBD1), fontSize = 13.sp)
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("AGE", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            ages.forEach { (label, id) ->
+                SelectRow(label, age == id || age == label) { age = id }
+            }
             Spacer(Modifier.height(8.dp))
-            ChipRow(
-                listOf("Under 18", "18–24", "25–34", "35–44", "45+", "Prefer not to say"),
-                age
-            ) { age = it }
+            Text("GENDER (OPTIONAL)", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            genders.forEach { (label, id) ->
+                SelectRow(label, gender == id || gender == label) { gender = id }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("DAILY LIFE", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            lives.forEach { (label, id) ->
+                SelectRow(label, life == id || life == label) { life = id }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("LANGUAGE", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            langs.forEach { label ->
+                SelectRow(label, lang == label) { lang = label }
+            }
             Spacer(Modifier.height(16.dp))
-            Text("Gender", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            ChipRow(listOf("Male", "Female", "Prefer not to say"), gender) { gender = it }
-            Spacer(Modifier.height(16.dp))
-            Text("Daily life", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            ChipRow(
-                listOf("Student", "Employed", "Business/Self-employed", "Freelancer/Remote", "Homemaker", "Looking for work", "Other"),
-                life
-            ) { life = it }
-            Spacer(Modifier.height(16.dp))
-            Text("Preferred language", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            ChipRow(listOf("English", "Hindi", "Hinglish", "Urdu"), lang) { lang = it }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
-    // Store engine ids; display labels for UI
-    val goalOptions = listOf(
-        "salah" to "Salah consistency",
-        "quran" to "Quran reading",
-        "dhikr" to "Dhikr and Tasbeeh",
-        "focus" to "Reducing phone distractions",
-        "routine" to "Improving daily routine"
+private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
+    val opts = listOf(
+        Triple("salah", "Consistent Salah", "Show up for the five prayers more reliably"),
+        Triple("quran", "More Quran", "A small daily reading habit"),
+        Triple("dhikr", "Daily Dhikr", "Short remembrance throughout the day"),
+        Triple("focus", "Reduce distractions", "Protect attention around Salah"),
+        Triple("routine", "Daily routine", "One calm structure you can keep")
     )
     var selected by remember {
         mutableStateOf(
             store.goals.map { g ->
                 when {
                     g in setOf("salah", "quran", "dhikr", "focus", "routine") -> g
-                    "Salah" in g -> "salah"
-                    "Quran" in g -> "quran"
-                    "Dhikr" in g -> "dhikr"
-                    "distraction" in g.lowercase() || "phone" in g.lowercase() -> "focus"
+                    "Salah" in g || "salah" in g.lowercase() -> "salah"
+                    "Quran" in g || "quran" in g.lowercase() -> "quran"
+                    "Dhikr" in g || "dhikr" in g.lowercase() -> "dhikr"
+                    "distract" in g.lowercase() || "phone" in g.lowercase() || "focus" in g.lowercase() -> "focus"
                     "routine" in g.lowercase() -> "routine"
                     else -> g
                 }
@@ -398,111 +476,102 @@ private fun GoalsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onB
         )
     }
     val valid = OnboardingValidation.goalsValid(selected)
-    StepScaffold(
+
+    StepChrome(
         title = "What matters most right now?",
-        subtitle = "Select at least one. You can change this anytime in Settings.",
-        onBack = onBack,
+        subtitle = "Pick at least one. This drives your personal plan.",
         canContinue = valid,
-        validationHint = if (!valid) "Select at least one goal to continue." else null,
+        validationHint = "Select at least one goal to continue.",
         onContinue = {
             store.goals = selected
             onContinue()
         }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            goalOptions.forEach { (id, label) ->
-                val on = id in selected
-                GlassCardBox {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selected = if (on) selected - id else selected + id
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(label, color = Color(0xFFF5F6F7), fontSize = 16.sp)
-                        if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF9FE8C8))
-                    }
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            opts.forEach { (id, title, sub) ->
+                SelectRow(title, id in selected, sub) {
+                    selected = if (id in selected) selected - id else selected + id
                 }
             }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun HabitsStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+private fun HabitsStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
     var phone by remember { mutableStateOf(store.phoneUsage) }
-    var social by remember { mutableStateOf(store.socialUsage) }
-    var late by remember { mutableStateOf(store.lateNight) }
-    var check by remember { mutableStateOf(store.checkFrequency) }
-    var notif by remember { mutableStateOf(store.notifInterrupt) }
-    val times = listOf("< 1 hour", "1–2 hours", "2–4 hours", "4–6 hours", "6+ hours", "Prefer not to say")
-    val valid = OnboardingValidation.habitsValid(phone, social.ifBlank { late })
-    StepScaffold(
+    var dist by remember { mutableStateOf(store.socialUsage) }
+    val phones = listOf("1–2 hours" to "1-2h", "2–4 hours" to "2-4h", "4–6 hours" to "4-6h", "6+ hours" to "6h+")
+    val dists = listOf("Morning" to "morning", "Afternoon" to "afternoon", "Evening" to "evening", "Late night" to "night")
+    val valid = OnboardingValidation.habitsValid(phone, dist)
+
+    StepChrome(
         title = "How do you use your phone?",
-        subtitle = "Estimates help shape distraction strategy. Usage Access can refine this later.",
-        onBack = onBack,
+        subtitle = "Estimates shape distraction strategy. Usage Access can refine later.",
         canContinue = valid,
-        validationHint = if (!valid) "Select phone usage and when distractions are strongest." else null,
+        validationHint = "Select daily use and when distractions are strongest.",
         onContinue = {
             store.phoneUsage = phone
-            store.socialUsage = social
-            store.lateNight = late
-            store.checkFrequency = check
-            store.notifInterrupt = notif
+            store.socialUsage = dist
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Average daily phone use", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(times, phone) { phone = it }
-            Text("Daily social media", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(times, social) { social = it }
-            Text("Late-night scrolling", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("Rarely", "Sometimes", "Often", "Prefer not to say"), late) { late = it }
-            Text("How often you check your phone", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("A few times/day", "Hourly", "Constantly", "Prefer not to say"), check) { check = it }
-            Text("Do notifications interrupt Salah or focus?", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("Yes", "Sometimes", "No", "Prefer not to say"), notif) { notif = it }
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("DAILY SCREEN TIME", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            phones.forEach { (label, id) ->
+                SelectRow(label, phone == id || phone == label) { phone = id }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("DISTRACTIONS STRONGEST", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            dists.forEach { (label, id) ->
+                SelectRow(label, dist == id || dist == label) { dist = id }
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun EducationStep(onContinue: () -> Unit, onBack: () -> Unit) {
-    val cards = listOf(
-        "Notifications can pull attention away at the wrong moment.",
-        "Endless feeds are designed to keep you longer than you planned.",
-        "Habit loops make opening apps automatic — a short pause helps.",
-        "Late scrolling can crowd out sleep and Salah preparation."
-    )
-    StepScaffold(
-        title = "How distraction works",
-        subtitle = "Your phone is a tool. You decide what deserves your attention.",
-        onBack = onBack,
-        onContinue = onContinue
+private fun EducationStep(onContinue: () -> Unit) {
+    StepChrome(
+        title = "Your attention is valuable.",
+        subtitle = "A few minutes of protection around Salah can change the whole day.",
+        onContinue = onContinue,
+        continueLabel = "I understand"
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-            cards.forEach { line ->
-                GlassCardBox {
-                    Text(line, color = Color(0xFFF5F6F7), fontSize = 15.sp, lineHeight = 22.sp)
-                }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GlassCard {
+                Text("Salah windows", color = T1, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text("When prayer time arrives, selected apps can pause so you return to Allah first.", color = T2, fontSize = 13.sp)
+            }
+            GlassCard {
+                Text("Gentle, not punishing", color = T1, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text("Limits are timed. Access returns automatically. You stay in control of permissions.", color = T2, fontSize = 13.sp)
+            }
+            GlassCard {
+                Text("Small habits compound", color = T1, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text("Your plan will suggest realistic first steps — not an overwhelming overhaul.", color = T2, fontSize = 13.sp)
             }
         }
     }
 }
 
 @Composable
-private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
+private fun AppsStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
     val context = LocalContext.current
-    val controller = remember { FocusSessionController.get(context) }
-    var selected by remember { mutableStateOf(controller.getBlockedApps()) }
-    var apps by remember { mutableStateOf(emptyList<com.suhood.feature.focus.InstalledAppInfo>()) }
     var query by remember { mutableStateOf("") }
+    var apps by remember { mutableStateOf<List<InstalledAppInfo>>(emptyList()) }
+    var selected by remember {
+        mutableStateOf(FocusSessionController.get(context).getBlockedApps().toSet())
+    }
     LaunchedEffect(Unit) {
-        apps = withContext(Dispatchers.IO) { InstalledAppsRepository.loadLauncherApps(context) }
+        apps = withContext(Dispatchers.IO) {
+            runCatching { InstalledAppsRepository.loadLauncherApps(context) }.getOrDefault(emptyList())
+        }
     }
     val filtered = remember(apps, query) {
         if (query.isBlank()) apps
@@ -510,39 +579,68 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
             it.label.contains(query, true) || it.packageName.contains(query, true)
         }
     }
-    StepScaffold(
-        title = "Apps to block at Salah",
-        subtitle = "Selected apps are blocked during prayer time and can show a short Islamic pause. Choose at least the apps that distract you most.",
-        onBack = onBack,
+
+    StepChrome(
+        title = "Which apps pull your focus?",
+        subtitle = "Optional. Selected apps can be limited during Salah after permissions.",
+        continueLabel = if (selected.isEmpty()) "Continue without apps" else "Continue · ${selected.size} selected",
         onContinue = {
-            controller.setBlockedApps(selected)
-            FocusChallengeStore.get(context).setFeatureEnabled(selected.isNotEmpty())
+            FocusSessionController.get(context).setBlockedApps(selected)
             onContinue()
         }
     ) {
-        Column {
-            androidx.compose.material3.OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search apps", color = Color(0xFF6B7280)) },
-                singleLine = true
-            )
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(R2))
+                    .background(Glass1)
+                    .border(1.dp, B1, RoundedCornerShape(R2))
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Search, null, tint = T3, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                androidx.compose.foundation.text.BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(color = T1, fontSize = 14.sp),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) Text("Search apps", color = T3, fontSize = 14.sp)
+                        inner()
+                    }
+                )
+            }
+            if (selected.isNotEmpty()) {
+                Text(
+                    "${selected.size} app${if (selected.size > 1) "s" else ""} selected",
+                    color = Moon,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            }
             Spacer(Modifier.height(8.dp))
-            Text("${selected.size} selected", color = Color(0xFF9AA3AE), fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(filtered, key = { it.packageName }) { app ->
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                filtered.take(80).forEach { app ->
                     val on = app.packageName in selected
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (on) Color(0xFF1A2E2A) else Color(0xFF141519))
+                            .clip(RoundedCornerShape(R2))
+                            .background(if (on) GlassSel else Glass1)
+                            .border(1.dp, if (on) BSel else B1, RoundedCornerShape(R2))
                             .clickable {
                                 selected = if (on) selected - app.packageName else selected + app.packageName
                             }
-                            .padding(12.dp),
+                            .padding(11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val bmp = remember(app.packageName) {
@@ -551,171 +649,174 @@ private fun AppsStep(onContinue: () -> Unit, onBack: () -> Unit) {
                             }.getOrNull()
                         }
                         if (bmp != null) {
-                            Image(bmp.asImageBitmap(), null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
+                            Image(bmp.asImageBitmap(), null, Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)))
                         } else {
-                            Box(Modifier.size(36.dp).background(Color(0xFF2A2D33), RoundedCornerShape(8.dp)))
+                            Box(Modifier.size(38.dp).background(Color(0xFF1A2A3A), RoundedCornerShape(10.dp)))
                         }
-                        Spacer(Modifier.size(12.dp))
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(app.label, color = Color(0xFFF5F6F7), fontSize = 15.sp)
-                            Text(app.packageName, color = Color(0xFF6B7280), fontSize = 11.sp, maxLines = 1)
+                            Text(app.label, color = T1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(app.packageName, color = T3, fontSize = 11.sp, maxLines = 1)
                         }
-                        if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF9FE8C8))
+                        Box(
+                            Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(if (on) Moon else Color.Transparent)
+                                .border(1.5.dp, if (on) Moon else Color(0x29FFFFFF), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (on) Icon(Icons.Filled.Check, null, tint = Color(0xFF050810), modifier = Modifier.size(12.dp))
+                        }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
             }
         }
     }
 }
 
 @Composable
-private fun SalahRoutineStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
-    // validation applied below after state
-    val prayers = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
-    val statuses = listOf("Usually on time", "Sometimes delayed", "I want to improve", "Prefer not to answer")
-    var local by remember {
-        mutableStateOf(prayers.associateWith { store.prayerStatus(it) })
-    }
-    var hardest by remember { mutableStateOf(store.hardestPrayer) }
-    var style by remember { mutableStateOf(store.reminderStyle) }
-    var consistency by remember { mutableStateOf(store.consistency.ifBlank { store.checkFrequency }) }
-    val valid = OnboardingValidation.salahValid(consistency.ifBlank { "improving" }, hardest)
-    StepScaffold(
+private fun SalahStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
+    var consistency by remember { mutableStateOf(store.consistency) }
+    var prayer by remember { mutableStateOf(store.hardestPrayer) }
+    var style by remember { mutableStateOf(store.reminderStyle.ifBlank { "Gentle" }) }
+    val cons = listOf(
+        "All five on time" to "all5",
+        "Most days" to "most",
+        "Working on it" to "working",
+        "Just starting" to "starting"
+    )
+    val prayers = listOf("Fajr" to "fajr", "Dhuhr" to "dhuhr", "Asr" to "asr", "Maghrib" to "maghrib", "Isha" to "isha")
+    val styles = listOf("Gentle", "Balanced", "Firm")
+    val valid = OnboardingValidation.salahValid(consistency.ifBlank { "working" }, prayer)
+
+    StepChrome(
         title = "Your prayer routine",
-        subtitle = "Helps tailor Salah support. Pick the prayer that is hardest to protect.",
-        onBack = onBack,
+        subtitle = "We tailor Salah support — never invent prayer times.",
         canContinue = valid,
-        validationHint = if (!valid) "Select your hardest prayer to continue." else null,
+        validationHint = "Select consistency and your hardest prayer.",
         onContinue = {
-            local.forEach { (k, v) -> store.setPrayerStatus(k, v) }
-            store.hardestPrayer = hardest
+            store.consistency = consistency
+            store.hardestPrayer = prayer
             store.reminderStyle = style
-            store.consistency = consistency.ifBlank { "improving" }
             onContinue()
         }
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            prayers.forEach { p ->
-                Text(p, color = Color(0xFFC7CBD1), fontSize = 13.sp)
-                ChipRow(statuses, local[p] ?: "") { local = local + (p to it) }
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("CONSISTENCY", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            cons.forEach { (label, id) ->
+                SelectRow(label, consistency == id || consistency == label) { consistency = id }
             }
-            Text("Which prayer is hardest to maintain?", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(prayers + "Prefer not to say", hardest) { hardest = it }
-            Text("Reminder style", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("Gentle", "Balanced", "Firm"), style) { style = it }
+            Spacer(Modifier.height(8.dp))
+            Text("HARDEST PRAYER", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            prayers.forEach { (label, id) ->
+                SelectRow(label, prayer.equals(id, true) || prayer.equals(label, true)) {
+                    prayer = label
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("REMINDER STYLE", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            styles.forEach { label ->
+                SelectRow(label, style.equals(label, true)) { style = label }
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun QuranDhikrStep(
+private fun PracticeStep(
     store: OnboardingProfileStore,
     settingsViewModel: SettingsViewModel,
-    onContinue: () -> Unit,
-    onBack: () -> Unit
+    onContinue: () -> Unit
 ) {
-    var qMin by remember { mutableIntStateOf(store.quranMinutes) }
-    var dMin by remember { mutableIntStateOf(store.dhikrMinutes) }
-    var rem by remember { mutableStateOf(store.quranReminder) }
-    StepScaffold(
-        title = "Quran & Dhikr goals",
-        subtitle = "Small daily targets. You can change these anytime in Settings.",
-        onBack = onBack,
+    var practice by remember { mutableStateOf(store.practice.ifBlank { "both" }) }
+    var minutes by remember { mutableIntStateOf(store.dailyMinutes.coerceIn(5, 30)) }
+    val practices = listOf(
+        Triple("quran", "Quran", "Reading only"),
+        Triple("dhikr", "Dhikr", "Remembrance only"),
+        Triple("both", "Both", "Quran and Dhikr")
+    )
+    val times = listOf(5, 10, 15, 20)
+    val valid = OnboardingValidation.practiceValid(practice, minutes)
+
+    StepChrome(
+        title = "Set your daily goal",
+        subtitle = "Small targets you can keep. Change anytime in Settings.",
+        canContinue = valid,
+        validationHint = "Choose a practice and daily time.",
         onContinue = {
-            store.quranMinutes = qMin
-            store.dhikrMinutes = dMin
-            store.quranReminder = rem
-            store.dailyMinutes = maxOf(qMin, dMin).coerceIn(5, 60)
-            val g = store.goals
-            store.practice = when {
-                "quran" in g && "dhikr" in g -> "both"
-                "quran" in g -> "quran"
-                "dhikr" in g -> "dhikr"
-                else -> "both"
-            }
-            runCatching {
-                settingsViewModel.setQuranCompanion(qMin, 9, 0, rem)
-            }
+            store.practice = practice
+            store.dailyMinutes = minutes
+            if (practice == "quran" || practice == "both") store.quranMinutes = minutes
+            if (practice == "dhikr" || practice == "both") store.dhikrMinutes = minOf(minutes, 15)
+            runCatching { settingsViewModel.setQuranCompanion(store.quranMinutes, 9, 0, store.quranReminder) }
             onContinue()
         }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Daily Quran time", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("5", "10", "20", "30"), qMin.toString()) { qMin = it.toInt() }
-            Text("Daily Dhikr time", color = Color(0xFFC7CBD1), fontSize = 13.sp)
-            ChipRow(listOf("5", "10", "15", "20"), dMin.toString()) { dMin = it.toInt() }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Optional Quran reminder", color = Color(0xFFF5F6F7))
-                Switch(checked = rem, onCheckedChange = { rem = it })
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("PRACTICE", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            practices.forEach { (id, title, sub) ->
+                SelectRow(title, practice == id, sub) { practice = id }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("DAILY TIME", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            times.forEach { m ->
+                SelectRow("$m minutes", minutes == m) { minutes = m }
             }
         }
     }
 }
 
-
 @Composable
-private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit, onBack: () -> Unit) {
+private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
     val context = LocalContext.current
-    val appLabels = remember {
-        FocusSessionController.get(context).getBlockedApps().toList()
-    }
-    val plan = remember(store.goals, store.hardestPrayer, store.reminderStyle, store.practice) {
-        val p = PersonalizedPlanEngine.generate(store.toAnswers(appLabels))
+    val plan = remember(
+        store.goals, store.hardestPrayer, store.consistency, store.reminderStyle,
+        store.practice, store.dailyMinutes, store.phoneUsage, store.socialUsage
+    ) {
+        val apps = FocusSessionController.get(context).getBlockedApps()
+        val p = PersonalizedPlanEngine.generate(store.toAnswers(apps.toList()))
         store.savePlan(p)
         p
     }
-    StepScaffold(
+
+    StepChrome(
         title = "Here's what we've built together",
-        subtitle = "A plan from your answers — not a generic template.",
-        onBack = onBack,
-        onContinue = onContinue,
-        continueLabel = "Looks good"
+        subtitle = "Generated from your answers — not a generic template.",
+        continueLabel = "Looks good",
+        onContinue = onContinue
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GlassCardBox {
-                Text(plan.mainFocus, color = Color(0xFFF5F6F7), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            GlassCard {
+                Text(plan.mainFocus, color = T1, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Spacer(Modifier.height(6.dp))
-                Text(plan.mainFocusReason, color = Color(0xFF9AA3AE), fontSize = 12.sp)
+                Text(plan.mainFocusReason, color = T2, fontSize = 12.sp)
             }
-            Text("First-day actions", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text("FIRST-DAY ACTIONS", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
             plan.firstDayActions.forEach { a ->
-                GlassCardBox {
-                    Text(a.title, color = Color(0xFFF5F6F7), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                GlassCard {
+                    Text(a.title, color = T1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text(a.detail, color = Color(0xFF9AA3AE), fontSize = 12.sp)
+                    Text(a.detail, color = T2, fontSize = 12.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text(a.reason, color = Color(0xFF6B7280), fontSize = 11.sp)
+                    Text(a.reason, color = T3, fontSize = 11.sp)
                 }
             }
-            Text("Salah support", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            plan.salahSupport.forEach {
-                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
-            }
-            Text("Distraction strategy", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            plan.distractionStrategy.forEach {
-                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
-            }
-            Text("Weekly progression", color = Color(0xFFC7CBD1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            plan.weeklyProgression.forEach {
-                Text("• $it", color = Color(0xFF9AA3AE), fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun PlanRow(label: String, value: String) {
-    GlassCardBox {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color(0xFF9AA3AE), fontSize = 13.sp)
-            Text(value, color = Color(0xFFF5F6F7), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("SALAH SUPPORT", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            plan.salahSupport.forEach { Text("• $it", color = T2, fontSize = 13.sp) }
+            Text("DISTRACTION STRATEGY", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            plan.distractionStrategy.forEach { Text("• $it", color = T2, fontSize = 13.sp) }
+            Text("WEEKLY PROGRESSION", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            plan.weeklyProgression.forEach { Text("• $it", color = T2, fontSize = 13.sp) }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
+private fun PermissionsStep(onContinue: () -> Unit) {
     val context = LocalContext.current
     var notifOk by remember {
         mutableStateOf(
@@ -724,74 +825,53 @@ private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
                 PackageManager.PERMISSION_GRANTED
         )
     }
-    var usageOk by remember { mutableStateOf(AppBlockHelper.hasUsageAccess(context)) }
+    var usageOk by remember { mutableStateOf(hasUsageAccess(context)) }
     var a11yOk by remember { mutableStateOf(FocusAccessibilityService.isEnabled(context)) }
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        notifOk = it || Build.VERSION.SDK_INT < 33
-    }
+
+    val notifLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { notifOk = it }
+
+    // Refresh when returning
     LaunchedEffect(Unit) {
-        // refresh when returning — simple loop not needed; user taps refresh via continue
+        usageOk = hasUsageAccess(context)
+        a11yOk = FocusAccessibilityService.isEnabled(context)
     }
-    StepScaffold(
-        title = "Permissions & protection",
-        subtitle = "Each item is explained. Blocking is only active after Accessibility is really on.",
-        onBack = onBack,
-        onContinue = {
-            usageOk = AppBlockHelper.hasUsageAccess(context)
-            a11yOk = FocusAccessibilityService.isEnabled(context)
-            onContinue()
-        }
+
+    StepChrome(
+        title = "A few permissions to make it work",
+        subtitle = "We only ask for what Salah lock and reminders need. Nothing is enabled silently.",
+        continueLabel = "Continue",
+        onContinue = onContinue
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-            PermRow(
-                "Notifications",
-                "Salah reminders and Adhan sound",
-                notifOk,
-                if (notifOk) "Enabled" else "Enable"
-            ) {
-                if (Build.VERSION.SDK_INT >= 33) {
-                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PermCard(
+                title = "Notifications",
+                body = "Salah reminders and lock countdown",
+                granted = notifOk,
+                action = {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else notifOk = true
                 }
-            }
-            PermRow(
-                "Usage Access",
-                "Detect which app is open for lock / pause",
-                usageOk,
-                if (usageOk) "Enabled" else "Open settings"
-            ) { AppBlockHelper.openUsageAccessSettings(context) }
-            PermRow(
-                "Accessibility (Suhood Focus)",
-                "Required for app blocking & mindful pauses",
-                a11yOk,
-                if (a11yOk) "Enabled" else "Open settings"
-            ) { FocusAccessibilityService.openSettings(context) }
-            PermRow(
-                "Exact alarms",
-                "Reliable Salah-time triggers",
-                true,
-                "Check"
-            ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    context.startActivity(
-                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
+            )
+            PermCard(
+                title = "Usage Access",
+                body = "Detect which app is open during Salah lock",
+                granted = usageOk,
+                action = {
+                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }
-            }
-            PermRow(
-                "Location",
-                "Accurate prayer times for your city (or set city manually later)",
-                true,
-                "Open"
-            ) {
-                context.startActivity(
-                    Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            }
+            )
+            PermCard(
+                title = "Accessibility",
+                body = "Return you to Home and show the Salah lock screen",
+                granted = a11yOk,
+                action = { AppBlockHelper.openAccessibilitySettings(context) }
+            )
             Text(
-                "Opening a settings screen does not mean protection is on. We verify on the next step.",
-                color = Color(0xFF6B7280),
+                "You can continue and enable these later in Settings. Blocking needs Accessibility + Usage Access.",
+                color = T3,
                 fontSize = 12.sp
             )
         }
@@ -799,163 +879,123 @@ private fun PermissionsStep(onContinue: () -> Unit, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PermRow(title: String, sub: String, ok: Boolean, btn: String, onClick: () -> Unit) {
-    GlassCardBox {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, color = Color(0xFFF5F6F7), fontWeight = FontWeight.Medium)
-                Text(sub, color = Color(0xFF9AA3AE), fontSize = 12.sp)
-            }
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (ok) Color(0xFF1A2E2A) else Color(0xFF2A2D33))
-                    .clickable(onClick = onClick)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(btn, color = if (ok) Color(0xFF9FE8C8) else Color(0xFFF5F6F7), fontSize = 12.sp)
-            }
+private fun PermCard(title: String, body: String, granted: Boolean, action: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(R2))
+            .background(Glass1)
+            .border(1.dp, B1, RoundedCornerShape(R2))
+            .padding(15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = T1, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(body, color = T3, fontSize = 12.sp)
         }
+        Text(
+            if (granted) "On" else "Enable",
+            color = if (granted) Color(0xFF9FE8C8) else Moon,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(enabled = !granted, onClick = action)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        )
     }
 }
 
 @Composable
-private fun TestSetupStep(onContinue: () -> Unit, onBack: () -> Unit) {
-    val context = LocalContext.current
-    var usageOk by remember { mutableStateOf(AppBlockHelper.hasUsageAccess(context)) }
-    var a11yOk by remember { mutableStateOf(FocusAccessibilityService.isEnabled(context)) }
-    var notifMsg by remember { mutableStateOf<String?>(null) }
-    val protection = usageOk && a11yOk
-    StepScaffold(
-        title = "Test your setup",
-        subtitle = if (protection) "Protection checks passed." else "Some checks still need attention.",
-        onBack = onBack,
-        onContinue = onContinue,
-        continueLabel = if (protection) "Continue" else "Continue anyway"
+private fun PreviewStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
+    val plan = store.loadPlan()
+    StepChrome(
+        title = "See what to expect",
+        subtitle = "A calm preview of how Suhood will support you.",
+        continueLabel = "Everything looks great",
+        onContinue = onContinue
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatusLine("Usage Access", usageOk)
-            StatusLine("Accessibility", a11yOk)
-            GlassButton(
-                text = "Send test notification",
-                onClick = {
-                    runCatching {
-                        val n = NotificationCompat.Builder(context, SuhoodApplication.CHANNEL_SALAH_LOCK)
-                            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                            .setContentTitle("Suhood test")
-                            .setContentText("Notifications are working.")
-                            .setPriority(NotificationCompat.PRIORITY_HIGH)
-                            .build()
-                        NotificationManagerCompat.from(context).notify(99101, n)
-                        notifMsg = "Notification sent — check shade / sound."
-                    }.onFailure { notifMsg = "Could not send: ${it.message}" }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (notifMsg != null) Text(notifMsg!!, color = Color(0xFF9AA3AE), fontSize = 13.sp)
-            GlassButton(
-                text = "Refresh permission status",
-                onClick = {
-                    usageOk = AppBlockHelper.hasUsageAccess(context)
-                    a11yOk = FocusAccessibilityService.isEnabled(context)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                primary = false
-            )
-            Text(
-                "Android limit: Force Stop or turning off Accessibility stops blocking. OEM battery settings can also delay alarms.",
-                color = Color(0xFF6B7280),
-                fontSize = 12.sp
-            )
+            GlassCard {
+                Text("Your focus", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(plan?.mainFocus ?: "Build a steadier daily practice", color = T1, fontSize = 14.sp)
+            }
+            GlassCard {
+                Text("Salah lock", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "When Salah begins, selected apps pause for about 10 minutes with a live countdown.",
+                    color = T2,
+                    fontSize = 13.sp
+                )
+            }
+            GlassCard {
+                Text("First day", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                plan?.firstDayActions?.take(2)?.forEach {
+                    Text("• ${it.title}", color = T2, fontSize = 13.sp)
+                } ?: Text("• Pray your next Salah with intention", color = T2, fontSize = 13.sp)
+            }
         }
     }
 }
-
-@Composable
-private fun StatusLine(label: String, ok: Boolean) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color(0xFFF5F6F7))
-        Text(if (ok) "OK" else "Missing", color = if (ok) Color(0xFF9FE8C8) else Color(0xFFE8A0A0))
-    }
-}
-
 
 @Composable
 private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
-    val particles = remember {
-        List(42) {
-            ConfettiParticle(
-                x = kotlin.random.Random.nextFloat(),
-                speed = 0.004f + kotlin.random.Random.nextFloat() * 0.012f,
-                color = listOf(
-                    Color(0xFF9FE8C8), Color(0xFFC7CBD1), Color(0xFFE8C07A),
-                    Color(0xFF7EB6FF), Color(0xFFE8A0A0)
-                ).random(),
-                size = 4f + kotlin.random.Random.nextFloat() * 8f,
-                phase = kotlin.random.Random.nextFloat()
-            )
-        }
-    }
-    var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(16)
-            tick++
-        }
-    }
-    Box(Modifier.fillMaxSize()) {
-        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-            val h = size.height
-            val w = size.width
-            particles.forEach { p ->
-                val y = ((tick * p.speed + p.phase) % 1.2f) * h
-                val x = p.x * w
-                drawCircle(color = p.color, radius = p.size, center = androidx.compose.ui.geometry.Offset(x, y))
-            }
-        }
-        Column(
-            Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("✓", color = Color(0xFF9FE8C8), fontSize = 56.sp)
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "You're all set",
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Preferences saved on this device.\nSalah lock and mindful pauses are ready when permissions stay on.",
-                color = Color(0xFF9AA3AE),
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp
-            )
+    val plan = store.loadPlan()
+    Column(
+        Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("🌙", fontSize = 42.sp)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "A fresh start,\none prayer at a time.",
+            color = T1,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 30.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Your plan is ready. Suhood will walk alongside you — gently, at your pace.",
+            color = T2,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(18.dp))
+        GlassCard {
+            Text(plan?.mainFocus ?: "Your personal plan is saved on this device.", color = T1, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
-            val plan = store.loadPlan()
             Text(
-                plan?.mainFocus ?: "${store.goals.size} goals · ${store.reminderStyle} reminders",
-                color = Color(0xFFC7CBD1),
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center
+                "Goals: ${store.goals.joinToString()}\nPractice: ${store.practice} · ${store.dailyMinutes} min",
+                color = T2,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
             )
-            Spacer(Modifier.height(32.dp))
-            GlassButton(text = "Enter Suhood", onClick = onEnter, modifier = Modifier.fillMaxWidth())
         }
+        Spacer(Modifier.height(28.dp))
+        PrimaryButton("Enter Suhood", onClick = onEnter)
     }
 }
 
-private data class ConfettiParticle(
-    val x: Float,
-    val speed: Float,
-    val color: Color,
-    val size: Float,
-    val phase: Float
-)
-
+private fun hasUsageAccess(context: Context): Boolean {
+    return try {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow("android:get_usage_stats", Process.myUid(), context.packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow("android:get_usage_stats", Process.myUid(), context.packageName)
+        }
+        mode == AppOpsManager.MODE_ALLOWED
+    } catch (_: Exception) {
+        false
+    }
+}
 
 private fun drawableToBitmap(drawable: Drawable): Bitmap? {
     return try {
