@@ -47,7 +47,7 @@ object FocusChallengeOverlay {
             if (root != null) return@post
             val ctx = service
             val density = ctx.resources.displayMetrics.density
-            fun dp(v: Int) = (v * density).toInt()
+            fun dp(v: Int): Int = (v * density).toInt()
 
             val container = FrameLayout(ctx).apply {
                 setBackgroundColor(Color.parseColor("#F008090B"))
@@ -89,17 +89,17 @@ object FocusChallengeOverlay {
             val kind = Random.nextInt(3)
             when {
                 remainingChallenges <= 0 -> {
-                    col.addView(card(ctx, dp) {
+                    col.addView(card(ctx, density) {
                         it.addView(tv(ctx, "Come back tomorrow for more pauses, or return to home.", 15, "#B8BEC6"))
-                        it.addView(btn(ctx, dp, "Return home") {
+                        it.addView(btn(ctx, density, "Return home") {
                             hide(service)
                             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
                         }, lp(dp(16)))
                     }, lp(dp(24)))
                 }
-                kind == 0 -> addTasbeeh(ctx, col, dp, service)
-                kind == 1 -> addDhikrQuiz(ctx, col, dp, service)
-                else -> addAyah(ctx, col, dp, service)
+                kind == 0 -> addTasbeeh(ctx, col, density, service)
+                kind == 1 -> addDhikrQuiz(ctx, col, density, service)
+                else -> addAyah(ctx, col, density, service)
             }
 
             col.addView(TextView(ctx).apply {
@@ -140,9 +140,10 @@ object FocusChallengeOverlay {
     private fun addTasbeeh(
         ctx: android.content.Context,
         col: LinearLayout,
-        dp: (Int) -> Int,
+        density: Float,
         service: AccessibilityService
     ) {
+        fun dp(v: Int): Int = dpx(density, v)
         val phrases = listOf("SubhanAllah", "Alhamdulillah", "Allahu Akbar")
         val target = phrases.random()
         val need = 33
@@ -151,7 +152,7 @@ object FocusChallengeOverlay {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
-        col.addView(card(ctx, dp) {
+        col.addView(card(ctx, density) {
             it.addView(tv(ctx, "Tasbeeh", 13, "#C7CBD1"))
             it.addView(tv(ctx, "Count $need — like classic dhikr", 14, "#9AA3AE"), lp(dp(4)))
             it.addView(tv(ctx, target, 28, "#FFFFFF").apply {
@@ -159,7 +160,7 @@ object FocusChallengeOverlay {
                 gravity = Gravity.CENTER
             }, lp(dp(12)))
             it.addView(countTv, lp(dp(8)))
-            it.addView(btn(ctx, dp, "Tap") {
+            it.addView(btn(ctx, density, "Tap") {
                 count++
                 countTv.text = "$count / $need"
                 if (count >= need) completeAndDismiss(service)
@@ -170,9 +171,10 @@ object FocusChallengeOverlay {
     private fun addDhikrQuiz(
         ctx: android.content.Context,
         col: LinearLayout,
-        dp: (Int) -> Int,
+        density: Float,
         service: AccessibilityService
     ) {
+        fun dp(v: Int): Int = dpx(density, v)
         val pairs = listOf(
             "Glory be to Allah" to "SubhanAllah",
             "Praise be to Allah" to "Alhamdulillah",
@@ -181,7 +183,7 @@ object FocusChallengeOverlay {
         )
         val (meaning, answer) = pairs.random()
         val options = pairs.map { it.second }.shuffled()
-        col.addView(card(ctx, dp) {
+        col.addView(card(ctx, density) {
             it.addView(tv(ctx, "Dhikr quiz", 13, "#C7CBD1"))
             it.addView(tv(ctx, "What is the Arabic for:", 14, "#9AA3AE"), lp(dp(8)))
             it.addView(tv(ctx, meaning, 18, "#FFFFFF").apply {
@@ -189,7 +191,7 @@ object FocusChallengeOverlay {
                 gravity = Gravity.CENTER
             }, lp(dp(8)))
             options.forEach { opt ->
-                it.addView(btn(ctx, dp, opt) {
+                it.addView(btn(ctx, density, opt) {
                     if (opt == answer) completeAndDismiss(service)
                 }, lp(dp(8)))
             }
@@ -199,16 +201,17 @@ object FocusChallengeOverlay {
     private fun addAyah(
         ctx: android.content.Context,
         col: LinearLayout,
-        dp: (Int) -> Int,
+        density: Float,
         service: AccessibilityService
     ) {
+        fun dp(v: Int): Int = dpx(density, v)
         data class A(val ar: String, val en: String)
         val ayah = listOf(
             A("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "In the name of Allah, the Most Gracious, the Most Merciful."),
             A("إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", "You alone we worship, and You alone we ask for help."),
             A("قُلْ هُوَ اللَّهُ أَحَدٌ", "Say: He is Allah, the One.")
         ).random()
-        col.addView(card(ctx, dp) {
+        col.addView(card(ctx, density) {
             it.addView(tv(ctx, "Quran · reflect", 13, "#C7CBD1"))
             it.addView(tv(ctx, ayah.ar, 24, "#FFFFFF").apply {
                 gravity = Gravity.CENTER
@@ -217,25 +220,27 @@ object FocusChallengeOverlay {
             it.addView(tv(ctx, ayah.en, 15, "#B8BEC6").apply {
                 gravity = Gravity.CENTER
             }, lp(dp(8)))
-            it.addView(btn(ctx, dp, "I reflected — Continue") {
+            it.addView(btn(ctx, density, "I reflected — Continue") {
                 completeAndDismiss(service)
             }, lp(dp(16)))
         }, lp(dp(24)))
     }
 
+    private fun dpx(density: Float, v: Int): Int = (v * density).toInt()
+
     private fun card(
         ctx: android.content.Context,
-        dp: (Int) -> Int,
+        density: Float,
         build: (LinearLayout) -> Unit
     ): LinearLayout {
         return LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
+            setPadding(dpx(density, 20), dpx(density, 20), dpx(density, 20), dpx(density, 20))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#331A2228"))
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), Color.parseColor("#44FFFFFF"))
+                cornerRadius = dpx(density, 22).toFloat()
+                setStroke(dpx(density, 1), Color.parseColor("#44FFFFFF"))
             }
             build(this)
         }
@@ -243,7 +248,7 @@ object FocusChallengeOverlay {
 
     private fun btn(
         ctx: android.content.Context,
-        dp: (Int) -> Int,
+        density: Float,
         label: String,
         onClick: () -> Unit
     ): TextView {
@@ -253,11 +258,11 @@ object FocusChallengeOverlay {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(14), dp(16), dp(14))
+            setPadding(dpx(density, 16), dpx(density, 14), dpx(density, 16), dpx(density, 14))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#1A2E2A"))
-                cornerRadius = dp(28).toFloat()
-                setStroke(dp(1), Color.parseColor("#669FE8C8"))
+                cornerRadius = dpx(density, 28).toFloat()
+                setStroke(dpx(density, 1), Color.parseColor("#669FE8C8"))
             }
             setOnClickListener { onClick() }
         }
