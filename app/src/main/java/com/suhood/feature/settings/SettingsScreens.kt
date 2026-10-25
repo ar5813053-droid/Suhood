@@ -80,6 +80,7 @@ object SettingsScreens {
         val more = listOf(
             Row("Appearance", Routes.SETTINGS_APPEARANCE, Icons.Filled.DarkMode),
             Row("Language", Routes.SETTINGS_LANGUAGE, Icons.Filled.Language),
+            Row("Edit personalization", Routes.SETTINGS_PERSONALIZATION, Icons.Filled.Person),
             Row("Prayer preferences", Routes.SETTINGS_PRAYER, Icons.Filled.Mosque),
             Row("Customize Salah times", Routes.SETTINGS_SALAH_TIMES, Icons.Filled.Timer),
             Row("Notifications", Routes.SETTINGS_NOTIFICATIONS, Icons.Filled.Notifications),

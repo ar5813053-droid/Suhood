@@ -40,6 +40,7 @@ import com.suhood.feature.qibla.QiblaScreens
 import com.suhood.feature.onboarding.OnboardingFlow
 import com.suhood.feature.quran.QuranScreens
 import com.suhood.feature.settings.SettingsScreens
+import com.suhood.feature.settings.PersonalizationEditScreen
 import com.suhood.feature.journey.JourneyScreens
 import com.suhood.feature.muhasabah.MuhasabahScreens
 import com.suhood.feature.salah.SalahScreens
@@ -469,6 +470,12 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_LANGUAGE) {
                 SettingsScreens.Language(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_PERSONALIZATION) {
+                PersonalizationEditScreen(
+                    onBack = { navController.popBackStack() },
+                    settingsViewModel = settingsViewModel
+                )
             }
             composable(Routes.SETTINGS_ABOUT) {
                 SettingsScreens.About(onBack = { navController.popBackStack() })
