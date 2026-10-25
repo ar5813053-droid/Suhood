@@ -93,7 +93,7 @@ class SalahLockLogicTest {
             SalahLockLogic.remainingMs(recreated, start + 90_000L)
         )
     }
-}
+
 
     @Test
     fun countdownLabel_matchesMmSsFromExpiry() {
@@ -119,3 +119,4 @@ class SalahLockLogicTest {
         val remainingLater = SalahLockLogic.remainingMs(first, later)
         assertEquals(SalahLockLogic.DURATION_MS - 30_000L, remainingLater)
     }
+}
