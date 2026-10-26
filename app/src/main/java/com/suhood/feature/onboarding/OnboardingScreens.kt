@@ -20,6 +20,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +70,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -95,7 +106,7 @@ private val R2 = 18.dp
 private val R3 = 24.dp
 private val R4 = 32.dp
 
-private const val TOTAL = 12
+private const val TOTAL = 15
 
 @Composable
 fun OnboardingFlow(
@@ -209,16 +220,19 @@ fun OnboardingFlow(
                 Box(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
                     when (s) {
                         0 -> WelcomeStep { go(1) }
-                        1 -> AboutStep(store) { go(2) }
-                        2 -> GoalsStep(store) { go(3) }
-                        3 -> HabitsStep(store) { go(4) }
-                        4 -> EducationStep { go(5) }
-                        5 -> AppsStep(store) { go(6) }
-                        6 -> SalahStep(store) { go(7) }
-                        7 -> PracticeStep(store, settingsViewModel) { go(8) }
-                        8 -> PlanStep(store) { go(9) }
-                        9 -> PermissionsStep { go(10) }
-                        10 -> PreviewStep(store) { go(11) }
+                        1 -> AboutSuhoodStep { go(2) }
+                        2 -> WhySuhoodStep { go(3) }
+                        3 -> AboutStep(store) { go(4) }
+                        4 -> GoalsStep(store) { go(5) }
+                        5 -> HabitsStep(store) { go(6) }
+                        6 -> EducationStep { go(7) }
+                        7 -> AppsStep(store) { go(8) }
+                        8 -> SalahStep(store) { go(9) }
+                        9 -> PracticeStep(store, settingsViewModel) { go(10) }
+                        10 -> PlanStep(store) { go(11) }
+                        11 -> PermissionsStep { go(12) }
+                        12 -> PreviewStep(store) { go(13) }
+                        13 -> TermsStep { go(14) }
                         else -> CompleteStep(store) {
                             scope.launch {
                                 FocusChallengeStore.get(context).setFeatureEnabled(
@@ -285,13 +299,14 @@ private fun SecondaryButton(text: String, onClick: () -> Unit) {
 
 @Composable
 private fun GlassCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(
+    Column(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(R3))
             .background(Glass1)
             .border(1.dp, B1, RoundedCornerShape(R3))
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) { content() }
 }
 
@@ -370,6 +385,289 @@ private fun StepChrome(
         }
     }
 }
+
+
+@Composable
+private fun InfoCard(title: String, body: String) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(R2))
+            .background(Glass1)
+            .border(1.dp, B1, RoundedCornerShape(R2))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.fillMaxWidth(),
+            color = T1,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 20.sp,
+            softWrap = true
+        )
+        Text(
+            text = body,
+            modifier = Modifier.fillMaxWidth(),
+            color = T2,
+            fontSize = 13.sp,
+            lineHeight = 20.sp,
+            softWrap = true
+        )
+    }
+}
+
+@Composable
+private fun AboutSuhoodStep(onContinue: () -> Unit) {
+    val visible = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible.value = true }
+    val avatarScale by animateFloatAsState(
+        targetValue = if (visible.value) 1f else 0.7f,
+        animationSpec = tween(700, easing = FastOutSlowInEasing),
+        label = "avScale"
+    )
+    val bodyAlpha by animateFloatAsState(
+        targetValue = if (visible.value) 1f else 0f,
+        animationSpec = tween(800, delayMillis = 280),
+        label = "bodyA"
+    )
+    val infinite = rememberInfiniteTransition(label = "avBreath")
+    val breath by infinite.animateFloat(
+        initialValue = 0.97f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "breath"
+    )
+
+    StepChrome(
+        title = "About Suhood",
+        subtitle = "A calm companion for prayer, focus, and remembrance.",
+        continueLabel = "Continue",
+        onContinue = onContinue
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                Modifier
+                    .size(140.dp)
+                    .graphicsLayer {
+                        scaleX = avatarScale * breath
+                        scaleY = avatarScale * breath
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                // Soft moon glow
+                Box(
+                    Modifier
+                        .size(120.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(Moon.copy(alpha = 0.22f), Color.Transparent)
+                            ),
+                            CircleShape
+                        )
+                )
+                Text("🌙", fontSize = 64.sp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Suhood",
+                color = Moon,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.alpha(bodyAlpha)
+            )
+            Text(
+                "سُجود",
+                color = T3,
+                fontSize = 16.sp,
+                modifier = Modifier.alpha(bodyAlpha)
+            )
+            Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier.alpha(bodyAlpha).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                InfoCard(
+                    "What is Suhood?",
+                    "Suhood is a premium Islamic lifestyle app built to help Muslims protect Salah, quiet digital distractions, and grow steady Quran and Dhikr habits — without guilt or noise."
+                )
+                InfoCard(
+                    "Designed with care",
+                    "Every screen follows a Liquid Glass design language: deep night backgrounds, soft light, and calm motion. The goal is presence, not pressure."
+                )
+                InfoCard(
+                    "Private by default",
+                    "Your answers, plan, and preferences stay on your device. Suhood is not a social network and does not sell your spiritual data."
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun WhySuhoodStep(onContinue: () -> Unit) {
+    var show by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { show = true }
+    val a1 by animateFloatAsState(if (show) 1f else 0f, tween(500, 80), label = "a1")
+    val a2 by animateFloatAsState(if (show) 1f else 0f, tween(500, 180), label = "a2")
+    val a3 by animateFloatAsState(if (show) 1f else 0f, tween(500, 280), label = "a3")
+    val a4 by animateFloatAsState(if (show) 1f else 0f, tween(500, 380), label = "a4")
+
+    StepChrome(
+        title = "What Suhood does",
+        subtitle = "How it works — and why it was built.",
+        continueLabel = "Continue",
+        onContinue = onContinue
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(Modifier.alpha(a1).fillMaxWidth()) {
+                InfoCard(
+                    "Protect Salah moments",
+                    "When prayer time arrives, selected apps can pause for about ten minutes so you return to Allah first. Access restores automatically when the window ends."
+                )
+            }
+            Column(Modifier.alpha(a2).fillMaxWidth()) {
+                InfoCard(
+                    "Reduce digital noise",
+                    "Gentle open-time challenges and focus tools help you notice the apps that pull attention away from prayer and purpose."
+                )
+            }
+            Column(Modifier.alpha(a3).fillMaxWidth()) {
+                InfoCard(
+                    "Build a lasting practice",
+                    "Quran, Dhikr, and a personal plan from your real answers — paced for everyday life, not perfection overnight."
+                )
+            }
+            Column(Modifier.alpha(a4).fillMaxWidth()) {
+                InfoCard(
+                    "Why we built Suhood",
+                    "Most apps fight for endless attention. Suhood exists so Muslims can put the phone down for Salah, then return with intention — one prayer at a time."
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun TermsStep(onContinue: () -> Unit) {
+    val scroll = rememberScrollState()
+    var accepted by remember { mutableStateOf(false) }
+    val atEnd = scroll.value >= (scroll.maxValue - 24).coerceAtLeast(0)
+    val canTick = atEnd || scroll.maxValue == 0
+    val canEnter = accepted && canTick
+
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "Terms & Conditions",
+            color = T1,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Please read carefully. Scroll to the end to accept.",
+            color = T2,
+            fontSize = 14.sp
+        )
+        Spacer(Modifier.height(12.dp))
+        Column(
+            Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(R3))
+                .background(Glass1)
+                .border(1.dp, B1, RoundedCornerShape(R3))
+                .padding(16.dp)
+                .verticalScroll(scroll)
+        ) {
+            Text(TERMS_FULL_TEXT, color = T2, fontSize = 13.sp, lineHeight = 20.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(R2))
+                .background(if (canTick) GlassSel else Glass1)
+                .border(1.dp, if (canTick) BSel else B1, RoundedCornerShape(R2))
+                .clickable(enabled = canTick) { accepted = !accepted }
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (accepted) Moon else Color.Transparent)
+                    .border(1.5.dp, if (accepted) Moon else Color(0x40FFFFFF), RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (accepted) {
+                    Icon(Icons.Filled.Check, null, tint = Color(0xFF050810), modifier = Modifier.size(14.dp))
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                if (canTick) "I have read and agree to the Terms & Conditions"
+                else "Scroll to the end to enable this checkbox",
+                color = if (canTick) T1 else T3,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        PrimaryButton("I am in", enabled = canEnter, onClick = onContinue)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+private val TERMS_FULL_TEXT = """
+Last updated: October 2026
+
+1. Acceptance of Terms
+By using Suhood ("the App"), you agree to these Terms & Conditions. If you do not agree, please do not use the App.
+
+2. Purpose of the App
+Suhood is a personal Islamic productivity and worship companion. It provides Salah reminders, optional app-pausing tools during prayer windows, Quran and Dhikr features, focus tools, and educational content. Suhood is not a substitute for scholarly religious guidance, medical advice, or professional counseling.
+
+3. Prayer Times & Religious Content
+Prayer times may be calculated from location, manual entry, or third-party sources. Always verify critical times with your local mosque or trusted authority. Quran text and Hadith collections are provided for personal benefit; for formal rulings consult qualified scholars.
+
+4. App Blocking & Permissions
+Optional features may use Accessibility Services, Usage Access, notifications, and display-over-apps permission to pause selected applications during Salah windows or focus sessions. You control which apps are selected and can revoke permissions at any time in Android Settings. Suhood does not guarantee blocking on every device or OEM; Android system limits and force-stop may interrupt enforcement.
+
+5. Privacy
+Personalization answers, plans, and preferences are stored on your device. Suhood does not sell your personal data. Network features (such as Quran audio or content fetch) may contact external providers solely to deliver requested content.
+
+6. Accounts & Payments
+If future paid features or tips are offered, purchases are processed by the platform (e.g. Google Play) under their terms. Refunds follow platform policy.
+
+7. Acceptable Use
+You agree not to misuse the App, attempt to reverse-engineer critical systems for harm, or use blocking features to interfere with emergency or system applications.
+
+8. Limitation of Liability
+Suhood is provided "as is" without warranties of uninterrupted operation. To the fullest extent permitted by law, the developers are not liable for indirect damages arising from use or inability to use the App, including missed prayers due to device settings, OEM restrictions, or user configuration.
+
+9. Changes
+We may update these Terms. Continued use after updates constitutes acceptance of the revised Terms.
+
+10. Contact
+Support: support.suhood@gmail.com
+Instagram: @suhood.app
+
+By tapping "I am in" you confirm that you have read, understood, and agree to these Terms & Conditions.
+""".trim()
 
 @Composable
 private fun WelcomeStep(onContinue: () -> Unit) {
@@ -541,22 +839,23 @@ private fun EducationStep(onContinue: () -> Unit) {
         onContinue = onContinue,
         continueLabel = "I understand"
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GlassCard {
-                Text("Salah windows", color = T1, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text("When prayer time arrives, selected apps can pause so you return to Allah first.", color = T2, fontSize = 13.sp)
-            }
-            GlassCard {
-                Text("Gentle, not punishing", color = T1, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text("Limits are timed. Access returns automatically. You stay in control of permissions.", color = T2, fontSize = 13.sp)
-            }
-            GlassCard {
-                Text("Small habits compound", color = T1, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text("Your plan will suggest realistic first steps — not an overwhelming overhaul.", color = T2, fontSize = 13.sp)
-            }
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            InfoCard(
+                "Salah windows",
+                "When prayer time arrives, selected apps can pause so you return to Allah first."
+            )
+            InfoCard(
+                "Gentle, not punishing",
+                "Limits are timed. Access returns automatically. You stay in control of permissions."
+            )
+            InfoCard(
+                "Small habits compound",
+                "Your plan suggests realistic first steps — not an overwhelming overhaul."
+            )
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -790,20 +1089,10 @@ private fun PlanStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
         onContinue = onContinue
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GlassCard {
-                Text(plan.mainFocus, color = T1, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Spacer(Modifier.height(6.dp))
-                Text(plan.mainFocusReason, color = T2, fontSize = 12.sp)
-            }
+            InfoCard("Primary focus", plan.mainFocus + if (plan.mainFocusReason.isNotBlank()) "\n\n" + plan.mainFocusReason else "")
             Text("FIRST-DAY ACTIONS", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
             plan.firstDayActions.forEach { a ->
-                GlassCard {
-                    Text(a.title, color = T1, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(a.detail, color = T2, fontSize = 12.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text(a.reason, color = T3, fontSize = 11.sp)
-                }
+                InfoCard(a.title, listOf(a.detail, a.reason).filter { it.isNotBlank() }.joinToString("\n"))
             }
             Text("SALAH SUPPORT", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
             plan.salahSupport.forEach { Text("• $it", color = T2, fontSize = 13.sp) }
@@ -938,28 +1227,19 @@ private fun PreviewStep(store: OnboardingProfileStore, onContinue: () -> Unit) {
         continueLabel = "Everything looks great",
         onContinue = onContinue
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            GlassCard {
-                Text("Your focus", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(plan?.mainFocus ?: "Build a steadier daily practice", color = T1, fontSize = 14.sp)
-            }
-            GlassCard {
-                Text("Salah lock", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "When Salah begins, selected apps pause for about 10 minutes with a live countdown.",
-                    color = T2,
-                    fontSize = 13.sp
-                )
-            }
-            GlassCard {
-                Text("First day", color = T3, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                plan?.firstDayActions?.take(2)?.forEach {
-                    Text("• ${it.title}", color = T2, fontSize = 13.sp)
-                } ?: Text("• Pray your next Salah with intention", color = T2, fontSize = 13.sp)
-            }
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            InfoCard("Your focus", plan?.mainFocus ?: "Build a steadier daily practice")
+            InfoCard(
+                "Salah lock",
+                "When Salah begins, selected apps pause for about 10 minutes with a live countdown."
+            )
+            val actions = plan?.firstDayActions?.take(2)?.joinToString("\n") { "• ${it.title}" }
+                ?: "• Pray your next Salah with intention"
+            InfoCard("First day", actions)
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -1027,24 +1307,16 @@ private fun CompleteStep(store: OnboardingProfileStore, onEnter: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
             Spacer(Modifier.height(18.dp))
-            GlassCard {
-                Text(
-                    plan?.mainFocus ?: "Your personal plan is saved on this device.",
-                    color = T1,
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Goals: ${store.goals.joinToString()}",
-                    color = T2,
-                    fontSize = 12.sp
-                )
-                Text(
-                    "Practice: ${store.practice} · ${store.dailyMinutes} min",
-                    color = T2,
-                    fontSize = 12.sp
-                )
-            }
+            InfoCard(
+                "Your plan",
+                buildString {
+                    append(plan?.mainFocus ?: "Saved on this device.")
+                    append("\n\n")
+                    append("Goals: ${store.goals.joinToString().ifBlank { "—" }}")
+                    append("\n")
+                    append("Practice: ${store.practice.ifBlank { "—" }} · ${store.dailyMinutes} min")
+                }
+            )
             Spacer(Modifier.height(28.dp))
             PrimaryButton("Enter Suhood", onClick = onEnter)
             Spacer(Modifier.height(16.dp))
