@@ -682,7 +682,9 @@ private fun MetaChip(text: String, accent: Boolean = false) {
     )
 }
 
-private fun buildAnnotatedStringSafe(bold: String@Composable
+private fun buildAnnotatedStringSafe(bold: String, rest: String): String = bold + rest
+
+@Composable
 fun WorshipQuestHomeCard(onOpen: () -> Unit) {
     val context = LocalContext.current
     val store = remember { QuestStore(context) }
