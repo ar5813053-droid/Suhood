@@ -565,8 +565,10 @@ private fun WhySuhoodStep(onContinue: () -> Unit) {
 private fun TermsStep(onContinue: () -> Unit) {
     val scroll = rememberScrollState()
     var accepted by remember { mutableStateOf(false) }
-    val atEnd = scroll.value >= (scroll.maxValue - 24).coerceAtLeast(0)
-    val canTick = atEnd || scroll.maxValue == 0
+    // Require real scroll to end when content is taller than the viewport
+    val atEnd = if (scroll.maxValue <= 0) true
+    else scroll.value >= (scroll.maxValue - 48).coerceAtLeast(0)
+    val canTick = atEnd
     val canEnter = accepted && canTick
 
     Column(Modifier.fillMaxSize()) {
@@ -633,40 +635,48 @@ private fun TermsStep(onContinue: () -> Unit) {
 }
 
 private val TERMS_FULL_TEXT = """
+SUHOOD — TERMS & CONDITIONS
 Last updated: October 2026
 
 1. Acceptance of Terms
-By using Suhood ("the App"), you agree to these Terms & Conditions. If you do not agree, please do not use the App.
+By creating a profile or using Suhood, you agree to these Terms & Conditions. If you do not agree, please do not use the app.
 
-2. Purpose of the App
-Suhood is a personal Islamic productivity and worship companion. It provides Salah reminders, optional app-pausing tools during prayer windows, Quran and Dhikr features, focus tools, and educational content. Suhood is not a substitute for scholarly religious guidance, medical advice, or professional counseling.
+2. Purpose of Suhood
+Suhood is a personal Islamic lifestyle application designed to support Salah consistency, reduce digital distractions around prayer, and encourage Quran and Dhikr habits. Suhood is not a substitute for qualified Islamic scholarship, medical, or legal advice.
 
-3. Prayer Times & Religious Content
-Prayer times may be calculated from location, manual entry, or third-party sources. Always verify critical times with your local mosque or trusted authority. Quran text and Hadith collections are provided for personal benefit; for formal rulings consult qualified scholars.
+3. Permissions and Device Features
+Certain features require system permissions, including:
+• Notifications — Salah reminders and lock countdown
+• Usage Access — detecting when a selected app is in the foreground
+• Accessibility Service — showing the Salah lock overlay and returning you to Home
+• Display over other apps — optional backup for overlays
+• Exact alarms / foreground service — reliable reminders and lock monitoring
 
-4. App Blocking & Permissions
-Optional features may use Accessibility Services, Usage Access, notifications, and display-over-apps permission to pause selected applications during Salah windows or focus sessions. You control which apps are selected and can revoke permissions at any time in Android Settings. Suhood does not guarantee blocking on every device or OEM; Android system limits and force-stop may interrupt enforcement.
+You may revoke any permission at any time in Android Settings. App blocking and enforcement are subject to Android platform rules and OEM battery policies.
 
-5. Privacy
-Personalization answers, plans, and preferences are stored on your device. Suhood does not sell your personal data. Network features (such as Quran audio or content fetch) may contact external providers solely to deliver requested content.
+4. Privacy
+Onboarding answers, personalization, plans, and local preferences are stored on your device. Suhood does not sell your spiritual or personal data. Network access may be used only for optional content features (for example Quran text providers) when you use those features.
 
-6. Accounts & Payments
-If future paid features or tips are offered, purchases are processed by the platform (e.g. Google Play) under their terms. Refunds follow platform policy.
+5. Prayer times
+Prayer times may be calculated, customized, or adjusted by you. Always verify important times with your local mosque or trusted local authority when required.
 
-7. Acceptable Use
-You agree not to misuse the App, attempt to reverse-engineer critical systems for harm, or use blocking features to interfere with emergency or system applications.
+6. Acceptable use
+You agree not to misuse Accessibility, overlay, or other permissions to interfere with other people's devices, harass others, or violate law. Suhood is intended for personal self-discipline and worship support.
 
-8. Limitation of Liability
-Suhood is provided "as is" without warranties of uninterrupted operation. To the fullest extent permitted by law, the developers are not liable for indirect damages arising from use or inability to use the App, including missed prayers due to device settings, OEM restrictions, or user configuration.
+7. No warranty
+Suhood is provided "as is". We do not guarantee uninterrupted operation of alarms, notifications, or app blocking on every device, Android version, or manufacturer skin.
 
-9. Changes
-We may update these Terms. Continued use after updates constitutes acceptance of the revised Terms.
+8. Limitation of liability
+To the fullest extent permitted by applicable law, Suhood and its developers shall not be liable for indirect, incidental, or consequential damages arising from use or inability to use the app.
+
+9. Changes to Terms
+We may update these Terms. Continued use of Suhood after changes are published means you accept the revised Terms.
 
 10. Contact
-Support: support.suhood@gmail.com
-Instagram: @suhood.app
+Support email: support.suhood@gmail.com
+Instagram: https://www.instagram.com/suhood.app
 
-By tapping "I am in" you confirm that you have read, understood, and agree to these Terms & Conditions.
+By ticking the box below and selecting "I am in", you confirm that you have read and agree to these Terms & Conditions.
 """.trim()
 
 @Composable

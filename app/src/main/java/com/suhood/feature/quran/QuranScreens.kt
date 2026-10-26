@@ -20,6 +20,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -516,7 +522,7 @@ object QuranScreens {
     }
 
     @Composable
-    fun SurahDetail(surahId: Int, onBack: () -> Unit, onRead: () -> Unit) {
+    fun SurahDetail(surahId: Int, onBack: () -> Unit, onRead: () -> Unit, onNextSurah: ((Int) -> Unit)? = null) {
         LaunchedEffect(surahId) { onRead() }
     }
 
@@ -543,6 +549,24 @@ object QuranScreens {
 
         // Keep current ayah index in sync with the track that is actually playing
         val listState = rememberLazyListState()
+        var overscrollUp by remember { mutableStateOf(0f) }
+        val currentSurahId by rememberUpdatedState(surahId)
+        val nestedScroll = remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                    if (available.y < 0f && !listState.canScrollForward && currentSurahId < 114) {
+                        overscrollUp += -available.y
+                        if (overscrollUp > 80f) {
+                            overscrollUp = 0f
+                            vm.openSurah(currentSurahId + 1)
+                        }
+                    } else if (available.y > 0f) {
+                        overscrollUp = 0f
+                    }
+                    return Offset.Zero
+                }
+            }
+        }
         LaunchedEffect(playback.currentTrack?.id, content) {
             val id = playback.currentTrack?.id ?: return@LaunchedEffect
             val ayahs = content?.ayahs ?: return@LaunchedEffect
@@ -612,6 +636,8 @@ object QuranScreens {
                         color = colors.textSecondary
                     )
                     content != null -> LazyColumn(
+                        state = listState,
+                        modifier = Modifier.nestedScroll(nestedScroll),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 140.dp, top = 8.dp)
                     ) {
                         itemsIndexed(content!!.ayahs) { index, ayah ->
@@ -905,6 +931,26 @@ object QuranScreens {
         val vm = rememberVm()
         val page by vm.page.collectAsStateWithLifecycle()
         val pageNumber by vm.pageNumber.collectAsStateWithLifecycle()
+        val listState = rememberLazyListState()
+        var overscrollUp by remember { mutableStateOf(0f) }
+        val currentPageNumber by rememberUpdatedState(pageNumber)
+        val nestedScroll = remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                    // At end of page content, further upward fling/drag → next page
+                    if (available.y < 0f && !listState.canScrollForward && currentPageNumber < 604) {
+                        overscrollUp += -available.y
+                        if (overscrollUp > 80f) {
+                            overscrollUp = 0f
+                            vm.nextPage()
+                        }
+                    } else if (available.y > 0f) {
+                        overscrollUp = 0f
+                    }
+                    return Offset.Zero
+                }
+            }
+        }
         val companionApp = LocalContext.current.applicationContext as SuhoodApplication
         val companionPrefs = remember { com.suhood.core.datastore.PreferencesRepository(companionApp) }
         var lastTrackedPage by remember { mutableIntStateOf(-1) }
@@ -970,6 +1016,8 @@ object QuranScreens {
                             )
                         }
                         LazyColumn(
+                        state = listState,
+                        modifier = Modifier.nestedScroll(nestedScroll),
                             Modifier
                                 .weight(1f)
                                 .padding(horizontal = 20.dp),
@@ -990,6 +1038,17 @@ object QuranScreens {
                                         .padding(vertical = 6.dp)
                                 )
                             }
+                        }
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            GlassButton(
+                                text = if (pageNumber < 604) "Next page — swipe or tap" else "End of Mushaf",
+                                onClick = { if (pageNumber < 604) vm.nextPage() },
+                                primary = true,
+                                enabled = pageNumber < 604,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
                         }
                         Row(
                             Modifier

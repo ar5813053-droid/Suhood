@@ -44,7 +44,8 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 FeatureItem("Tasbeeh", "Dhikr counter", Icons.Filled.SelfImprovement, Routes.TASBEEH),
                 FeatureItem("Duas", "Find & read duas", Icons.Filled.Favorite, Routes.DUA_LIBRARY),
                 FeatureItem("Qibla", "Direction to Makkah", Icons.Filled.Explore, Routes.QIBLA),
-                FeatureItem("Worship Quest", "XP & monthly missions", Icons.Filled.Star, Routes.QUEST)
+                FeatureItem("Worship Quest", "XP & monthly missions", Icons.Filled.Star, Routes.QUEST),
+                FeatureItem("Hadith", "Bukhari, Muslim, Nawawi & more", Icons.Filled.MenuBook, Routes.HADITH_HOME)
             )
         ),
         FeatureSection(

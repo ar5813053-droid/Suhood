@@ -165,6 +165,19 @@ fun SuhoodNavGraph(
                     bottomContentPadding = 0.dp
                 )
             }
+            composable(Routes.HADITH_HOME) {
+                com.suhood.feature.hadith.HadithScreens.Home(
+                    onBack = { navController.popBackStack() },
+                    onBook = { id -> navController.navigate("hadith/book/$id") }
+                )
+            }
+            composable(
+                route = Routes.HADITH_BOOK,
+                arguments = listOf(androidx.navigation.navArgument("bookId") { type = androidx.navigation.NavType.StringType })
+            ) {
+                val id = it.arguments?.getString("bookId") ?: "bukhari"
+                com.suhood.feature.hadith.HadithScreens.Book(bookId = id, onBack = { navController.popBackStack() })
+            }
             composable(Routes.WORSHIP) {
                 WorshipScreens.Dashboard(
                     onNavigate = { route -> navController.navigate(route) },
@@ -479,6 +492,9 @@ fun SuhoodNavGraph(
             }
             composable(Routes.SETTINGS_ABOUT) {
                 SettingsScreens.About(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_TERMS) {
+                com.suhood.feature.settings.SettingsTermsScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS_TIP) {
                 SettingsScreens.TipSupport(onBack = { navController.popBackStack() })

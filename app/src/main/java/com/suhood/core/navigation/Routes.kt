@@ -37,6 +37,8 @@ object Routes {
 
     // Nested (reachable from Home / deep links)
     const val WORSHIP = "worship"
+    const val HADITH_HOME = "hadith"
+    const val HADITH_BOOK = "hadith/book/{bookId}"
     const val FOCUS = "focus"
 
     // Onboarding
@@ -139,6 +141,8 @@ object Routes {
     const val SETTINGS_ACCESSIBILITY = "settings/accessibility"
     const val SETTINGS_PRIVACY = "settings/privacy"
     const val SETTINGS_ABOUT = "settings/about"
+    const val SETTINGS_TERMS = "settings/terms"
+    const val SETTINGS_SUPPORT = "settings/support"
     const val SETTINGS_TIP = "settings/tip"
     const val SETTINGS_PERMISSIONS = "settings/permissions"
     const val SETTINGS_PERSONALIZATION = "settings/personalization"

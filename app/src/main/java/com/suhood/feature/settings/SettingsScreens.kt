@@ -1,4 +1,7 @@
 package com.suhood.feature.settings
+
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.sp
@@ -58,6 +61,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,6 +80,8 @@ object SettingsScreens {
 
     @Composable
     fun Home(onBack: () -> Unit, onNavigate: (String) -> Unit) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+
         val colors = suhoodColors
         data class Row(val label: String, val route: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
         val more = listOf(
@@ -92,6 +98,9 @@ object SettingsScreens {
             Row("Privacy", Routes.SETTINGS_PRIVACY, Icons.Filled.PrivacyTip),
             Row("Permissions", Routes.SETTINGS_PERMISSIONS, Icons.Filled.Security),
             Row("Tip the developer", Routes.SETTINGS_TIP, Icons.Filled.VolunteerActivism),
+            Row("Terms & Conditions", Routes.SETTINGS_TERMS, Icons.Filled.Info),
+            Row("Support", "settings/support", Icons.Filled.Info),
+            Row("Instagram", "external:instagram", Icons.Filled.Share),
             Row("About Suhood", Routes.SETTINGS_ABOUT, Icons.Filled.Info)
         )
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -153,11 +162,44 @@ object SettingsScreens {
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .clickable { onNavigate(row.route) }
+                                .clickable {
+                                    when (row.route) {
+                                        "external:instagram" -> {
+                                            runCatching {
+                                                context.startActivity(
+                                                    Intent(
+                                                        Intent.ACTION_VIEW,
+                                                        Uri.parse("https://www.instagram.com/suhood.app?xtok=MTQzdzdwbWQ2bTRm")
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        "settings/support" -> {
+                                            runCatching {
+                                                context.startActivity(
+                                                    Intent(Intent.ACTION_SENDTO).apply {
+                                                        data = Uri.parse("mailto:support.suhood@gmail.com")
+                                                        putExtra(Intent.EXTRA_SUBJECT, "Suhood Support")
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        else -> onNavigate(row.route)
+                                    }
+                                }
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(row.icon, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
+                            if (row.route == "external:instagram") {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_instagram),
+                                    contentDescription = "Instagram",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            } else {
+                                Icon(row.icon, null, tint = colors.accentLavender, modifier = Modifier.size(22.dp))
+                            }
                             Spacer(Modifier.width(14.dp))
                             Text(
                                 row.label,
@@ -877,3 +919,62 @@ private fun SalahSettingsTimeWheel(
         }
     }
 }
+
+
+@Composable
+fun SettingsTermsScreen(onBack: () -> Unit) {
+    val colors = suhoodColors
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        ScreenHeader(title = "Terms & Conditions", onBack = onBack)
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = SuhoodSpacing.screenHorizontal)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                TERMS_SETTINGS_TEXT,
+                color = colors.textSecondary,
+                fontSize = 14.sp,
+                lineHeight = 22.sp
+            )
+        }
+    }
+}
+
+private val TERMS_SETTINGS_TEXT = """
+SUHOOD — TERMS & CONDITIONS
+
+Last updated: October 2026
+
+1. Acceptance
+By using Suhood you agree to these Terms. If you do not agree, do not use the app.
+
+2. Purpose
+Suhood is a personal Islamic lifestyle tool for Salah reminders, focus protection, Quran, and Dhikr. It is not a substitute for scholarly guidance or medical advice.
+
+3. Permissions
+Features such as Salah app blocking require Accessibility, Usage Access, Notifications, and optionally Display over other apps. You may revoke these at any time in system Settings. Blocking depends on Android and OEM limits.
+
+4. Privacy
+Profile answers, plans, and preferences are stored on your device. Suhood does not sell personal spiritual data. Network is used only for optional content when those features are used.
+
+5. Accuracy of prayer times
+Prayer times are calculated or customized by you. Always verify with your local mosque when needed.
+
+6. Acceptable use
+Do not misuse Accessibility or other permissions to harm devices, other apps, or people.
+
+7. No warranty
+Suhood is provided as-is. We do not guarantee uninterrupted blocking, alarms, or notifications on every OEM.
+
+8. Limitation of liability
+To the fullest extent permitted by law, Suhood and its developers are not liable for indirect damages arising from use of the app.
+
+9. Changes
+We may update these Terms. Continued use after updates means acceptance of the revised Terms.
+
+10. Contact
+Support: support.suhood@gmail.com
+Instagram: https://www.instagram.com/suhood.app
+""".trimIndent()
