@@ -132,26 +132,6 @@ object TierAttemptLogic {
     }
 }
 
-/** Rank display — habit consistency labels, not spiritual rank. */
-object Ranks {
-    data class Rank(val latin: String, val arabic: String)
-
-    private val names = listOf(
-        Rank("Mubtadi'", "مبتدئ"),
-        Rank("Consistency", "استقامة"),
-        Rank("Steadiness", "ثبات"),
-        Rank("Devotion", "خشوع"),
-        Rank("Excellence", "إحسان")
-    )
-
-    fun forTier(tierIndex: Int): Rank = names[tierIndex.coerceIn(0, names.lastIndex)]
-}
-
-/** Legacy alias kept for widgets. */
-object QuestRules {
-    const val TIER_XP = QuestTierRules.TIER_XP_TARGET
-}
-
 // ─── Task library ────────────────────────────────────────────────────────────
 
 object QuestLibrary {

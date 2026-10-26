@@ -190,11 +190,6 @@ fun SuhoodNavGraph(
                     onNavigate = { route -> navController.navigate(route) },
                     bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
-            },
-                    playbackState = playbackState,
-                    onPlaybackChange = { /* shared controller owns state */ },
-                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
-                )
             }
 
             // Focus sub-screens
@@ -414,48 +409,42 @@ fun SuhoodNavGraph(
             }
 
             // Nasheedify
+            // Nasheedify routes removed — redirect to Focus
             composable(Routes.NASHEEDIFY_SEARCH) {
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
-                    onTrack = { track ->
-                        app.playbackController.play(track)
-                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
-                    }
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
-            composable(
-                "audio/category/{categoryId}",
-                arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-            ) { entry ->
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) ?: "",
-                    onBack = { navController.popBackStack() },
-                    onTrack = { track ->
-                        app.playbackController.play(track)
-                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
-                    }
+            composable(Routes.NASHEEDIFY_CATEGORY) {
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.NASHEEDIFY_FAVORITES) {
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
-                    onTrack = { track ->
-                        app.playbackController.play(track)
-                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
-                    }
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.NASHEEDIFY_PLAYER) {
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) }
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.NASHEEDIFY_QUEUE) {
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
-                    onTrack = { track ->
-                        app.playbackController.play(track)
-                        navController.navigate(Routes.NASHEEDIFY_PLAYER)
-                    }
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
                 )
             }
             composable(Routes.NASHEEDIFY_CREATE_PLAYLIST) {
-                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) })
+                FocusScreens.Dashboard(
+                    onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
+                )
             }
 
             // Settings
