@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="14dp"
+    android:padding="16dp"
     android:background="@drawable/widget_quest_bg">
 
     <LinearLayout
@@ -20,7 +20,7 @@
             android:layout_weight="1"
             android:text="Tier 1 · Consistency"
             android:textColor="#F0F0F2"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
@@ -28,24 +28,26 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Day 1 of 7"
-            android:textColor="#8B7CF8"
+            android:textColor="#9B8CFF"
             android:textSize="11sp"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp" />
+            android:textStyle="bold"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="5dp"
+            android:background="@drawable/widget_quest_badge_bg" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="12dp">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Weekly tier progress"
-            android:textColor="#66F0F0F2"
+            android:textColor="#7A7B84"
             android:textSize="12sp" />
 
         <TextView
@@ -54,7 +56,7 @@
             android:layout_height="wrap_content"
             android:text="0 / 700 XP"
             android:textColor="#F0F0F2"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -63,19 +65,20 @@
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:max="700"
         android:progress="0"
-        android:progressTint="#8B7CF8"
-        android:progressBackgroundTint="#22FFFFFF" />
+        android:progressTint="#E8E9EF"
+        android:progressBackgroundTint="#3A3B42"
+        android:minHeight="8dp" />
 
     <TextView
         android:id="@+id/widget_quest_days"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="M · T · W · T · F · S · S"
-        android:textColor="#8B7CF8"
+        android:layout_marginTop="12dp"
+        android:text="M ✓   T ✓   W ●   T ·   F ·   S ·   S ·"
+        android:textColor="#9A9BA3"
         android:textSize="12sp"
-        android:letterSpacing="0.08" />
+        android:letterSpacing="0.04" />
 </LinearLayout>

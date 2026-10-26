@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -681,11 +682,8 @@ private fun MetaChip(text: String, accent: Boolean = false) {
     )
 }
 
-private fun buildAnnotatedStringSafe(bold: String, rest: String): String = bold + rest
-
-@Composable
+private fun buildAnnotatedStringSafe(bold: String@Composable
 fun WorshipQuestHomeCard(onOpen: () -> Unit) {
-    val colors = suhoodColors
     val context = LocalContext.current
     val store = remember { QuestStore(context) }
     val today = remember { LocalDate.now() }
@@ -694,92 +692,194 @@ fun WorshipQuestHomeCard(onOpen: () -> Unit) {
     val dayIndex = (today.toEpochDay() - attempt.startEpochDay).toInt().coerceIn(0, 6)
     val dayLetters = listOf("M", "T", "W", "T", "F", "S", "S")
     val progress = (attempt.creditedXp.toFloat() / QuestTierRules.TIER_XP_TARGET).coerceIn(0f, 1f)
-    val accent = Color(0xFF8B7CF8)
+    val badgePurple = Color(0xFF9B8CFF)
     val green = Color(0xFF5DE0A0)
+    // Screenshot-matched palette: dark glass card, grey/white progress glow
+    val cardTop = Color(0xFF25262D)
+    val cardBottom = Color(0xFF1A1B20)
+    val titleWhite = Color(0xFFF0F0F2)
+    val titleMuted = Color(0xFF9A9BA3)
+    val labelMuted = Color(0xFF7A7B84)
+    val track = Color(0xFF3A3B42)
+    val barStart = Color(0xFF9A9BA3)
+    val barEnd = Color(0xFFE8E9EF)
+    val knob = Color(0xFFF5F5F7)
 
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(colors.surfaceElevated)
-            .border(1.dp, colors.borderSubtle, RoundedCornerShape(20.dp))
-            .clickable(onClick = onOpen)
-            .padding(18.dp)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Tier ${attempt.tierIndex + 1} · Consistency",
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+            .shadow(
+                elevation = 20.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = Color.Black.copy(alpha = 0.65f),
+                spotColor = Color.White.copy(alpha = 0.10f)
             )
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.verticalGradient(listOf(cardTop, cardBottom)))
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(24.dp))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 18.dp, vertical = 18.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Tier ${attempt.tierIndex + 1}",
+                    color = titleWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    letterSpacing = (-0.4).sp
+                )
+                Text(
+                    " · Consistency",
+                    color = titleMuted,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 19.sp,
+                    letterSpacing = (-0.2).sp
+                )
+            }
             Box(
                 Modifier
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        ambientColor = badgePurple.copy(alpha = 0.40f),
+                        spotColor = badgePurple.copy(alpha = 0.55f)
+                    )
                     .clip(RoundedCornerShape(20.dp))
-                    .background(accent.copy(alpha = 0.18f))
-                    .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .background(badgePurple.copy(alpha = 0.18f))
+                    .border(1.dp, badgePurple.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
             ) {
-                Text("Day ${dayIndex + 1} of 7", color = accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Day ${dayIndex + 1} of 7",
+                    color = badgePurple,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
-        Spacer(Modifier.height(12.dp))
+
+        Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Weekly tier progress", color = colors.textMuted, fontSize = 12.sp)
-            Text("${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Weekly tier progress", color = labelMuted, fontSize = 12.5.sp)
+            Text(
+                "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP",
+                color = titleWhite,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                letterSpacing = (-0.2).sp
+            )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
+
+        // Grey + white glow progress (matches screenshot structure, grey fill per request)
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(7.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.07f))
+                .height(14.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
             Box(
                 Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress)
+                    .fillMaxWidth()
+                    .height(7.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF8B7CF8), Color(0xFFC084FC))))
+                    .background(track)
             )
+            Box(
+                Modifier
+                    .fillMaxWidth(progress.coerceAtLeast(0.02f))
+                    .height(7.dp)
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(8.dp),
+                        ambientColor = Color.White.copy(alpha = 0.35f),
+                        spotColor = Color.White.copy(alpha = 0.55f)
+                    )
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Brush.horizontalGradient(listOf(barStart, barEnd)))
+            )
+            // Glowing knob at tip
+            Box(
+                Modifier
+                    .fillMaxWidth(progress.coerceAtLeast(0.02f))
+                    .height(14.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Box(
+                    Modifier
+                        .size(14.dp)
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = CircleShape,
+                            ambientColor = Color.White.copy(alpha = 0.55f),
+                            spotColor = Color.White.copy(alpha = 0.85f)
+                        )
+                        .clip(CircleShape)
+                        .background(knob)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.9f), CircleShape)
+                )
+            }
         }
-        Spacer(Modifier.height(14.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             dayLetters.forEachIndexed { i, letter ->
                 val past = i < dayIndex && dayFlags.getOrElse(i) { false }
                 val isToday = i == dayIndex
                 val bg = when {
-                    past -> green.copy(alpha = 0.1f)
-                    isToday -> accent.copy(alpha = 0.14f)
+                    past -> green.copy(alpha = 0.12f)
+                    isToday -> badgePurple.copy(alpha = 0.14f)
                     else -> Color.White.copy(alpha = 0.04f)
                 }
                 val borderC = when {
-                    past -> green.copy(alpha = 0.25f)
-                    isToday -> accent.copy(alpha = 0.35f)
+                    past -> green.copy(alpha = 0.28f)
+                    isToday -> badgePurple.copy(alpha = 0.40f)
                     else -> Color.White.copy(alpha = 0.08f)
                 }
                 val letterC = when {
                     past -> green
-                    isToday -> accent
-                    else -> colors.textMuted
+                    isToday -> badgePurple
+                    else -> titleMuted.copy(alpha = 0.55f)
                 }
                 Column(
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
+                        .then(
+                            if (isToday) Modifier.shadow(
+                                elevation = 8.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                ambientColor = badgePurple.copy(alpha = 0.35f),
+                                spotColor = badgePurple.copy(alpha = 0.45f)
+                            ) else Modifier
+                        )
+                        .clip(RoundedCornerShape(12.dp))
                         .background(bg)
-                        .border(1.dp, borderC, RoundedCornerShape(10.dp))
-                        .padding(vertical = 6.dp),
+                        .border(1.dp, borderC, RoundedCornerShape(12.dp))
+                        .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(letter, color = letterC, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                    Text(when { past -> "✓"; isToday -> "●"; else -> "·" }, color = letterC, fontSize = 11.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        when {
+                            past -> "✓"
+                            isToday -> "●"
+                            else -> "·"
+                        },
+                        color = letterC,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
     }
 }
+
 
 /** Local notifications for quest milestones (emoji + gentle copy). */
 object QuestNotify {
