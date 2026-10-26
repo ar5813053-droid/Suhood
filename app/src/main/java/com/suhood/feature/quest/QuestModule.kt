@@ -207,19 +207,20 @@ class QuestStore(context: Context) {
         saveMissions(list)
     }
 
-    // ─── 7-day tier attempt ───────────────────────────────────────────
+    // ─── 30-day challenge attempt ───────────────────────────────────────────
 
     fun ensureTierAttempt(today: LocalDate = LocalDate.now()): TierAttemptState {
         val todayEp = today.toEpochDay()
         val existing = readAttempt()
+        val tier = prefs.getInt("tier_index", existing?.tierIndex ?: 0)
         val next = when {
             existing == null ->
-                TierAttemptLogic.startAttempt(prefs.getInt("tier_index", 0), todayEp)
+                TierAttemptLogic.open(tier, today)
             existing.completed ->
-                // Fresh 7-day window at the unlocked tier index
-                TierAttemptLogic.startAttempt(prefs.getInt("tier_index", existing.tierIndex), todayEp)
-            else ->
-                TierAttemptLogic.onDayRollover(existing, todayEp)
+                TierAttemptLogic.open(prefs.getInt("tier_index", existing.tierIndex), today)
+            QuestTierRules.isExpired(todayEp, existing.deadlineEpochDay) ->
+                TierAttemptLogic.resetIfExpired(existing, today, existing.tierIndex)
+            else -> existing
         }
         writeAttempt(next)
         return next
@@ -272,17 +273,51 @@ class QuestStore(context: Context) {
     }
 
     fun todayTasks(profile: QuestProfileInput, today: LocalDate = LocalDate.now()): List<DailyQuestTask> {
-        ensureTierAttempt(today)
+        val attempt = ensureTierAttempt(today)
         val key = "tasks_$today"
         val raw = prefs.getString(key, null)
         if (raw != null) {
             return parseTasks(raw)
         }
-        val generated = DailyQuestEngine.generate(profile, today, recentTemplateIds())
+        val dayOf = QuestTierRules.dayOfChallenge(attempt.startEpochDay, today.toEpochDay())
+        val rate = completionRateHint()
+        val templates = DailyQuestEngine.generateForDay(profile, today, dayOf, rate)
+        val generated = DailyQuestEngine.materialize(templates, today, profile)
         saveTasks(today, generated)
-        pushRecentTemplates(generated.map { it.templateId })
         return generated
     }
+
+    fun completionRateHint(): Float {
+        var done = 0
+        var total = 0
+        val today = LocalDate.now()
+        for (i in 1..7) {
+            val d = today.minusDays(i.toLong())
+            val raw = prefs.getString("tasks_$d", null) ?: continue
+            val tasks = parseTasks(raw)
+            total += tasks.size
+            done += tasks.count { it.completed }
+        }
+        if (total == 0) return 0.5f
+        return done.toFloat() / total
+    }
+
+    fun replaceOptionalTask(taskId: String, profile: QuestProfileInput, today: LocalDate = LocalDate.now()): Boolean {
+        val tasks = todayTasks(profile, today).toMutableList()
+        val idx = tasks.indexOfFirst { it.id == taskId }
+        if (idx < 0) return false
+        val old = tasks[idx]
+        if (old.isFarz || old.completed) return false
+        val used = tasks.map { it.templateId }.toSet()
+        val alt = QuestLibrary.all.firstOrNull {
+            it.templateId !in used && !it.isFarz && it.category != QuestCategory.MILESTONE
+        } ?: return false
+        val replacement = DailyQuestEngine.materialize(listOf(alt), today, profile).first()
+        tasks[idx] = replacement
+        saveTasks(today, tasks)
+        return true
+    }
+
 
     private fun parseTasks(raw: String): List<DailyQuestTask> {
         val arr = JSONArray(raw)
@@ -292,16 +327,18 @@ class QuestStore(context: Context) {
                 add(
                     DailyQuestTask(
                         id = o.getString("id"),
-                        templateId = o.getString("templateId"),
-                        category = QuestCategory.valueOf(o.getString("category")),
-                        difficulty = QuestDifficulty.valueOf(o.getString("difficulty")),
-                        minutes = o.getInt("minutes"),
-                        title = o.getString("title"),
-                        detail = o.getString("detail"),
-                        xpReward = o.getInt("xp"),
+                        templateId = o.optString("templateId"),
+                        category = runCatching { QuestCategory.valueOf(o.optString("category", "REFLECTION")) }.getOrDefault(QuestCategory.REFLECTION),
+                        difficulty = runCatching { QuestDifficulty.valueOf(o.optString("difficulty", "EASY")) }.getOrDefault(QuestDifficulty.EASY),
+                        minutes = o.optInt("minutes", 5),
+                        title = o.optString("title"),
+                        detail = o.optString("detail"),
+                        xpReward = o.optInt("xpReward", 10),
                         reason = o.optString("reason"),
-                        activeDate = o.getString("date"),
-                        completed = o.optBoolean("completed", false)
+                        activeDate = o.optString("activeDate"),
+                        completed = o.optBoolean("completed", false),
+                        optional = o.optBoolean("optional", false),
+                        isFarz = o.optBoolean("isFarz", false)
                     )
                 )
             }
@@ -320,10 +357,12 @@ class QuestStore(context: Context) {
                     .put("minutes", t.minutes)
                     .put("title", t.title)
                     .put("detail", t.detail)
-                    .put("xp", t.xpReward)
+                    .put("xpReward", t.xpReward)
                     .put("reason", t.reason)
-                    .put("date", t.activeDate)
+                    .put("activeDate", t.activeDate)
                     .put("completed", t.completed)
+                    .put("optional", t.optional)
+                    .put("isFarz", t.isFarz)
             )
         }
         prefs.edit().putString("tasks_$date", arr.toString()).commit()
@@ -337,7 +376,7 @@ class QuestStore(context: Context) {
         var attempt = ensureTierAttempt(today)
         if (attempt.completed) return 0
         if (QuestTierRules.isExpired(today.toEpochDay(), attempt.deadlineEpochDay)) {
-            attempt = TierAttemptLogic.onDayRollover(attempt, today.toEpochDay())
+            attempt = TierAttemptLogic.resetIfExpired(attempt, today, attempt.tierIndex)
             writeAttempt(attempt)
         }
         val tasks = todayTasks(
@@ -367,7 +406,7 @@ class QuestStore(context: Context) {
             val updated = TierAttemptLogic.afterCredit(attempt, credit)
             writeAttempt(updated)
             if (updated.completed && !attempt.completed) {
-                // Advance tier index; next open starts a fresh 7-day attempt via ensureTierAttempt
+                // Advance tier index; next open starts a fresh 30-day attempt via ensureTierAttempt
                 prefs.edit()
                     .putInt("tier_index", updated.tierIndex + 1)
                     .remove("attempt_start")
@@ -381,32 +420,59 @@ class QuestStore(context: Context) {
 
     /** True for each day of the current 7-day attempt that earned any daily XP. */
     fun dayActivityFlags(attempt: TierAttemptState, today: LocalDate = LocalDate.now()): List<Boolean> {
-        return (0 until QuestTierRules.ATTEMPT_DAYS).map { offset ->
-            val d = LocalDate.ofEpochDay(attempt.startEpochDay + offset)
+        // Home/widget show a 7-day window ending at today within the 30-day challenge
+        val todayEp = today.toEpochDay()
+        val windowStart = (todayEp - 6).coerceAtLeast(attempt.startEpochDay)
+        return (0 until 7).map { offset ->
+            val d = LocalDate.ofEpochDay(windowStart + offset)
             when {
                 d.isAfter(today) -> false
-                d == today -> dailyXp(d) > 0 || todayTasks(QuestProfileInput(), d).any { it.completed }
+                d == today -> dailyXp(d) > 0
                 else -> dailyXp(d) > 0
             }
         }
     }
 
+    fun dayOfChallenge(attempt: TierAttemptState, today: LocalDate = LocalDate.now()): Int =
+        QuestTierRules.dayOfChallenge(attempt.startEpochDay, today.toEpochDay())
+
+
     fun profileFromOnboarding(context: Context): QuestProfileInput {
         val o = OnboardingProfileStore.get(context)
+        val qp = QuestPrefs.load(context)
+        val goals = qp.goals.ifEmpty {
+            o.goals.map {
+                when (it.lowercase()) {
+                    "salah", "prayer" -> "salah"
+                    "quran" -> "quran"
+                    "dhikr", "tasbeeh" -> "dhikr"
+                    else -> it.lowercase()
+                }
+            }.toSet().ifEmpty { setOf("salah", "quran", "dhikr") }
+        }
         return QuestProfileInput(
             ageGroup = o.ageGroup,
             lifestyle = o.dailyLife,
-            goals = o.goals,
-            consistency = o.consistency,
+            goals = goals,
+            consistency = qp.salahConsistency.ifBlank { o.consistency },
             hardestPrayer = o.hardestPrayer,
             practice = o.practice,
-            dailyMinutes = o.dailyMinutes.takeIf { it > 0 } ?: o.quranMinutes,
+            dailyMinutes = qp.preferredMinutes.takeIf { it > 0 }
+                ?: o.dailyMinutes.takeIf { it > 0 }
+                ?: o.quranMinutes,
             reminderStyle = o.reminderStyle,
             language = o.language,
             phoneUsage = o.phoneUsage,
-            freeTimeHint = o.socialUsage
+            freeTimeHint = o.socialUsage,
+            quranLevel = qp.quranLevel,
+            challengeDifficulty = qp.challengeDifficulty,
+            salahConsistency = qp.salahConsistency.ifBlank { "mixed" },
+            preferredMinutes = qp.preferredMinutes
         )
     }
+
+    fun isChallengeSetupDone(context: Context): Boolean = QuestPrefs.isSetup(context)
+
 }
 
 fun syncQuestFromSalah(context: Context) {
@@ -422,6 +488,23 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val store = remember { QuestStore(context) }
     val today = remember { LocalDate.now() }
+    var showSetup by remember { mutableStateOf(!QuestPrefs.isSetup(context)) }
+    var showPrefs by remember { mutableStateOf(false) }
+    if (showSetup) {
+        QuestSetupScreen(
+            onDone = { showSetup = false },
+            onBack = onBack
+        )
+        return
+    }
+    if (showPrefs) {
+        QuestSetupScreen(
+            onDone = { showPrefs = false },
+            onBack = { showPrefs = false },
+            editing = true
+        )
+        return
+    }
     var attempt by remember { mutableStateOf(store.ensureTierAttempt(today)) }
     var tasks by remember {
         mutableStateOf(store.todayTasks(store.profileFromOnboarding(context), today))
@@ -478,6 +561,17 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                 Text("Worship Quest", style = SuhoodTypography.titleLarge, color = colors.textPrimary, fontWeight = FontWeight.Bold)
                 Text("Small steps · Steady growth", color = colors.textSecondary, fontSize = 13.sp)
             }
+            Spacer(Modifier.weight(1f))
+            Text(
+                "Prefs",
+                color = Color(0xFF8B7CF8),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showPrefs = true }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            )
         }
 
         Column(
@@ -499,7 +593,7 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                     Text(
-                        buildAnnotatedStringSafe("Tier ${attempt.tierIndex + 1}", " · Consistency"),
+                        buildAnnotatedStringSafe("Month ${attempt.tierIndex + 1}", " · Consistency"),
                         color = colors.textPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
@@ -511,12 +605,12 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                             .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
                             .padding(horizontal = 12.dp, vertical = 5.dp)
                     ) {
-                        Text("Day ${dayIndex + 1} of 7", color = accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Day ${store.dayOfChallenge(attempt, today)} of 30", color = accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Weekly tier progress", color = colors.textMuted, fontSize = 12.sp)
+                    Text("30-day challenge progress", color = colors.textMuted, fontSize = 12.sp)
                     Text(
                         "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP",
                         color = colors.textPrimary,
@@ -610,7 +704,7 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                                 QuestNotify.onTierCompleted(context, attempt.tierIndex)
                             }
                             message = when {
-                                credit > 0 -> "+$credit XP toward this tier"
+                                credit > 0 -> "+$credit XP toward this challenge"
                                 else -> "Marked complete"
                             }
                             WidgetBridge.refreshAll(context)
@@ -647,6 +741,21 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                             Text(task.detail, color = colors.textSecondary, fontSize = 13.sp, lineHeight = 18.sp)
                             if (task.reason.isNotBlank()) {
                                 Text(task.reason, color = colors.textMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                            }
+                            if (!done && !task.isFarz) {
+                                Text(
+                                    "Replace optional task",
+                                    color = Color(0xFF8B7CF8),
+                                    fontSize = 11.sp,
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .clickable {
+                                            if (store.replaceOptionalTask(task.id, store.profileFromOnboarding(context), today)) {
+                                                tasks = store.todayTasks(store.profileFromOnboarding(context), today)
+                                                message = "Task replaced"
+                                            }
+                                        }
+                                )
                             }
                         }
                     }
@@ -729,7 +838,7 @@ fun WorshipQuestHomeCard(onOpen: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Tier ${attempt.tierIndex + 1}",
+                    "Month ${attempt.tierIndex + 1}",
                     color = titleWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
@@ -767,7 +876,7 @@ fun WorshipQuestHomeCard(onOpen: () -> Unit) {
 
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Weekly tier progress", color = labelMuted, fontSize = 12.5.sp)
+            Text("30-day challenge progress", color = labelMuted, fontSize = 12.5.sp)
             Text(
                 "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP",
                 color = titleWhite,
@@ -1018,3 +1127,172 @@ class QuestReminderReceiver : BroadcastReceiver() {
     }
 }
 
+
+@Composable
+fun QuestSetupScreen(
+    onDone: () -> Unit,
+    onBack: () -> Unit,
+    editing: Boolean = false
+) {
+    val colors = suhoodColors
+    val context = LocalContext.current
+    val initial = remember { QuestPrefs.load(context) }
+    var goals by remember { mutableStateOf(initial.goals.ifEmpty { setOf("salah", "quran", "dhikr") }) }
+    var quranLevel by remember { mutableStateOf(initial.quranLevel) }
+    var difficulty by remember { mutableStateOf(initial.challengeDifficulty) }
+    var consistency by remember { mutableStateOf(initial.salahConsistency) }
+    var minutes by remember { mutableIntStateOf(initial.preferredMinutes.coerceIn(5, 60)) }
+
+    val goalOptions = listOf(
+        "salah" to "Salah consistency",
+        "quran" to "Quran reading",
+        "dhikr" to "Dhikr",
+        "learning" to "Islamic learning",
+        "deeds" to "Good deeds",
+        "worship" to "Complete worship"
+    )
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        Row(
+            Modifier.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, CircleShape)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.size(12.dp))
+            Text(
+                if (editing) "Edit challenge preferences" else "30-Day Worship Challenge",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        }
+        Text(
+            "Choose goals that fit your life. Farz Salah stays an obligation — XP only tracks confirmed habits, never spiritual rank.",
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        Text("Goals", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        goalOptions.forEach { (id, label) ->
+            val selected = id in goals
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Color(0xFF8B7CF8).copy(alpha = 0.15f) else colors.surfaceElevated)
+                    .border(1.dp, if (selected) Color(0xFF8B7CF8).copy(alpha = 0.4f) else colors.borderSubtle, RoundedCornerShape(14.dp))
+                    .clickable {
+                        goals = if (selected) goals - id else goals + id
+                    }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(label, color = colors.textPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                if (selected) Text("✓", color = Color(0xFF8B7CF8), fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text("Quran reading level", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        ChoiceRow(listOf("beginner", "intermediate", "advanced"), quranLevel) { quranLevel = it }
+
+        Spacer(Modifier.height(18.dp))
+        Text("Preferred daily minutes", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        ChoiceRow(listOf("10", "15", "20", "30", "45"), minutes.toString()) {
+            minutes = it.toIntOrNull() ?: 15
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text("Current Salah consistency", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        ChoiceRow(listOf("rarely", "mixed", "mostly", "always"), consistency) { consistency = it }
+
+        Spacer(Modifier.height(18.dp))
+        Text("Challenge difficulty", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        ChoiceRow(listOf("easy", "normal", "advanced"), difficulty) { difficulty = it }
+
+        Spacer(Modifier.height(24.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF8B7CF8))
+                .clickable(enabled = goals.isNotEmpty()) {
+                    QuestPrefs.save(
+                        context,
+                        QuestPrefs.State(
+                            setupDone = true,
+                            goals = goals,
+                            quranLevel = quranLevel,
+                            challengeDifficulty = difficulty,
+                            salahConsistency = consistency,
+                            preferredMinutes = minutes
+                        )
+                    )
+                    // Clear today's tasks so they regenerate with new prefs
+                    val store = QuestStore(context)
+                    store.ensureTierAttempt()
+                    context.getSharedPreferences("suhood_quest", Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("tasks_${LocalDate.now()}")
+                        .apply()
+                    onDone()
+                }
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                if (editing) "Save preferences" else "Start 30-day challenge",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChoiceRow(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    val colors = suhoodColors
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        options.forEach { opt ->
+            val on = opt.equals(selected, ignoreCase = true)
+            Text(
+                opt.replaceFirstChar { it.uppercase() },
+                color = if (on) Color.White else colors.textSecondary,
+                fontSize = 12.sp,
+                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (on) Color(0xFF8B7CF8) else colors.surfaceElevated)
+                    .border(1.dp, if (on) Color(0xFF8B7CF8) else colors.borderSubtle, RoundedCornerShape(12.dp))
+                    .clickable { onSelect(opt) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+    }
+}

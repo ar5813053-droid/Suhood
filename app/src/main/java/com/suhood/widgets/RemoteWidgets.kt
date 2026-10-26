@@ -397,20 +397,19 @@ fun buildQuest(context: Context): RemoteViews {
     val tier = attempt?.tierIndex ?: 0
     val xp = attempt?.creditedXp ?: 0
     val target = com.suhood.feature.quest.QuestTierRules.TIER_XP_TARGET
-    val dayIndex = if (attempt != null) {
-        (today.toEpochDay() - attempt.startEpochDay).toInt().coerceIn(0, 6)
-    } else 0
+    val dayOf = if (attempt != null && store != null) store.dayOfChallenge(attempt, today) else 1
     val flags = if (store != null && attempt != null) store.dayActivityFlags(attempt, today) else List(7) { false }
     val letters = listOf("M", "T", "W", "T", "F", "S", "S")
+    val windowIdx = 6 // last slot = today in 7-day window
     val dayLine = letters.mapIndexed { i, l ->
         when {
-            i < dayIndex && flags.getOrElse(i) { false } -> "$l✓"
-            i == dayIndex -> "$l●"
+            i < windowIdx && flags.getOrElse(i) { false } -> "$l✓"
+            i == windowIdx -> "$l●"
             else -> "$l·"
         }
     }.joinToString("  ")
-    rv.setTextViewText(R.id.widget_quest_title, "Tier ${tier + 1} · Consistency")
-    rv.setTextViewText(R.id.widget_quest_day, "Day ${dayIndex + 1} of 7")
+    rv.setTextViewText(R.id.widget_quest_title, "Month ${tier + 1} · Consistency")
+    rv.setTextViewText(R.id.widget_quest_day, "Day $dayOf of 30")
     rv.setTextViewText(R.id.widget_quest_xp, "$xp / $target XP")
     rv.setProgressBar(R.id.widget_quest_bar, target, xp, false)
     rv.setTextViewText(R.id.widget_quest_days, dayLine)
