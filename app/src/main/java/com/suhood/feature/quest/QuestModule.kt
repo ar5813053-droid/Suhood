@@ -46,9 +46,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
@@ -58,6 +60,7 @@ import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.feature.onboarding.OnboardingProfileStore
 import com.suhood.feature.salah.SalahStatus
+import com.suhood.widgets.WidgetBridge
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -411,9 +414,6 @@ fun syncQuestFromSalah(context: Context) {
     // Best-effort: if Salah statuses exist on disk via onboarding prefs keys, no-op safe
     store.ensureTierAttempt()
 }
-
-@Composable
-import com.suhood.widgets.WidgetBridge
 
 @Composable
 fun WorshipQuestScreen(onBack: () -> Unit) {
