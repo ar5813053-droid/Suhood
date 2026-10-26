@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,7 +73,7 @@ data class NavItem(
 val primaryNavItems = listOf(
     NavItem(TopLevelDestination.HOME, "Home", Icons.Filled.Home, "Home"),
     NavItem(TopLevelDestination.QURAN, "Quran", Icons.Filled.MenuBook, "Quran"),
-    NavItem(TopLevelDestination.FOCUS, "Focus", Icons.Filled.CenterFocusStrong, "Focus")
+    NavItem(TopLevelDestination.FOCUS, "Focus", Icons.Filled.Timelapse, "Focus")
 )
 
 /**

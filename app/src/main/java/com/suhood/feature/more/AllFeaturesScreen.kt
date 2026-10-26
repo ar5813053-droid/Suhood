@@ -66,7 +66,7 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         FeatureSection(
             "Audio",
             listOf(
-                FeatureItem("Focus", "App blocking & Salah lock", Icons.Filled.CenterFocusStrong, Routes.FOCUS)
+                FeatureItem("Focus", "App blocking & Salah lock", Icons.Filled.Timelapse, Routes.FOCUS)
             )
         ),
         FeatureSection(
