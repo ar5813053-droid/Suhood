@@ -1,40 +1,69 @@
 package com.suhood.feature.quest
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import android.content.Intent
+import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.SuhoodApplication
-import com.suhood.core.designsystem.components.GlassCard
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
+import com.suhood.feature.onboarding.OnboardingProfileStore
 import com.suhood.feature.salah.SalahStatus
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.UUID
+import java.time.ZoneId
 
-/** Configurable XP rules — not a measure of faith. */
+/** Legacy XP constants kept for Salah/Juz awards. */
 object QuestRules {
     const val XP_SALAH = 3
     const val XP_JUZ = 15
-    const val TIER_XP = 50
+    const val TIER_XP = QuestTierRules.TIER_XP_TARGET
 }
 
 data class RankDef(val arabic: String, val latin: String, val meaning: String, val minTier: Int)
@@ -49,10 +78,9 @@ object Ranks {
     )
 
     fun forTier(tier: Int): RankDef {
-        val idx = tier.coerceIn(0, list.lastIndex)
         return if (tier >= list.size) {
             RankDef("متميز+", "Mutamayyiz+", "Distinguished+", tier)
-        } else list[idx]
+        } else list[tier.coerceIn(0, list.lastIndex)]
     }
 }
 
@@ -69,7 +97,8 @@ data class QuestMission(
 data class XpEvent(val id: String, val reason: String, val amount: Int, val day: String)
 
 class QuestStore(context: Context) {
-    private val prefs = context.getSharedPreferences("suhood_quest", Context.MODE_PRIVATE)
+    private val app = context.applicationContext
+    private val prefs = app.getSharedPreferences("suhood_quest", Context.MODE_PRIVATE)
 
     var totalXp: Int
         get() = prefs.getInt("total_xp", 0)
@@ -89,7 +118,7 @@ class QuestStore(context: Context) {
         if (eventId in ids) return false
         ids += eventId
         totalXp += amount
-        prefs.edit().putStringSet("awarded_ids", ids).apply()
+        prefs.edit().putStringSet("awarded_ids", ids).commit()
         appendLedger(XpEvent(eventId, reason, amount, LocalDate.now().toString()))
         return true
     }
@@ -97,7 +126,6 @@ class QuestStore(context: Context) {
     private fun appendLedger(e: XpEvent) {
         val arr = JSONArray(prefs.getString("ledger", "[]"))
         arr.put(JSONObject().put("id", e.id).put("reason", e.reason).put("amount", e.amount).put("day", e.day))
-        // keep last 200
         while (arr.length() > 200) arr.remove(0)
         prefs.edit().putString("ledger", arr.toString()).apply()
     }
@@ -136,33 +164,18 @@ class QuestStore(context: Context) {
                 }
             }
         }
-        // Deterministic generation for the month
-        val generated = listOf(
-            QuestMission(UUID.nameUUIDFromBytes(("$key-salah").toByteArray()).toString(), "Salah consistency", "Record 20 prayer completions this month", 20, 0, 30, key),
-            QuestMission(UUID.nameUUIDFromBytes(("$key-quran").toByteArray()).toString(), "Quran sessions", "Complete 10 reading sessions", 10, 0, 25, key),
-            QuestMission(UUID.nameUUIDFromBytes(("$key-dhikr").toByteArray()).toString(), "Dhikr days", "Use Tasbeeh on 7 different days", 7, 0, 20, key)
+        val defaults = listOf(
+            QuestMission(UUID(), "Pray on time this month", "Mark Salah as on time", 20, 0, 30, key),
+            QuestMission(UUID(), "Steady Quran", "Complete Juz sittings", 4, 0, 40, key)
         )
-        val arr = JSONArray()
-        generated.forEach {
-            arr.put(
-                JSONObject()
-                    .put("id", it.id)
-                    .put("title", it.title)
-                    .put("detail", it.detail)
-                    .put("target", it.target)
-                    .put("progress", it.progress)
-                    .put("xp", it.xpReward)
-            )
-        }
-        prefs.edit().putString("missions_$key", arr.toString()).apply()
-        return generated
+        saveMissions(defaults)
+        return defaults
     }
 
-    fun updateMissionProgress(id: String, progress: Int) {
+    private fun UUID() = java.util.UUID.randomUUID().toString()
+
+    private fun saveMissions(list: List<QuestMission>) {
         val key = monthKey()
-        val list = missions().map {
-            if (it.id == id) it.copy(progress = progress.coerceAtMost(it.target)) else it
-        }
         val arr = JSONArray()
         list.forEach {
             arr.put(
@@ -176,182 +189,503 @@ class QuestStore(context: Context) {
             )
         }
         prefs.edit().putString("missions_$key", arr.toString()).apply()
-        list.find { it.id == id }?.let { m ->
-            if (m.progress >= m.target) {
-                tryAward("mission-${m.id}", "Mission: ${m.title}", m.xpReward)
+    }
+
+    fun updateMissionProgress(id: String, progress: Int) {
+        val list = missions().map {
+            if (it.id == id) it.copy(progress = progress.coerceAtMost(it.target)) else it
+        }
+        saveMissions(list)
+    }
+
+    // ─── 7-day tier attempt ───────────────────────────────────────────
+
+    fun ensureTierAttempt(today: LocalDate = LocalDate.now()): TierAttemptState {
+        val todayEp = today.toEpochDay()
+        val existing = readAttempt()
+        val next = when {
+            existing == null ->
+                TierAttemptLogic.startAttempt(prefs.getInt("tier_index", 0), todayEp)
+            existing.completed ->
+                // Fresh 7-day window at the unlocked tier index
+                TierAttemptLogic.startAttempt(prefs.getInt("tier_index", existing.tierIndex), todayEp)
+            else ->
+                TierAttemptLogic.onDayRollover(existing, todayEp)
+        }
+        writeAttempt(next)
+        return next
+    }
+
+    private fun readAttempt(): TierAttemptState? {
+        if (!prefs.contains("attempt_start")) return null
+        return TierAttemptState(
+            tierIndex = prefs.getInt("tier_index", 0),
+            startEpochDay = prefs.getLong("attempt_start", 0L),
+            deadlineEpochDay = prefs.getLong("attempt_deadline", 0L),
+            creditedXp = prefs.getInt("attempt_xp", 0),
+            completed = prefs.getBoolean("attempt_done", false)
+        )
+    }
+
+    private fun writeAttempt(s: TierAttemptState) {
+        prefs.edit()
+            .putInt("tier_index", s.tierIndex)
+            .putLong("attempt_start", s.startEpochDay)
+            .putLong("attempt_deadline", s.deadlineEpochDay)
+            .putInt("attempt_xp", s.creditedXp)
+            .putBoolean("attempt_done", s.completed)
+            .commit()
+    }
+
+    fun dailyXp(date: LocalDate = LocalDate.now()): Int =
+        prefs.getInt("daily_xp_${date}", 0)
+
+    private fun setDailyXp(date: LocalDate, value: Int) {
+        prefs.edit().putInt("daily_xp_$date", value).commit()
+    }
+
+    fun recentTemplateIds(limit: Int = 12): List<String> {
+        val arr = JSONArray(prefs.getString("recent_templates", "[]"))
+        return buildList {
+            for (i in 0 until arr.length()) add(arr.getString(i))
+        }.takeLast(limit)
+    }
+
+    private fun pushRecentTemplates(ids: List<String>) {
+        val cur = recentTemplateIds(20).toMutableList()
+        ids.forEach {
+            cur.remove(it)
+            cur.add(it)
+        }
+        val arr = JSONArray()
+        cur.takeLast(20).forEach { arr.put(it) }
+        prefs.edit().putString("recent_templates", arr.toString()).apply()
+    }
+
+    fun todayTasks(profile: QuestProfileInput, today: LocalDate = LocalDate.now()): List<DailyQuestTask> {
+        ensureTierAttempt(today)
+        val key = "tasks_$today"
+        val raw = prefs.getString(key, null)
+        if (raw != null) {
+            return parseTasks(raw)
+        }
+        val generated = DailyQuestEngine.generate(profile, today, recentTemplateIds())
+        saveTasks(today, generated)
+        pushRecentTemplates(generated.map { it.templateId })
+        return generated
+    }
+
+    private fun parseTasks(raw: String): List<DailyQuestTask> {
+        val arr = JSONArray(raw)
+        return buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                add(
+                    DailyQuestTask(
+                        id = o.getString("id"),
+                        templateId = o.getString("templateId"),
+                        category = QuestCategory.valueOf(o.getString("category")),
+                        difficulty = QuestDifficulty.valueOf(o.getString("difficulty")),
+                        minutes = o.getInt("minutes"),
+                        title = o.getString("title"),
+                        detail = o.getString("detail"),
+                        xpReward = o.getInt("xp"),
+                        reason = o.optString("reason"),
+                        activeDate = o.getString("date"),
+                        completed = o.optBoolean("completed", false)
+                    )
+                )
             }
         }
     }
-}
 
-suspend fun syncQuestFromSalah(context: Context) {
-    val app = context.applicationContext as SuhoodApplication
-    val store = QuestStore(context)
-    val from = LocalDate.now().withDayOfMonth(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
-    val to = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-    val logs = withContext(Dispatchers.IO) { app.database.dao().getSalahBetween(from, to) }
-    var completed = 0
-    logs.forEach { log ->
-        if (log.status != SalahStatus.NOT_PRAYED.key) {
-            completed++
-            store.tryAward(
-                eventId = "salah-${log.id}",
-                reason = "Salah ${log.prayerName} (${log.dateIso})",
-                amount = QuestRules.XP_SALAH
+    private fun saveTasks(date: LocalDate, tasks: List<DailyQuestTask>) {
+        val arr = JSONArray()
+        tasks.forEach { t ->
+            arr.put(
+                JSONObject()
+                    .put("id", t.id)
+                    .put("templateId", t.templateId)
+                    .put("category", t.category.name)
+                    .put("difficulty", t.difficulty.name)
+                    .put("minutes", t.minutes)
+                    .put("title", t.title)
+                    .put("detail", t.detail)
+                    .put("xp", t.xpReward)
+                    .put("reason", t.reason)
+                    .put("date", t.activeDate)
+                    .put("completed", t.completed)
             )
         }
+        prefs.edit().putString("tasks_$date", arr.toString()).commit()
     }
-    // Update first mission progress
-    val missions = store.missions()
-    missions.firstOrNull()?.let { store.updateMissionProgress(it.id, completed) }
+
+    /**
+     * Complete a daily task once. Returns credited tier XP (0 if duplicate or capped).
+     */
+    @Synchronized
+    fun completeDailyTask(taskId: String, today: LocalDate = LocalDate.now()): Int {
+        var attempt = ensureTierAttempt(today)
+        if (attempt.completed) return 0
+        if (QuestTierRules.isExpired(today.toEpochDay(), attempt.deadlineEpochDay)) {
+            attempt = TierAttemptLogic.onDayRollover(attempt, today.toEpochDay())
+            writeAttempt(attempt)
+        }
+        val tasks = todayTasks(
+            // Profile only needed if regenerating; tasks already persisted
+            QuestProfileInput(),
+            today
+        ).toMutableList()
+        val idx = tasks.indexOfFirst { it.id == taskId }
+        if (idx < 0) return 0
+        val task = tasks[idx]
+        if (task.completed) return 0
+        if (task.activeDate != today.toString()) return 0
+
+        val daily = dailyXp(today)
+        val credit = QuestTierRules.creditAllowed(task.xpReward, daily)
+        tasks[idx] = task.copy(completed = true)
+        saveTasks(today, tasks)
+
+        // Always mark completion; tier XP only if room under daily cap
+        // Persist completion first
+        val ids = awardedIds()
+        ids += "daily-$taskId"
+        prefs.edit().putStringSet("awarded_ids", ids).commit()
+
+        if (credit > 0) {
+            setDailyXp(today, daily + credit)
+            val updated = TierAttemptLogic.afterCredit(attempt, credit)
+            writeAttempt(updated)
+            if (updated.completed && !attempt.completed) {
+                // Advance tier index; next open starts a fresh 7-day attempt via ensureTierAttempt
+                prefs.edit()
+                    .putInt("tier_index", updated.tierIndex + 1)
+                    .remove("attempt_start")
+                    .commit()
+            }
+            totalXp += credit
+            appendLedger(XpEvent("daily-$taskId", task.title, credit, today.toString()))
+        }
+        return credit
+    }
+
+    fun profileFromOnboarding(context: Context): QuestProfileInput {
+        val o = OnboardingProfileStore.get(context)
+        return QuestProfileInput(
+            ageGroup = o.ageGroup,
+            lifestyle = o.dailyLife,
+            goals = o.goals,
+            consistency = o.consistency,
+            hardestPrayer = o.hardestPrayer,
+            practice = o.practice,
+            dailyMinutes = o.dailyMinutes.takeIf { it > 0 } ?: o.quranMinutes,
+            reminderStyle = o.reminderStyle,
+            language = o.language,
+            phoneUsage = o.phoneUsage,
+            freeTimeHint = o.socialUsage
+        )
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+fun syncQuestFromSalah(context: Context) {
+    val store = QuestStore(context)
+    val app = context.applicationContext as? SuhoodApplication
+    // Best-effort: if Salah statuses exist on disk via onboarding prefs keys, no-op safe
+    store.ensureTierAttempt()
+}
+
 @Composable
 fun WorshipQuestScreen(onBack: () -> Unit) {
     val colors = suhoodColors
     val context = LocalContext.current
     val store = remember { QuestStore(context) }
-    var totalXp by remember { mutableIntStateOf(store.totalXp) }
-    var missions by remember { mutableStateOf(store.missions()) }
-    var ledger by remember { mutableStateOf(store.ledger()) }
+    val today = remember { LocalDate.now() }
+    var attempt by remember { mutableStateOf(store.ensureTierAttempt(today)) }
+    var tasks by remember {
+        mutableStateOf(store.todayTasks(store.profileFromOnboarding(context), today))
+    }
+    var dailyXp by remember { mutableIntStateOf(store.dailyXp(today)) }
+    var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         syncQuestFromSalah(context)
-        totalXp = store.totalXp
-        missions = store.missions()
-        ledger = store.ledger()
+        QuestReminderScheduler.schedule(context)
+        attempt = store.ensureTierAttempt(today)
+        tasks = store.todayTasks(store.profileFromOnboarding(context), today)
+        dailyXp = store.dailyXp(today)
     }
 
-    val tier = totalXp / QuestRules.TIER_XP
-    val tierProgress = totalXp % QuestRules.TIER_XP
-    val rank = Ranks.forTier(tier)
+    val rank = Ranks.forTier(attempt.tierIndex)
+    val daysLeft = QuestTierRules.daysRemaining(today.toEpochDay(), attempt.deadlineEpochDay)
+    val progress = (attempt.creditedXp.toFloat() / QuestTierRules.TIER_XP_TARGET).coerceIn(0f, 1f)
+    val capReached = dailyXp >= QuestTierRules.DAILY_XP_CAP
 
-    Scaffold(
-        containerColor = colors.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Worship Quest", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = colors.textPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            .statusBarsPadding()
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = colors.textPrimary,
+                modifier = Modifier
+                    .size(28.dp)
+                    .clickable(onClick = onBack)
             )
+            Spacer(Modifier.size(12.dp))
+            Text("Worship Quest", style = SuhoodTypography.titleLarge, color = colors.textPrimary)
         }
-    ) { pad ->
+
         Column(
             Modifier
-                .fillMaxSize()
-                .padding(pad)
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                "XP tracks recorded app activity only. It does not measure faith or acceptance of worship.",
-                style = SuhoodTypography.labelSmall,
-                color = colors.textMuted
+                "Your daily plan — small steps, steady growth.",
+                color = colors.textSecondary,
+                fontSize = 14.sp
             )
-            Spacer(Modifier.height(12.dp))
-            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+
+            // Tier card
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(18.dp))
+                    .padding(16.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentLavender, modifier = Modifier.size(36.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(rank.arabic, style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-                        Text("${rank.latin} — ${rank.meaning}", color = colors.textSecondary)
-                        Text("Tier $tier · $totalXp XP", style = SuhoodTypography.labelMedium, color = colors.accentMint)
+                    Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentLavender)
+                    Spacer(Modifier.size(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "${rank.latin} · ${rank.arabic}",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "Tier ${attempt.tierIndex + 1} · ${rank.meaning}",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp
+                        )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 LinearProgressIndicator(
-                    progress = { tierProgress / QuestRules.TIER_XP.toFloat() },
-                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(8.dp)),
                     color = colors.accentLavender,
-                    trackColor = colors.surfaceElevated
+                    trackColor = colors.borderSubtle
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP this attempt",
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "$tierProgress / ${QuestRules.TIER_XP} XP to next tier",
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(top = 6.dp)
+                    if (attempt.completed) "Tier complete — next tier unlocks on a fresh attempt."
+                    else "$daysLeft day(s) left in this 7-day attempt · Daily cap ${dailyXp}/${QuestTierRules.DAILY_XP_CAP}",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp
                 )
-            }
-            Spacer(Modifier.height(16.dp))
-            Text("Rules", style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-            Text("Salah completion +${QuestRules.XP_SALAH} XP · Juz +${QuestRules.XP_JUZ} XP · ${QuestRules.TIER_XP} XP per tier",
-                style = SuhoodTypography.labelSmall, color = colors.textMuted)
-            Spacer(Modifier.height(16.dp))
-            Text("Monthly missions (${store.monthKey()})", style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-            Spacer(Modifier.height(8.dp))
-            missions.forEach { m ->
-                GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp), contentPadding = PaddingValues(14.dp)) {
-                    Text(m.title, style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                    Text(m.detail, style = SuhoodTypography.labelSmall, color = colors.textMuted)
-                    LinearProgressIndicator(
-                        progress = { m.progress / m.target.toFloat().coerceAtLeast(1f) },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(6.dp),
+                if (capReached) {
+                    Text(
+                        "Daily XP cap reached — you can still complete tasks for the habit, without extra tier XP today.",
                         color = colors.accentMint,
-                        trackColor = colors.surfaceElevated
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
-                    Text("${m.progress}/${m.target} · +${m.xpReward} XP", style = SuhoodTypography.labelSmall, color = colors.textSecondary)
+                }
+                if (attempt.completed) {
+                    Text(
+                        "Well done. Consistency built this tier — not speed.",
+                        color = colors.accentMint,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Text("Recent XP", style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-            ledger.take(15).forEach { e ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(e.reason, style = SuhoodTypography.labelSmall, color = colors.textSecondary, modifier = Modifier.weight(1f))
-                    Text("+${e.amount}", style = SuhoodTypography.labelSmall, color = colors.accentMint)
+
+            Text("TODAY'S QUESTS", color = colors.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+
+            tasks.forEach { task ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.surfaceElevated)
+                        .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+                        .clickable(enabled = !task.completed) {
+                            val credit = store.completeDailyTask(task.id, today)
+                            tasks = store.todayTasks(store.profileFromOnboarding(context), today)
+                            attempt = store.ensureTierAttempt(today)
+                            // Re-read after possible tier complete side effects
+                            attempt = store.ensureTierAttempt(today)
+                            dailyXp = store.dailyXp(today)
+                            message = when {
+                                credit > 0 -> "+$credit XP toward this tier"
+                                task.completed -> null
+                                else -> "Marked complete. Daily tier XP cap may apply."
+                            }
+                            // refresh task completed state
+                            tasks = store.todayTasks(store.profileFromOnboarding(context), today)
+                        }
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(if (task.completed) colors.accentMint else Color.Transparent)
+                                .border(1.5.dp, if (task.completed) colors.accentMint else colors.borderSubtle, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (task.completed) {
+                                Icon(Icons.Filled.Check, null, tint = Color(0xFF0A0E12), modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        Spacer(Modifier.size(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(task.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(
+                                "${task.category.name.lowercase().replace('_', ' ')} · ${task.minutes} min · ${task.xpReward} XP",
+                                color = colors.textSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(task.detail, color = colors.textSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                    if (task.reason.isNotBlank()) {
+                        Text(task.reason, color = colors.textMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                    }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+
+            message?.let {
+                Text(it, color = colors.accentLavender, fontSize = 13.sp)
+            }
+
+            Text(
+                "XP here tracks habit consistency inside Suhood — not spiritual rank.",
+                color = colors.textMuted,
+                fontSize = 11.sp
+            )
         }
     }
 }
 
-
 @Composable
 fun WorshipQuestHomeCard(onOpen: () -> Unit) {
-    val context = LocalContext.current
     val colors = suhoodColors
+    val context = LocalContext.current
     val store = remember { QuestStore(context) }
-    var xp by remember { mutableIntStateOf(store.totalXp) }
-    var tierProgress by remember { mutableFloatStateOf(0f) }
-    var rankLatin by remember { mutableStateOf("Mubtadi’") }
-    var rankAr by remember { mutableStateOf("مبتدئ") }
-    LaunchedEffect(Unit) {
-        while (true) {
-            xp = store.totalXp
-            val tier = xp / QuestRules.TIER_XP
-            val into = xp % QuestRules.TIER_XP
-            tierProgress = into / QuestRules.TIER_XP.toFloat()
-            val r = Ranks.forTier(tier)
-            rankLatin = r.latin
-            rankAr = r.arabic
-            kotlinx.coroutines.delay(2000)
-        }
+    val attempt = store.ensureTierAttempt()
+    val rank = Ranks.forTier(attempt.tierIndex)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surfaceElevated)
+            .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpen)
+            .padding(16.dp)
+    ) {
+        Text("Worship Quest", color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
+        Text(
+            "${rank.latin} · ${attempt.creditedXp}/${QuestTierRules.TIER_XP_TARGET} XP · 7-day attempt",
+            color = colors.textSecondary,
+            fontSize = 12.sp
+        )
     }
-    GlassCard(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentMint, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Worship Quest", style = SuhoodTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                Text(
-                    "$rankAr · $rankLatin · $xp XP",
-                    style = SuhoodTypography.bodySmall,
-                    color = colors.textSecondary
-                )
-                Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { tierProgress },
-                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                    color = colors.accentMint,
-                    trackColor = colors.borderSubtle
-                )
+}
+
+/** Gentle quest reminders — independent of Salah alarms. */
+object QuestReminderScheduler {
+    private const val REQ_MORNING = 91001
+    private const val REQ_EVENING = 91002
+
+    fun schedule(context: Context) {
+        val app = context.applicationContext
+        val am = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        scheduleAt(app, am, REQ_MORNING, 8, 0, QuestReminderReceiver.ACTION_MORNING)
+        scheduleAt(app, am, REQ_EVENING, 19, 30, QuestReminderReceiver.ACTION_EVENING)
+    }
+
+    private fun scheduleAt(
+        app: Context,
+        am: AlarmManager,
+        req: Int,
+        hour: Int,
+        minute: Int,
+        action: String
+    ) {
+        val pi = PendingIntent.getBroadcast(
+            app,
+            req,
+            Intent(app, QuestReminderReceiver::class.java).setAction(action),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour)
+            set(java.util.Calendar.MINUTE, minute)
+            set(java.util.Calendar.SECOND, 0)
+            if (timeInMillis <= System.currentTimeMillis()) add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+            } else {
+                @Suppress("DEPRECATION")
+                am.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
             }
         }
+    }
+}
+
+class QuestReminderReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        val app = context.applicationContext
+        val text = when (intent?.action) {
+            ACTION_EVENING -> "A gentle reminder: you still have time for today's chosen quest."
+            ACTION_DEADLINE -> "Your tier attempt ends soon. Continue at your own pace."
+            else -> "Your daily Worship Quest is ready. Start with one small step."
+        }
+        val n = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_FOCUS)
+            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+            .setContentTitle("Worship Quest")
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        runCatching { NotificationManagerCompat.from(app).notify(text.hashCode() and 0xFFFF, n) }
+        // Reschedule next day
+        QuestReminderScheduler.schedule(app)
+    }
+
+    companion object {
+        const val ACTION_MORNING = "com.suhood.quest.MORNING"
+        const val ACTION_EVENING = "com.suhood.quest.EVENING"
+        const val ACTION_DEADLINE = "com.suhood.quest.DEADLINE"
     }
 }

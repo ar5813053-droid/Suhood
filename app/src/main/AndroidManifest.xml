@@ -122,6 +122,10 @@
             android:name="com.suhood.feature.focus.SalahLockWatchdogReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name="com.suhood.feature.quest.QuestReminderReceiver"
+            android:exported="false" />
+
         <activity
             android:name="com.suhood.feature.alarms.AlarmRingActivity"
             android:exported="false"
