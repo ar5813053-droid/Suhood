@@ -372,19 +372,60 @@ fun buildRank(context: Context): RemoteViews {
     val rv = RemoteViews(context.packageName, R.layout.widget_rank)
     rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, "quest"))
     val store = runCatching { com.suhood.feature.quest.QuestStore(context) }.getOrNull()
-    val xp = store?.totalXp ?: 0
-    val tier = xp / com.suhood.feature.quest.QuestRules.TIER_XP
-    val into = xp % com.suhood.feature.quest.QuestRules.TIER_XP
-    val remain = com.suhood.feature.quest.QuestRules.TIER_XP - into
+    val attempt = store?.ensureTierAttempt()
+    val tier = attempt?.tierIndex ?: 0
+    val into = attempt?.creditedXp ?: 0
+    val target = com.suhood.feature.quest.QuestTierRules.TIER_XP_TARGET
+    val remain = (target - into).coerceAtLeast(0)
     val rank = com.suhood.feature.quest.Ranks.forTier(tier)
-    rv.setTextViewText(R.id.w_xp, xp.toString())
+    rv.setTextViewText(R.id.w_xp, into.toString())
     rv.setTextViewText(R.id.w_rank_ar, rank.arabic)
-    rv.setTextViewText(R.id.w_rank_en, "${rank.latin} · Tier $tier")
-    rv.setTextViewText(R.id.w_remain, "$remain XP to next tier")
-    rv.setProgressBar(R.id.w_bar, com.suhood.feature.quest.QuestRules.TIER_XP, into, false)
-    val pct = ((into * 100) / com.suhood.feature.quest.QuestRules.TIER_XP).coerceIn(0, 100)
+    rv.setTextViewText(R.id.w_rank_en, "Tier ${tier + 1} · Consistency")
+    rv.setTextViewText(R.id.w_remain, "$into / $target XP · $remain to go")
+    rv.setProgressBar(R.id.w_bar, target, into, false)
+    val pct = ((into * 100) / target).coerceIn(0, 100)
     rv.setProgressBar(R.id.w_ring, 100, pct, false)
     return rv
+}
+
+fun buildQuest(context: Context): RemoteViews {
+    val rv = RemoteViews(context.packageName, R.layout.widget_quest)
+    rv.setOnClickPendingIntent(R.id.widget_quest_root, openApp(context, "quest"))
+    val store = runCatching { com.suhood.feature.quest.QuestStore(context) }.getOrNull()
+    val today = java.time.LocalDate.now()
+    val attempt = store?.ensureTierAttempt(today)
+    val tier = attempt?.tierIndex ?: 0
+    val xp = attempt?.creditedXp ?: 0
+    val target = com.suhood.feature.quest.QuestTierRules.TIER_XP_TARGET
+    val dayIndex = if (attempt != null) {
+        (today.toEpochDay() - attempt.startEpochDay).toInt().coerceIn(0, 6)
+    } else 0
+    val flags = if (store != null && attempt != null) store.dayActivityFlags(attempt, today) else List(7) { false }
+    val letters = listOf("M", "T", "W", "T", "F", "S", "S")
+    val dayLine = letters.mapIndexed { i, l ->
+        when {
+            i < dayIndex && flags.getOrElse(i) { false } -> "$l✓"
+            i == dayIndex -> "$l●"
+            else -> "$l·"
+        }
+    }.joinToString("  ")
+    rv.setTextViewText(R.id.widget_quest_title, "Tier ${tier + 1} · Consistency")
+    rv.setTextViewText(R.id.widget_quest_day, "Day ${dayIndex + 1} of 7")
+    rv.setTextViewText(R.id.widget_quest_xp, "$xp / $target XP")
+    rv.setProgressBar(R.id.widget_quest_bar, target, xp, false)
+    rv.setTextViewText(R.id.widget_quest_days, dayLine)
+    return rv
+}
+
+class QuestWidgetReceiver : AppWidgetProvider() {
+    override fun onUpdate(c: Context, m: AppWidgetManager, ids: IntArray) =
+        providerUpdate(c, m, ids, ::buildQuest)
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        val m = AppWidgetManager.getInstance(context)
+        val ids = m.getAppWidgetIds(android.content.ComponentName(context, QuestWidgetReceiver::class.java))
+        if (ids.isNotEmpty()) onUpdate(context, m, ids)
+    }
 }
 
 class CalendarWidgetReceiver : AppWidgetProvider() {

@@ -25,6 +25,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -556,14 +557,30 @@ object QuranScreens {
                 override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                     if (available.y < 0f && !listState.canScrollForward && currentSurahId < 114) {
                         overscrollUp += -available.y
-                        if (overscrollUp > 80f) {
+                        if (overscrollUp > 56f) {
                             overscrollUp = 0f
                             vm.openSurah(currentSurahId + 1)
+                        }
+                    } else if (available.y > 0f && !listState.canScrollBackward && currentSurahId > 1) {
+                        overscrollUp = 0f
+                        if (available.y > 56f) {
+                            vm.openSurah(currentSurahId - 1)
                         }
                     } else if (available.y > 0f) {
                         overscrollUp = 0f
                     }
                     return Offset.Zero
+                }
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    if (available.y < -1200f && !listState.canScrollForward && currentSurahId < 114) {
+                        vm.openSurah(currentSurahId + 1)
+                        return available
+                    }
+                    if (available.y > 1200f && !listState.canScrollBackward && currentSurahId > 1) {
+                        vm.openSurah(currentSurahId - 1)
+                        return available
+                    }
+                    return Velocity.Zero
                 }
             }
         }
@@ -937,17 +954,34 @@ object QuranScreens {
         val nestedScroll = remember {
             object : NestedScrollConnection {
                 override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                    // At end of page content, further upward fling/drag → next page
+                    // At end of page content, further upward drag → next page (smooth feed style)
                     if (available.y < 0f && !listState.canScrollForward && currentPageNumber < 604) {
                         overscrollUp += -available.y
-                        if (overscrollUp > 80f) {
+                        if (overscrollUp > 56f) {
                             overscrollUp = 0f
                             vm.nextPage()
+                        }
+                    } else if (available.y > 0f && !listState.canScrollBackward && currentPageNumber > 1) {
+                        overscrollUp = 0f
+                        // pull down at top → previous page when strong
+                        if (available.y > 56f) {
+                            vm.previousPage()
                         }
                     } else if (available.y > 0f) {
                         overscrollUp = 0f
                     }
                     return Offset.Zero
+                }
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    if (available.y < -1200f && !listState.canScrollForward && currentPageNumber < 604) {
+                        vm.nextPage()
+                        return available
+                    }
+                    if (available.y > 1200f && !listState.canScrollBackward && currentPageNumber > 1) {
+                        vm.previousPage()
+                        return available
+                    }
+                    return Velocity.Zero
                 }
             }
         }

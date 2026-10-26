@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_quest_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_quest_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_quest_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Tier 1 · Consistency"
+            android:textColor="#F0F0F2"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_quest_day"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Day 1 of 7"
+            android:textColor="#8B7CF8"
+            android:textSize="11sp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Weekly tier progress"
+            android:textColor="#66F0F0F2"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_quest_xp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 / 700 XP"
+            android:textColor="#F0F0F2"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/widget_quest_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="8dp"
+        android:max="700"
+        android:progress="0"
+        android:progressTint="#8B7CF8"
+        android:progressBackgroundTint="#22FFFFFF" />
+
+    <TextView
+        android:id="@+id/widget_quest_days"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="M · T · W · T · F · S · S"
+        android:textColor="#8B7CF8"
+        android:textSize="12sp"
+        android:letterSpacing="0.08" />
+</LinearLayout>

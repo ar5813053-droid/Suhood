@@ -212,6 +212,8 @@ object WidgetBridge {
         }
     }
 
+    fun refreshQuest(context: Context) = refreshAll(context)
+
     fun refreshAll(context: Context) {
         // Direct RemoteViews updates (reliable) + broadcast for system
         runCatching { updateProvider(context, NextSalahWidgetReceiver::class.java, ::buildNextSalah) }
@@ -225,6 +227,7 @@ object WidgetBridge {
         runCatching { updateProvider(context, PrayerMarkerWidgetReceiver::class.java, ::buildPrayerMarker) }
         runCatching { updateProvider(context, CalendarWidgetReceiver::class.java, ::buildCalendar) }
         runCatching { updateProvider(context, RankWidgetReceiver::class.java, ::buildRank) }
+        runCatching { updateProvider(context, QuestWidgetReceiver::class.java, ::buildQuest) }
     }
 
     suspend fun markPrayer(context: Context, prayer: String, statusKey: String) {

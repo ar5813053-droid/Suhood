@@ -6,6 +6,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -370,6 +375,18 @@ class QuestStore(context: Context) {
         return credit
     }
 
+    /** True for each day of the current 7-day attempt that earned any daily XP. */
+    fun dayActivityFlags(attempt: TierAttemptState, today: LocalDate = LocalDate.now()): List<Boolean> {
+        return (0 until QuestTierRules.ATTEMPT_DAYS).map { offset ->
+            val d = LocalDate.ofEpochDay(attempt.startEpochDay + offset)
+            when {
+                d.isAfter(today) -> false
+                d == today -> dailyXp(d) > 0 || todayTasks(QuestProfileInput(), d).any { it.completed }
+                else -> dailyXp(d) > 0
+            }
+        }
+    }
+
     fun profileFromOnboarding(context: Context): QuestProfileInput {
         val o = OnboardingProfileStore.get(context)
         return QuestProfileInput(
@@ -396,6 +413,9 @@ fun syncQuestFromSalah(context: Context) {
 }
 
 @Composable
+import com.suhood.widgets.WidgetBridge
+
+@Composable
 fun WorshipQuestScreen(onBack: () -> Unit) {
     val colors = suhoodColors
     val context = LocalContext.current
@@ -407,6 +427,9 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
     }
     var dailyXp by remember { mutableIntStateOf(store.dailyXp(today)) }
     var message by remember { mutableStateOf<String?>(null) }
+    val dayFlags = remember(attempt, tasks, dailyXp) { store.dayActivityFlags(attempt, today) }
+    val dayIndex = (today.toEpochDay() - attempt.startEpochDay).toInt().coerceIn(0, 6)
+    val dayLetters = listOf("M", "T", "W", "T", "F", "S", "S")
 
     LaunchedEffect(Unit) {
         syncQuestFromSalah(context)
@@ -416,10 +439,15 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
         dailyXp = store.dailyXp(today)
     }
 
-    val rank = Ranks.forTier(attempt.tierIndex)
-    val daysLeft = QuestTierRules.daysRemaining(today.toEpochDay(), attempt.deadlineEpochDay)
-    val progress = (attempt.creditedXp.toFloat() / QuestTierRules.TIER_XP_TARGET).coerceIn(0f, 1f)
-    val capReached = dailyXp >= QuestTierRules.DAILY_XP_CAP
+    val progressTarget = (attempt.creditedXp.toFloat() / QuestTierRules.TIER_XP_TARGET).coerceIn(0f, 1f)
+    val progressAnim by animateFloatAsState(
+        targetValue = progressTarget,
+        animationSpec = tween(1200, easing = FastOutSlowInEasing),
+        label = "tierProgress"
+    )
+    val accent = Color(0xFF8B7CF8)
+    val green = Color(0xFF5DE0A0)
+    val glass = colors.surfaceElevated.copy(alpha = 0.92f)
 
     Column(
         Modifier
@@ -430,19 +458,25 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = colors.textPrimary,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable(onClick = onBack)
-            )
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, CircleShape)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+            }
             Spacer(Modifier.size(12.dp))
-            Text("Worship Quest", style = SuhoodTypography.titleLarge, color = colors.textPrimary)
+            Column {
+                Text("Worship Quest", style = SuhoodTypography.titleLarge, color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Text("Small steps · Steady growth", color = colors.textSecondary, fontSize = 13.sp)
+            }
         }
 
         Column(
@@ -450,173 +484,332 @@ fun WorshipQuestScreen(onBack: () -> Unit) {
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                "Your daily plan — small steps, steady growth.",
-                color = colors.textSecondary,
-                fontSize = 14.sp
-            )
-
-            // Tier card
+            // Tier card — HTML liquid glass
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.surfaceElevated)
-                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(18.dp))
-                    .padding(16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(glass)
+                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(20.dp))
+                    .padding(20.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.EmojiEvents, null, tint = colors.accentLavender)
-                    Spacer(Modifier.size(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "${rank.latin} · ${rank.arabic}",
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            "Tier ${attempt.tierIndex + 1} · ${rank.meaning}",
-                            color = colors.textSecondary,
-                            fontSize = 12.sp
-                        )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                    Text(
+                        buildAnnotatedStringSafe("Tier ${attempt.tierIndex + 1}", " · Consistency"),
+                        color = colors.textPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(accent.copy(alpha = 0.18f))
+                            .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                    ) {
+                        Text("Day ${dayIndex + 1} of 7", color = accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    color = colors.accentLavender,
-                    trackColor = colors.borderSubtle
-                )
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Weekly tier progress", color = colors.textMuted, fontSize = 12.sp)
+                    Text(
+                        "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP",
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP this attempt",
-                    color = colors.textPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    if (attempt.completed) "Tier complete — next tier unlocks on a fresh attempt."
-                    else "$daysLeft day(s) left in this 7-day attempt · Daily cap ${dailyXp}/${QuestTierRules.DAILY_XP_CAP}",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp
-                )
-                if (capReached) {
-                    Text(
-                        "Daily XP cap reached — you can still complete tasks for the habit, without extra tier XP today.",
-                        color = colors.accentMint,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                }
-                if (attempt.completed) {
-                    Text(
-                        "Well done. Consistency built this tier — not speed.",
-                        color = colors.accentMint,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-
-            Text("TODAY'S QUESTS", color = colors.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-
-            tasks.forEach { task ->
-                Column(
+                Box(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.surfaceElevated)
-                        .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
-                        .clickable(enabled = !task.completed) {
-                            val credit = store.completeDailyTask(task.id, today)
-                            tasks = store.todayTasks(store.profileFromOnboarding(context), today)
-                            attempt = store.ensureTierAttempt(today)
-                            // Re-read after possible tier complete side effects
-                            attempt = store.ensureTierAttempt(today)
-                            dailyXp = store.dailyXp(today)
-                            message = when {
-                                credit > 0 -> "+$credit XP toward this tier"
-                                task.completed -> null
-                                else -> "Marked complete. Daily tier XP cap may apply."
-                            }
-                            // refresh task completed state
-                            tasks = store.todayTasks(store.profileFromOnboarding(context), today)
-                        }
-                        .padding(14.dp)
+                        .height(7.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.07f))
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(if (task.completed) colors.accentMint else Color.Transparent)
-                                .border(1.5.dp, if (task.completed) colors.accentMint else colors.borderSubtle, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (task.completed) {
-                                Icon(Icons.Filled.Check, null, tint = Color(0xFF0A0E12), modifier = Modifier.size(14.dp))
-                            }
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(progressAnim)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF8B7CF8), Color(0xFFC084FC))))
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    dayLetters.forEachIndexed { i, letter ->
+                        val past = i < dayIndex && dayFlags.getOrElse(i) { false }
+                        val isToday = i == dayIndex
+                        val bg = when {
+                            past -> green.copy(alpha = 0.1f)
+                            isToday -> accent.copy(alpha = 0.14f)
+                            else -> Color.White.copy(alpha = 0.04f)
                         }
-                        Spacer(Modifier.size(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(task.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        val borderC = when {
+                            past -> green.copy(alpha = 0.25f)
+                            isToday -> accent.copy(alpha = 0.35f)
+                            else -> Color.White.copy(alpha = 0.08f)
+                        }
+                        val letterC = when {
+                            past -> green
+                            isToday -> accent
+                            else -> colors.textMuted
+                        }
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bg)
+                                .border(1.dp, borderC, RoundedCornerShape(12.dp))
+                                .padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(letter, color = letterC, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(4.dp))
                             Text(
-                                "${task.category.name.lowercase().replace('_', ' ')} · ${task.minutes} min · ${task.xpReward} XP",
-                                color = colors.textSecondary,
+                                when {
+                                    past -> "✓"
+                                    isToday -> "●"
+                                    else -> "·"
+                                },
+                                color = letterC,
                                 fontSize = 12.sp
                             )
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(task.detail, color = colors.textSecondary, fontSize = 13.sp, lineHeight = 18.sp)
-                    if (task.reason.isNotBlank()) {
-                        Text(task.reason, color = colors.textMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+
+            Text("TODAY'S QUESTS", color = colors.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
+
+            tasks.forEach { task ->
+                val done = task.completed
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(glass)
+                        .border(
+                            1.dp,
+                            if (done) green.copy(alpha = 0.2f) else colors.borderSubtle,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable(enabled = !done) {
+                            val credit = store.completeDailyTask(task.id, today)
+                            tasks = store.todayTasks(store.profileFromOnboarding(context), today)
+                            attempt = store.ensureTierAttempt(today)
+                            dailyXp = store.dailyXp(today)
+                            val allDone = tasks.all { it.completed }
+                            QuestNotify.onTaskCompleted(context, task.title, credit, allDone)
+                            if (attempt.completed) {
+                                QuestNotify.onTierCompleted(context, attempt.tierIndex)
+                            }
+                            message = when {
+                                credit > 0 -> "+$credit XP toward this tier"
+                                else -> "Marked complete"
+                            }
+                            WidgetBridge.refreshAll(context)
+                        }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Box(
+                            Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (done) green.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.04f))
+                                .border(
+                                    1.5.dp,
+                                    if (done) green.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (done) {
+                                Icon(Icons.Filled.Check, null, tint = green, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                        Spacer(Modifier.size(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(task.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                MetaChip(task.category.name.lowercase().replace('_', ' '))
+                                MetaChip("${task.minutes} min")
+                                MetaChip("+${task.xpReward} XP", accent = true)
+                            }
+                            Spacer(Modifier.height(7.dp))
+                            Text(task.detail, color = colors.textSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                            if (task.reason.isNotBlank()) {
+                                Text(task.reason, color = colors.textMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
                     }
                 }
             }
 
-            message?.let {
-                Text(it, color = colors.accentLavender, fontSize = 13.sp)
-            }
-
+            message?.let { Text(it, color = accent, fontSize = 13.sp) }
             Text(
-                "XP here tracks habit consistency inside Suhood — not spiritual rank.",
+                "XP tracks habit consistency inside Suhood — not spiritual rank.",
                 color = colors.textMuted,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
 }
 
 @Composable
+private fun MetaChip(text: String, accent: Boolean = false) {
+    val colors = suhoodColors
+    val accentC = Color(0xFF8B7CF8)
+    Text(
+        text,
+        color = if (accent) accentC else colors.textMuted,
+        fontSize = 11.sp,
+        fontWeight = if (accent) FontWeight.SemiBold else FontWeight.Normal,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (accent) accentC.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+            .border(1.dp, if (accent) accentC.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.07f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp)
+    )
+}
+
+private fun buildAnnotatedStringSafe(bold: String, rest: String): String = bold + rest
+
+@Composable
 fun WorshipQuestHomeCard(onOpen: () -> Unit) {
     val colors = suhoodColors
     val context = LocalContext.current
     val store = remember { QuestStore(context) }
-    val attempt = store.ensureTierAttempt()
-    val rank = Ranks.forTier(attempt.tierIndex)
+    val today = remember { LocalDate.now() }
+    val attempt = store.ensureTierAttempt(today)
+    val dayFlags = store.dayActivityFlags(attempt, today)
+    val dayIndex = (today.toEpochDay() - attempt.startEpochDay).toInt().coerceIn(0, 6)
+    val dayLetters = listOf("M", "T", "W", "T", "F", "S", "S")
+    val progress = (attempt.creditedXp.toFloat() / QuestTierRules.TIER_XP_TARGET).coerceIn(0f, 1f)
+    val accent = Color(0xFF8B7CF8)
+    val green = Color(0xFF5DE0A0)
+
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(colors.surfaceElevated)
-            .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+            .border(1.dp, colors.borderSubtle, RoundedCornerShape(20.dp))
             .clickable(onClick = onOpen)
-            .padding(16.dp)
+            .padding(18.dp)
     ) {
-        Text("Worship Quest", color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
-        Text(
-            "${rank.latin} · ${attempt.creditedXp}/${QuestTierRules.TIER_XP_TARGET} XP · 7-day attempt",
-            color = colors.textSecondary,
-            fontSize = 12.sp
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Tier ${attempt.tierIndex + 1} · Consistency",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(accent.copy(alpha = 0.18f))
+                    .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text("Day ${dayIndex + 1} of 7", color = accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Weekly tier progress", color = colors.textMuted, fontSize = 12.sp)
+            Text("${attempt.creditedXp} / ${QuestTierRules.TIER_XP_TARGET} XP", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.White.copy(alpha = 0.07f))
+        ) {
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF8B7CF8), Color(0xFFC084FC))))
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            dayLetters.forEachIndexed { i, letter ->
+                val past = i < dayIndex && dayFlags.getOrElse(i) { false }
+                val isToday = i == dayIndex
+                val bg = when {
+                    past -> green.copy(alpha = 0.1f)
+                    isToday -> accent.copy(alpha = 0.14f)
+                    else -> Color.White.copy(alpha = 0.04f)
+                }
+                val borderC = when {
+                    past -> green.copy(alpha = 0.25f)
+                    isToday -> accent.copy(alpha = 0.35f)
+                    else -> Color.White.copy(alpha = 0.08f)
+                }
+                val letterC = when {
+                    past -> green
+                    isToday -> accent
+                    else -> colors.textMuted
+                }
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bg)
+                        .border(1.dp, borderC, RoundedCornerShape(10.dp))
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(letter, color = letterC, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text(when { past -> "✓"; isToday -> "●"; else -> "·" }, color = letterC, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+/** Local notifications for quest milestones (emoji + gentle copy). */
+object QuestNotify {
+    fun onTaskCompleted(context: Context, title: String, credit: Int, allDone: Boolean) {
+        if (allDone) {
+            post(context, 92001, "✨ All set for today", "Every quest is done. Rest well — you showed up.")
+        } else if (credit > 0) {
+            post(context, 92002, "✅ Quest complete", "$title · +$credit XP")
+        }
+    }
+
+    fun onTierCompleted(context: Context, tierIndex: Int) {
+        post(context, 92003, "🏆 Tier ${tierIndex + 1} complete", "Consistency built this. A fresh tier awaits when you're ready.")
+    }
+
+    fun onTierReset(context: Context) {
+        post(context, 92004, "🔄 New week, fresh intention", "Your tier attempt reset. Begin again at your own pace.")
+    }
+
+    fun post(context: Context, id: Int, title: String, body: String) {
+        val app = context.applicationContext
+        val n = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_FOCUS)
+            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        runCatching { NotificationManagerCompat.from(app).notify(id, n) }
     }
 }
 
@@ -624,12 +817,38 @@ fun WorshipQuestHomeCard(onOpen: () -> Unit) {
 object QuestReminderScheduler {
     private const val REQ_MORNING = 91001
     private const val REQ_EVENING = 91002
+    private const val REQ_WEEKEND = 91003
 
     fun schedule(context: Context) {
         val app = context.applicationContext
         val am = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         scheduleAt(app, am, REQ_MORNING, 8, 0, QuestReminderReceiver.ACTION_MORNING)
         scheduleAt(app, am, REQ_EVENING, 19, 30, QuestReminderReceiver.ACTION_EVENING)
+        // Sunday evening gentle reset reminder
+        scheduleWeekend(app, am)
+    }
+
+    private fun scheduleWeekend(app: Context, am: AlarmManager) {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.SUNDAY)
+            set(java.util.Calendar.HOUR_OF_DAY, 20)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            if (timeInMillis <= System.currentTimeMillis()) add(java.util.Calendar.WEEK_OF_YEAR, 1)
+        }
+        val pi = PendingIntent.getBroadcast(
+            app, REQ_WEEKEND,
+            Intent(app, QuestReminderReceiver::class.java).setAction(QuestReminderReceiver.ACTION_WEEKEND),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+            } else {
+                @Suppress("DEPRECATION")
+                am.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+            }
+        }
     }
 
     private fun scheduleAt(
@@ -666,26 +885,34 @@ object QuestReminderScheduler {
 class QuestReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val app = context.applicationContext
-        val text = when (intent?.action) {
-            ACTION_EVENING -> "A gentle reminder: you still have time for today's chosen quest."
-            ACTION_DEADLINE -> "Your tier attempt ends soon. Continue at your own pace."
-            else -> "Your daily Worship Quest is ready. Start with one small step."
+        val store = QuestStore(app)
+        val attempt = store.ensureTierAttempt()
+        when (intent?.action) {
+            ACTION_EVENING -> {
+                val tasks = store.todayTasks(store.profileFromOnboarding(app))
+                if (tasks.any { !it.completed }) {
+                    QuestNotify.post(app, 92010, "🌙 Still time today", "A gentle reminder: you still have time for today's chosen quest.")
+                }
+            }
+            ACTION_WEEKEND -> {
+                QuestNotify.onTierReset(app)
+            }
+            ACTION_DEADLINE -> {
+                QuestNotify.post(app, 92011, "⏳ Tier attempt ending", "Your tier attempt ends soon. Continue at your own pace.")
+            }
+            else -> {
+                QuestNotify.post(app, 92012, "🌅 Quest ready", "Your daily Worship Quest is ready. Start with one small step.")
+            }
         }
-        val n = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_FOCUS)
-            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
-            .setContentTitle("Worship Quest")
-            .setContentText(text)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        runCatching { NotificationManagerCompat.from(app).notify(text.hashCode() and 0xFFFF, n) }
-        // Reschedule next day
         QuestReminderScheduler.schedule(app)
+        WidgetBridge.refreshAll(app)
     }
 
     companion object {
         const val ACTION_MORNING = "com.suhood.quest.MORNING"
         const val ACTION_EVENING = "com.suhood.quest.EVENING"
         const val ACTION_DEADLINE = "com.suhood.quest.DEADLINE"
+        const val ACTION_WEEKEND = "com.suhood.quest.WEEKEND"
     }
 }
+
