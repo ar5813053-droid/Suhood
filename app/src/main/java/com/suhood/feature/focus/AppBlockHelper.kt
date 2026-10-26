@@ -47,11 +47,15 @@ object AppBlockHelper {
         FocusAccessibilityService.openSettings(context)
 
     fun foregroundPackage(context: Context): String? {
+        // 1) Accessibility is most accurate when service is connected
+        FocusAccessibilityService.currentForegroundPackage()?.let { return it }
+
         if (!hasUsageAccess(context)) return null
         return try {
             val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val end = System.currentTimeMillis()
-            val events = usm.queryEvents(end - 15_000, end)
+            // Events first
+            val events = usm.queryEvents(end - 30_000, end)
             val event = UsageEvents.Event()
             var last: String? = null
             while (events.hasNextEvent()) {
@@ -62,13 +66,18 @@ object AppBlockHelper {
                     last = event.packageName
                 }
             }
-            last
+            if (last != null) return last
+            // Fallback: most recent usage stats
+            @Suppress("DEPRECATION")
+            val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, end - 60_000, end)
+            stats?.maxByOrNull { it.lastTimeUsed }?.packageName
         } catch (_: Exception) {
             null
         }
     }
 
     fun isBlockedAppForeground(context: Context, blockedPackages: Set<String>): String? {
+        if (blockedPackages.isEmpty()) return null
         val fg = foregroundPackage(context) ?: return null
         if (SalahLockEnforcer.matchesBlocked(fg, blockedPackages, context.packageName)) return fg
         return null

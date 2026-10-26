@@ -21,9 +21,10 @@ import kotlinx.coroutines.runBlocking
 
 class SalahReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val pending = goAsync()
         val name = intent.getStringExtra(EXTRA_PRAYER) ?: "Salah"
         val app = context.applicationContext
-
+        try {
         // 1) Activate persistent 10-minute lock for selected apps
         val packages = FocusSessionController.get(app).getBlockedApps()
             .filter { it != app.packageName && it.isNotBlank() }
@@ -41,6 +42,7 @@ class SalahReminderReceiver : BroadcastReceiver() {
             val snap = lockStore.read()
             // Watchdog alarms survive swipe-from-recents / process death
             com.suhood.feature.focus.SalahLockWatchdog.schedule(app, snap.expiryWallMs)
+            // FGS can start activities more reliably than a plain receiver
             SalahLockMonitorService.start(app)
             runCatching {
                 com.suhood.feature.focus.SalahLockEnforcer.onLockActivated(app, name)
@@ -88,6 +90,9 @@ class SalahReminderReceiver : BroadcastReceiver() {
 
         // 3) Reschedule next day (does not extend current lock)
         runCatching { SalahReminderScheduler.rescheduleAll(app) }
+        } finally {
+            pending.finish()
+        }
     }
 
     companion object {

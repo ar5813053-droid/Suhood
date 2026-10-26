@@ -221,6 +221,14 @@ class FocusAccessibilityService : AccessibilityService() {
         @Volatile
         private var instanceRef: WeakReference<FocusAccessibilityService>? = null
 
+        fun currentForegroundPackage(): String? {
+            return try {
+                instanceRef?.get()?.rootInActiveWindow?.packageName?.toString()
+            } catch (_: Exception) {
+                null
+            }
+        }
+
         fun isEnabled(context: android.content.Context): Boolean {
             val enabled = Settings.Secure.getString(
                 context.contentResolver,

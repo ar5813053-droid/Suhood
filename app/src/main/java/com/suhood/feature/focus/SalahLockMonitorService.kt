@@ -72,6 +72,18 @@ class SalahLockMonitorService : Service() {
         if (!running) {
             running = true
             handler.post(tick)
+        } else {
+            // Already running — still try an immediate FG check
+            handler.post(tick)
+        }
+        // Immediate kick if user is already inside a blocked app
+        val blockedFg = AppBlockHelper.isBlockedAppForeground(applicationContext, snap.blockedPackages)
+        if (blockedFg != null) {
+            SalahLockEnforcer.enforce(
+                this, // service context — allowed to start activity while FGS
+                blockedFg,
+                snap.prayerName.ifBlank { "Salah" }
+            )
         }
         return START_STICKY
     }
@@ -131,7 +143,7 @@ class SalahLockMonitorService : Service() {
     companion object {
         private const val NOTIF_ID = 71001
         /** Poll blocked apps ~1s; notification text updates only when MM:SS changes. */
-        private const val POLL_MS = 1000L
+        private const val POLL_MS = 500L
 
         fun start(context: Context) {
             val i = Intent(context, SalahLockMonitorService::class.java)
