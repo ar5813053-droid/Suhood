@@ -1016,16 +1016,16 @@ object QuranScreens {
                             )
                         }
                         LazyColumn(
-                        state = listState,
-                        modifier = Modifier.nestedScroll(nestedScroll),
-                            Modifier
+                            state = listState,
+                            modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = 20.dp)
+                                .nestedScroll(nestedScroll),
                             contentPadding = PaddingValues(vertical = 12.dp)
                         ) {
                             items(ayahs, key = { it.globalNumber }) { a ->
                                 Text(
-                                    text = a.arabic + " \u06DD${a.numberInSurah}",
+                                    text = a.arabic + " ۝${a.numberInSurah}",
                                     style = TextStyle(
                                         fontSize = 26.sp,
                                         lineHeight = 48.sp,
@@ -1038,17 +1038,17 @@ object QuranScreens {
                                         .padding(vertical = 6.dp)
                                 )
                             }
-                        }
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            GlassButton(
-                                text = if (pageNumber < 604) "Next page — swipe or tap" else "End of Mushaf",
-                                onClick = { if (pageNumber < 604) vm.nextPage() },
-                                primary = true,
-                                enabled = pageNumber < 604,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
-                            )
-                            Spacer(Modifier.height(8.dp))
+                            item {
+                                Spacer(Modifier.height(12.dp))
+                                GlassButton(
+                                    text = if (pageNumber < 604) "Next page - swipe or tap" else "End of Mushaf",
+                                    onClick = { if (pageNumber < 604) vm.nextPage() },
+                                    primary = true,
+                                    enabled = pageNumber < 604,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                            }
                         }
                         Row(
                             Modifier

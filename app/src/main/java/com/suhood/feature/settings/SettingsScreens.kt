@@ -100,7 +100,7 @@ object SettingsScreens {
             Row("Tip the developer", Routes.SETTINGS_TIP, Icons.Filled.VolunteerActivism),
             Row("Terms & Conditions", Routes.SETTINGS_TERMS, Icons.Filled.Info),
             Row("Support", "settings/support", Icons.Filled.Info),
-            Row("Instagram", "external:instagram", Icons.Filled.Share),
+            Row("Instagram", "external:instagram", Icons.Filled.Info),
             Row("About Suhood", Routes.SETTINGS_ABOUT, Icons.Filled.Info)
         )
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
