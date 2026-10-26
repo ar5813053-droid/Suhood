@@ -2,7 +2,7 @@ package com.suhood.core.navigation
 
 /**
  * Central navigation routes for Suhood.
- * Top-level destinations: Home, Quran, Nasheedify (Audio).
+ * Top-level destinations: Home, Quran, Focus.
  * Focus, Worship, Tasbeeh, Alarms are nested from Home quick actions.
  */
 object Routes {
@@ -155,5 +155,5 @@ enum class TopLevelDestination(val route: String) {
     JOURNEY(Routes.JOURNEY),
     QURAN(Routes.QURAN),
     MUHASABAH(Routes.MUHASABAH),
-    AUDIO(Routes.AUDIO)
+    FOCUS(Routes.FOCUS)
 }

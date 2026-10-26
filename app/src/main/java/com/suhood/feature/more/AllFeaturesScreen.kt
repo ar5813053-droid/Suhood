@@ -66,7 +66,7 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
         FeatureSection(
             "Audio",
             listOf(
-                FeatureItem("Nasheedify", "Nasheeds & recitation", Icons.Filled.MusicNote, Routes.AUDIO)
+                FeatureItem("Focus", "App blocking & Salah lock", Icons.Filled.CenterFocusStrong, Routes.FOCUS)
             )
         ),
         FeatureSection(

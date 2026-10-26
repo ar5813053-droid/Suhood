@@ -73,7 +73,7 @@ data class NavItem(
 val primaryNavItems = listOf(
     NavItem(TopLevelDestination.HOME, "Home", Icons.Filled.Home, "Home"),
     NavItem(TopLevelDestination.QURAN, "Quran", Icons.Filled.MenuBook, "Quran"),
-    NavItem(TopLevelDestination.AUDIO, "Nasheedify", Icons.Filled.MusicNote, "Nasheedify")
+    NavItem(TopLevelDestination.FOCUS, "Focus", Icons.Filled.CenterFocusStrong, "Focus")
 )
 
 /**

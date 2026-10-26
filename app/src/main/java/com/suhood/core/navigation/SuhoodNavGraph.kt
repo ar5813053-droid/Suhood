@@ -35,7 +35,6 @@ import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.feature.alarms.AlarmScreens
 import com.suhood.feature.focus.FocusScreens
 import com.suhood.feature.home.HomeScreen
-import com.suhood.feature.nasheedify.NasheedifyScreens
 import com.suhood.feature.qibla.QiblaScreens
 import com.suhood.feature.onboarding.OnboardingFlow
 import com.suhood.feature.quran.QuranScreens
@@ -74,7 +73,7 @@ fun SuhoodNavGraph(
 
     // Hide bottom nav on Journey and Journal (full-screen focus)
     val showBottomNav = currentRoute in listOf(
-        Routes.HOME, Routes.QURAN, Routes.AUDIO
+        Routes.HOME, Routes.QURAN, Routes.FOCUS
     )
 
     val selectedTop = when {
@@ -82,12 +81,11 @@ fun SuhoodNavGraph(
         currentRoute == Routes.JOURNEY || currentRoute?.startsWith("journey") == true -> TopLevelDestination.JOURNEY
         currentRoute == Routes.QURAN || currentRoute?.startsWith("quran") == true -> TopLevelDestination.QURAN
         currentRoute == Routes.MUHASABAH || currentRoute?.startsWith("muhasabah") == true -> TopLevelDestination.MUHASABAH
-        currentRoute == Routes.AUDIO || currentRoute?.startsWith("audio") == true -> TopLevelDestination.AUDIO
+        currentRoute == Routes.FOCUS || currentRoute?.startsWith("focus") == true -> TopLevelDestination.FOCUS
         else -> TopLevelDestination.HOME
     }
 
-    val isNasheedifyRoute = currentRoute == Routes.AUDIO ||
-        (currentRoute?.startsWith("audio/") == true)
+    val isNasheedifyRoute = false
 
     
     val activity = LocalContext.current as? Activity
@@ -96,7 +94,7 @@ fun SuhoodNavGraph(
         when (intent.getStringExtra("navigate")) {
             "mushaf", "quran" -> navController.navigate(Routes.QURAN_MUSHAF) { launchSingleTop = true }
             "salah" -> navController.navigate(Routes.SALAH) { launchSingleTop = true }
-            "audio" -> navController.navigate(Routes.AUDIO) { launchSingleTop = true }
+            "audio", "focus" -> navController.navigate(Routes.FOCUS) { launchSingleTop = true }
             "journey" -> navController.navigate(Routes.JOURNEY) { launchSingleTop = true }
             "quest" -> navController.navigate(Routes.QUEST) { launchSingleTop = true }
             "widgets" -> navController.navigate(Routes.WIDGETS) { launchSingleTop = true }
@@ -187,8 +185,12 @@ fun SuhoodNavGraph(
                 )
             }
             composable(Routes.AUDIO) {
-                NasheedifyScreens.Home(
+                // Nasheedify removed — old deep links open Focus
+                FocusScreens.Dashboard(
                     onNavigate = { route -> navController.navigate(route) },
+                    bottomContentPadding = SuhoodSpacing.aboveBottomNav
+                )
+            },
                     playbackState = playbackState,
                     onPlaybackChange = { /* shared controller owns state */ },
                     bottomContentPadding = SuhoodSpacing.aboveBottomNav
@@ -413,8 +415,7 @@ fun SuhoodNavGraph(
 
             // Nasheedify
             composable(Routes.NASHEEDIFY_SEARCH) {
-                NasheedifyScreens.Search(
-                    onBack = { navController.popBackStack() },
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
                     onTrack = { track ->
                         app.playbackController.play(track)
                         navController.navigate(Routes.NASHEEDIFY_PLAYER)
@@ -425,8 +426,7 @@ fun SuhoodNavGraph(
                 "audio/category/{categoryId}",
                 arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
             ) { entry ->
-                NasheedifyScreens.CategoryDetail(
-                    categoryId = entry.arguments?.getString("categoryId") ?: "",
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) ?: "",
                     onBack = { navController.popBackStack() },
                     onTrack = { track ->
                         app.playbackController.play(track)
@@ -435,8 +435,7 @@ fun SuhoodNavGraph(
                 )
             }
             composable(Routes.NASHEEDIFY_FAVORITES) {
-                NasheedifyScreens.Favorites(
-                    onBack = { navController.popBackStack() },
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
                     onTrack = { track ->
                         app.playbackController.play(track)
                         navController.navigate(Routes.NASHEEDIFY_PLAYER)
@@ -444,16 +443,11 @@ fun SuhoodNavGraph(
                 )
             }
             composable(Routes.NASHEEDIFY_PLAYER) {
-                NasheedifyScreens.FullPlayer(
-                    state = playbackState,
-                    onStateChange = { /* shared controller owns state */ },
-                    onBack = { navController.popBackStack() }
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) }
                 )
             }
             composable(Routes.NASHEEDIFY_QUEUE) {
-                NasheedifyScreens.Queue(
-                    state = playbackState,
-                    onBack = { navController.popBackStack() },
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) },
                     onTrack = { track ->
                         app.playbackController.play(track)
                         navController.navigate(Routes.NASHEEDIFY_PLAYER)
@@ -461,7 +455,7 @@ fun SuhoodNavGraph(
                 )
             }
             composable(Routes.NASHEEDIFY_CREATE_PLAYLIST) {
-                NasheedifyScreens.CreatePlaylist(onBack = { navController.popBackStack() })
+                FocusScreens.Dashboard(onNavigate = { r -> navController.navigate(r) }, bottomContentPadding = SuhoodSpacing.aboveBottomNav) })
             }
 
             // Settings

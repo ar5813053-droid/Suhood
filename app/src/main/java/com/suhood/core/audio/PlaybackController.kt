@@ -116,7 +116,7 @@ class PlaybackController(
             val meta = MediaMetadata.Builder()
                 .setTitle(track.title.ifBlank { "Islamic audio" })
                 .setArtist(track.creator.ifBlank { "Suhood" })
-                .setAlbumTitle(track.collection.ifBlank { "Nasheedify" })
+                .setAlbumTitle(track.collection.ifBlank { "Suhood" })
                 .setSubtitle(track.creator.ifBlank { "Suhood" })
                 .setIsPlayable(true)
                 .build()

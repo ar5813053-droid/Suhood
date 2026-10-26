@@ -64,7 +64,7 @@ fun WidgetsScreen(onBack: () -> Unit) {
         WidgetSpec("Dua of the Day", "Verified dua text", Icons.Filled.Favorite, DuaWidgetReceiver::class.java, "dua"),
         WidgetSpec("Quran Companion", "Daily pages goal", Icons.Filled.MenuBook, QuranCompanionWidgetReceiver::class.java, "quran"),
         WidgetSpec("Mushaf", "Continue reading", Icons.Filled.AutoStories, MushafWidgetReceiver::class.java, "mushaf"),
-        WidgetSpec("Nasheedify", "Play / pause audio", Icons.Filled.MusicNote, NasheedifyWidgetReceiver::class.java, "audio"),
+        
         WidgetSpec("Habits", "Journey checklist", Icons.Filled.Flag, HabitWidgetReceiver::class.java, "habit")
     )
 

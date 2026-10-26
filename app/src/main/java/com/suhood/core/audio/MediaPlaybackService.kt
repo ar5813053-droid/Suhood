@@ -38,7 +38,7 @@ class MediaPlaybackService : MediaSessionService() {
             startForeground(
                 NOTIFICATION_ID,
                 NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setContentTitle("Nasheedify")
+                    .setContentTitle("Suhood Audio")
                     .setContentText("Preparing…")
                     .setSmallIcon(android.R.drawable.ic_media_play)
                     .setOngoing(true)
@@ -109,7 +109,7 @@ class MediaPlaybackService : MediaSessionService() {
             mgr.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Nasheedify Playback",
+                    "Suhood Audio",
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
                     description = "Now playing with transport controls"
