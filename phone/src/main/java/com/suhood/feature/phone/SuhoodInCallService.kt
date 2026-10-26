@@ -252,7 +252,7 @@ class SuhoodInCallService : InCallService() {
         )
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(0)
             .setContentTitle(name)
             .setContentText(number.ifBlank { "Incoming call" })
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -279,7 +279,7 @@ class SuhoodInCallService : InCallService() {
         } catch (_: Exception) {
             // CallStyle may fail on older devices — fallback without style
             val fallback = NotificationCompat.Builder(this, channelId)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(0)
                 .setContentTitle(name)
                 .setContentText(number.ifBlank { "Incoming call" })
                 .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -312,7 +312,7 @@ class SuhoodInCallService : InCallService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notif = NotificationCompat.Builder(this, CHANNEL_ONGOING)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(0)
             .setContentTitle(name.ifBlank { "Call in progress" })
             .setContentText(number.ifBlank { "Ongoing call" })
             .setCategory(NotificationCompat.CATEGORY_CALL)

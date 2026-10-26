@@ -94,7 +94,6 @@ object SettingsScreens {
             Row("Focus", Routes.SETTINGS_FOCUS, Icons.Filled.Timer),
             Row("Audio", Routes.SETTINGS_AUDIO, Icons.Filled.MusicNote),
             Row("Accessibility", Routes.SETTINGS_ACCESSIBILITY, Icons.Filled.Accessibility),
-            Row("Suhood Phone", Routes.SETTINGS_PHONE, Icons.Filled.Call),
             Row("Privacy", Routes.SETTINGS_PRIVACY, Icons.Filled.PrivacyTip),
             Row("Permissions", Routes.SETTINGS_PERMISSIONS, Icons.Filled.Security),
             Row("Tip the developer", Routes.SETTINGS_TIP, Icons.Filled.VolunteerActivism),

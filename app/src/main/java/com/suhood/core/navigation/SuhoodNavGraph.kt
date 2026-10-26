@@ -51,10 +51,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suhood.feature.more.AllFeaturesScreen
 import com.suhood.feature.more.WidgetsScreen
-import com.suhood.feature.phone.PhoneRoot
-import com.suhood.feature.phone.CallAppearanceStudio
-import com.suhood.feature.phone.PhonePrefs
-import com.suhood.feature.phone.PhoneSettingsScreen
 import com.suhood.feature.books.BooksDiscoverScreen
 import com.suhood.feature.books.BookDetailScreen
 import com.suhood.feature.books.BookReaderScreen
@@ -534,20 +530,6 @@ fun SuhoodNavGraph(
             }
             composable(Routes.WIDGETS) {
                 WidgetsScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Routes.SETTINGS_PHONE) {
-                PhoneSettingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenPhone = { navController.navigate(Routes.PHONE) },
-                    onOpenAppearance = { navController.navigate(Routes.PHONE_APPEARANCE) }
-                )
-            }
-            composable(Routes.PHONE) {
-                PhoneRoot(onBack = { navController.popBackStack() })
-            }
-            composable(Routes.PHONE_APPEARANCE) {
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                CallAppearanceStudio(PhonePrefs(ctx)) { navController.popBackStack() }
             }
             composable(Routes.ALL_FEATURES) {
                 AllFeaturesScreen(

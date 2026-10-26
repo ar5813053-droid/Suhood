@@ -66,7 +66,7 @@ class FocusAccessibilityService : AccessibilityService() {
             ) {
                 enforceLock(fg, snap.prayerName)
             }
-            handler.postDelayed(this, 700L)
+            handler.postDelayed(this, 400L)
         }
     }
 
@@ -214,7 +214,7 @@ class FocusAccessibilityService : AccessibilityService() {
         }, 280L)
         // Keep polling while lock is active
         handler.removeCallbacks(pollWhileLocked)
-        handler.postDelayed(pollWhileLocked, 700L)
+        handler.postDelayed(pollWhileLocked, 400L)
     }
 
     companion object {

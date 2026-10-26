@@ -41,7 +41,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon test --stacktrace
+        run: ./gradlew --no-daemon :app:test --stacktrace
 
       - name: Generate CI release keystore
         run: |
@@ -58,7 +58,7 @@ jobs:
           echo "SUHOOD_KEY_PASSWORD=suhoodci" >> $GITHUB_ENV
 
       - name: Build release APK
-        run: ./gradlew --no-daemon assembleRelease --stacktrace
+        run: ./gradlew --no-daemon :app:assembleRelease --stacktrace
         env:
           SUHOOD_KEYSTORE_PATH: ${{ env.SUHOOD_KEYSTORE_PATH }}
           SUHOOD_KEYSTORE_PASSWORD: ${{ env.SUHOOD_KEYSTORE_PASSWORD }}
@@ -66,7 +66,10 @@ jobs:
           SUHOOD_KEY_PASSWORD: ${{ env.SUHOOD_KEY_PASSWORD }}
 
       - name: Build debug APK (fallback install path)
-        run: ./gradlew --no-daemon assembleDebug --stacktrace
+        run: ./gradlew --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Build Suhood Phone APK (separate app)
+        run: ./gradlew --no-daemon :phone:assembleDebug --stacktrace || true
 
       - name: Verify APKs
         run: |

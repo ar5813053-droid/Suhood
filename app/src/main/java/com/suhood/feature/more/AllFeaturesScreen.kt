@@ -70,13 +70,6 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
             )
         ),
         FeatureSection(
-            "Phone",
-            listOf(
-                FeatureItem("Suhood Phone", "Dialer · contacts · call themes", Icons.Filled.Call, Routes.PHONE),
-                FeatureItem("Call Appearance", "Studio · themes · flags", Icons.Filled.Palette, Routes.PHONE_APPEARANCE)
-            )
-        ),
-        FeatureSection(
             "Home screen",
             listOf(
                 FeatureItem("Widgets", "Glass widgets · pin to home", Icons.Filled.Widgets, Routes.WIDGETS)

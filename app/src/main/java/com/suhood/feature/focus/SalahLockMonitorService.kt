@@ -8,6 +8,8 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -26,6 +28,22 @@ class SalahLockMonitorService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var running = false
     private var lastNotifText: String = ""
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val now = System.currentTimeMillis()
+            val snap = SalahLockStore.get(applicationContext).reconcileNow(now)
+            if (!SalahLockLogic.isActive(snap, now)) return
+            val blockedFg = AppBlockHelper.isBlockedAppForeground(
+                applicationContext, snap.blockedPackages
+            )
+            if (blockedFg != null) {
+                SalahLockEnforcer.enforce(this@SalahLockMonitorService, blockedFg, snap.prayerName)
+            } else {
+                // Force re-eval of Accessibility path
+                FocusAccessibilityService.onSalahLockActivated(applicationContext, snap.prayerName)
+            }
+        }
+    }
 
     private val tick = object : Runnable {
         override fun run() {
@@ -68,6 +86,18 @@ class SalahLockMonitorService : Service() {
         }
         val notif = buildCountdownNotification(snap, now)
         startForeground(NOTIF_ID, notif)
+        runCatching {
+            val f = IntentFilter().apply {
+                addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Intent.ACTION_SCREEN_ON)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(unlockReceiver, f, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(unlockReceiver, f)
+            }
+        }
         lastNotifText = notif.extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
         if (!running) {
             running = true
@@ -91,6 +121,7 @@ class SalahLockMonitorService : Service() {
     override fun onDestroy() {
         running = false
         handler.removeCallbacksAndMessages(null)
+        runCatching { unregisterReceiver(unlockReceiver) }
         super.onDestroy()
     }
 

@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Suhood"
 include(":app")
+include(":phone")

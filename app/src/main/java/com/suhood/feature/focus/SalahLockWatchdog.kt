@@ -16,8 +16,8 @@ import com.suhood.app.SuhoodApplication
  * Does NOT interrupt non-blocked apps or spam the Salah screen while idle.
  */
 object SalahLockWatchdog {
-    private const val INTERVAL_MS = 5_000L
-    private const val MAX_TICKS = 130 // ~10–11 min at 5s
+    private const val INTERVAL_MS = 3_000L
+    private const val MAX_TICKS = 220 // ~11 min at 3s
     private const val REQ_BASE = 73000
     private const val NOTIF_ID = 73111
 
