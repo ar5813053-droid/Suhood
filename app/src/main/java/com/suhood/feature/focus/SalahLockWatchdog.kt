@@ -6,18 +6,20 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.suhood.app.SuhoodApplication
 
 /**
  * Survives process death / Recents swipe.
- * Every 5s: if a blocked app is in the foreground, pull user out and show lock UI.
- * Does NOT interrupt non-blocked apps or spam the Salah screen while idle.
+ *
+ * Uses [AlarmManager.setAlarmClock] so ticks are not deferred by Doze
+ * (unlike setExactAndAllowWhileIdle, which may fire only ~1/minute in idle).
  */
 object SalahLockWatchdog {
-    private const val INTERVAL_MS = 3_000L
-    private const val MAX_TICKS = 220 // ~11 min at 3s
+    private const val INTERVAL_MS = 5_000L
+    private const val MAX_TICKS = 130
     private const val REQ_BASE = 73000
     private const val NOTIF_ID = 73111
 
@@ -26,18 +28,26 @@ object SalahLockWatchdog {
         val am = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         cancelAll(app)
         val now = System.currentTimeMillis()
-        var t = now + 2_000L
+        var t = now + 1_500L
         var i = 0
-        while (t < expiryWallMs + 2_000L && i < MAX_TICKS) {
+        while (t < expiryWallMs + 3_000L && i < MAX_TICKS) {
             val pi = pending(app, i)
+            val show = PendingIntent.getActivity(
+                app,
+                REQ_BASE + 9000 + (i % 50),
+                Intent(app, SalahLockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    am.setAlarmClock(AlarmManager.AlarmClockInfo(t, show), pi)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, pi)
                 } else {
                     am.setExact(AlarmManager.RTC_WAKEUP, t, pi)
                 }
             } catch (_: SecurityException) {
-                am.set(AlarmManager.RTC_WAKEUP, t, pi)
+                runCatching { am.set(AlarmManager.RTC_WAKEUP, t, pi) }
             }
             t += INTERVAL_MS
             i++
@@ -80,10 +90,22 @@ class SalahLockWatchdogReceiver : BroadcastReceiver() {
             return
         }
 
+        runCatching {
+            val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("DEPRECATION")
+            val wl = pm.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "suhood:salah_watchdog"
+            )
+            wl.acquire(8_000L)
+        }
+
         SalahLockMonitorService.start(app)
 
-        // Only act when a *blocked* app is in the foreground
         val blockedFg = AppBlockHelper.isBlockedAppForeground(app, snap.blockedPackages)
+            ?: FocusAccessibilityService.currentForegroundPackage()?.takeIf {
+                SalahLockLogic.shouldBlockPackage(snap, now, it, app.packageName)
+            }
 
         if (blockedFg != null) {
             SalahLockEnforcer.enforce(
@@ -107,7 +129,7 @@ class SalahLockWatchdogReceiver : BroadcastReceiver() {
             val notification = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_SALAH_LOCK)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentTitle("It's Salah Time")
-                .setContentText("Blocked app open — $remaining left")
+                .setContentText("App locked — $remaining left")
                 .setContentIntent(fullScreen)
                 .setFullScreenIntent(fullScreen, true)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -118,28 +140,10 @@ class SalahLockWatchdogReceiver : BroadcastReceiver() {
                 .build()
             runCatching { NotificationManagerCompat.from(app).notify(NOTIF_ID, notification) }
             runCatching { app.startActivity(lockIntent) }
-        } else {
-            // Quiet ongoing status only — do NOT open Salah screen or HOME
-            val remaining = SalahLockLogic.formatMmSs(SalahLockLogic.remainingMs(snap, now))
-            val open = PendingIntent.getActivity(
-                app, NOTIF_REQ,
-                Intent(app, SalahLockActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    putExtra(SalahLockActivity.EXTRA_PRAYER, snap.prayerName)
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val quiet = NotificationCompat.Builder(app, SuhoodApplication.CHANNEL_FOCUS)
-                .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setContentTitle("Salah lock active")
-                .setContentText("$remaining remaining")
-                .setContentIntent(open)
-                .setOngoing(true)
-                .setSilent(true)
-                .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build()
-            runCatching { NotificationManagerCompat.from(app).notify(NOTIF_ID, quiet) }
+        }
+
+        runCatching {
+            FocusAccessibilityService.onSalahLockActivated(app, snap.prayerName)
         }
     }
 

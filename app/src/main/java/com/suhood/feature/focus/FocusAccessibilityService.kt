@@ -51,15 +51,18 @@ class FocusAccessibilityService : AccessibilityService() {
         }
     }
 
-        private val pollWhileLocked = object : Runnable {
+    private val pollWhileLocked = object : Runnable {
         override fun run() {
             val store = SalahLockStore.get(applicationContext)
             val now = System.currentTimeMillis()
             val snap = store.reconcileNow(now)
             if (!SalahLockLogic.isActive(snap, now)) {
                 SalahLockOverlay.hide(this@FocusAccessibilityService)
+                // Keep heartbeat so we catch lock activation after process restart
+                handler.postDelayed(this, 1_200L)
                 return
             }
+            SalahLockMonitorService.start(applicationContext)
             val fg = rootInActiveWindow?.packageName?.toString()
             if (fg != null &&
                 SalahLockLogic.shouldBlockPackage(snap, now, fg, packageName)
@@ -73,19 +76,19 @@ class FocusAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instanceRef = WeakReference(this)
+        // Always arm lock poller — lock may activate while process was dead / not in Recents
+        handler.removeCallbacks(pollWhileLocked)
+        handler.post(pollWhileLocked)
+        handler.removeCallbacks(pollWhileFocusGate)
+        handler.post(pollWhileFocusGate)
         val now = System.currentTimeMillis()
         val snap = SalahLockStore.get(applicationContext).reconcileNow(now)
         if (SalahLockLogic.isActive(snap, now)) {
-            handler.removeCallbacks(pollWhileLocked)
-            handler.post(pollWhileLocked)
             SalahLockMonitorService.start(applicationContext)
             val fg = rootInActiveWindow?.packageName?.toString()
             if (fg != null && SalahLockLogic.shouldBlockPackage(snap, now, fg, packageName)) {
                 enforceLock(fg, snap.prayerName)
             }
-        } else {
-            handler.removeCallbacks(pollWhileFocusGate)
-            handler.post(pollWhileFocusGate)
         }
     }
 

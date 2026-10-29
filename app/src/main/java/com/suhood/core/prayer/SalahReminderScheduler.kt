@@ -6,6 +6,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -45,8 +48,29 @@ class SalahReminderReceiver : BroadcastReceiver() {
             // FGS can start activities more reliably than a plain receiver
             SalahLockMonitorService.start(app)
             runCatching {
+                val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+                @Suppress("DEPRECATION")
+                val wl = pm.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "suhood:salah_fire"
+                )
+                wl.acquire(12_000L)
+            }
+            runCatching {
                 com.suhood.feature.focus.SalahLockEnforcer.onLockActivated(app, name)
             }
+            // Process may still be cold; re-enforce after FGS attaches
+            Handler(Looper.getMainLooper()).postDelayed({
+                runCatching {
+                    SalahLockMonitorService.start(app)
+                    com.suhood.feature.focus.SalahLockEnforcer.onLockActivated(app, name)
+                }
+            }, 1200L)
+            Handler(Looper.getMainLooper()).postDelayed({
+                runCatching {
+                    com.suhood.feature.focus.SalahLockEnforcer.onLockActivated(app, name)
+                }
+            }, 3000L)
         }
 
         // 2) Full-screen intent notification → SalahLockActivity (works when phone is locked)
@@ -128,8 +152,19 @@ object SalahReminderScheduler {
             }
             val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val pi = pending(context, name)
+            // setAlarmClock is not deferred by Doze — required when Suhood is not in Recents
+            val show = PendingIntent.getActivity(
+                context,
+                name.hashCode() and 0xFFFF,
+                Intent(context, SalahLockActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(SalahLockActivity.EXTRA_PRAYER, name),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    am.setAlarmClock(AlarmManager.AlarmClockInfo(cal.timeInMillis, show), pi)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
                 } else {
                     am.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
