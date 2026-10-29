@@ -11,7 +11,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      actions: read
 
     steps:
       - name: Checkout
@@ -77,18 +78,36 @@ jobs:
           find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
           test -n "$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
 
-      - name: Upload debug APK
+      - name: Upload debug APK (Actions artifact)
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: suhood-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 14
-          if-no-files-found: error
+          retention-days: 5
+          if-no-files-found: warn
 
-      - name: Upload release APK
+      - name: Upload release APK (Actions artifact)
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: suhood-release-apk
           path: app/build/outputs/apk/release/*.apk
-          retention-days: 30
+          retention-days: 5
           if-no-files-found: warn
+
+      - name: Publish APKs to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Suhood APK build ${{ github.run_number }}
+          body: |
+            Automated CI build from `${{ github.sha }}`.
+            - app-debug.apk
+            - app-release.apk (CI-signed)
+          files: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
