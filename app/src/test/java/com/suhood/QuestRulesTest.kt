@@ -25,7 +25,7 @@ class QuestRulesTest {
 
     @Test
     fun ranksProgress() {
-        assertEquals("Mubtadi’", Ranks.forTier(0).latin)
+        assertEquals("Mubtadi'", Ranks.forTier(0).latin)
         assertEquals("Mujtahid", Ranks.forTier(1).latin)
         assertTrue(Ranks.forTier(4).latin.isNotBlank())
     }

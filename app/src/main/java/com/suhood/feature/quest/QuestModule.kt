@@ -79,7 +79,7 @@ data class RankDef(val arabic: String, val latin: String, val meaning: String, v
 
 object Ranks {
     val list = listOf(
-        RankDef("مبتدئ", "Mubtadi’", "Beginner", 0),
+        RankDef("مبتدئ", "Mubtadi'", "Beginner", 0),
         RankDef("مجتهد", "Mujtahid", "Striving", 1),
         RankDef("مثابر", "Muthābir", "Persistent", 2),
         RankDef("متقدم", "Mutaqaddim", "Advanced", 3),

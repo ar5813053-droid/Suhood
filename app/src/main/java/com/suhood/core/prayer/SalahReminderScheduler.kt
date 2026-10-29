@@ -51,7 +51,7 @@ class SalahReminderReceiver : BroadcastReceiver() {
                 val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
                 @Suppress("DEPRECATION")
                 val wl = pm.newWakeLock(
-                    PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    PowerManager.PARTIAL_WAKE_LOCK,
                     "suhood:salah_fire"
                 )
                 wl.acquire(12_000L)
