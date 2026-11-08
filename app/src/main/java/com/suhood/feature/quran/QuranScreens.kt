@@ -903,7 +903,7 @@ object QuranScreens {
                                                 val matches = currentId != null && ayahs.any { a ->
                                                     val g = CanonicalAyahId.globalNumberFromMediaId(currentId)
                                                     g != null && g == a.globalNumber
-                                                }" == currentId }
+                                                }
                                                 if (matches && !playback.isPlaying) {
                                                     app.playbackController.togglePlayPause()
                                                 } else {
