@@ -67,6 +67,7 @@ import com.suhood.core.designsystem.theme.SuhoodSpacing
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
 import com.suhood.core.navigation.Routes
+import com.suhood.core.quran.CanonicalAyahId
 import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.JuzIndex
 import com.suhood.core.quran.VerifiedQaris
@@ -587,8 +588,17 @@ object QuranScreens {
         LaunchedEffect(playback.currentTrack?.id, content) {
             val id = playback.currentTrack?.id ?: return@LaunchedEffect
             val ayahs = content?.ayahs ?: return@LaunchedEffect
-            val num = id.removePrefix("quran-tr:").removePrefix("quran:").toIntOrNull()
-            val idx = if (num != null) ayahs.indexOfFirst { it.globalNumber == num } else -1
+            val canonical = CanonicalAyahId.parseMediaId(id)
+            val global = canonical?.globalNumber ?: CanonicalAyahId.globalNumberFromMediaId(id)
+            val idx = when {
+                canonical != null -> ayahs.indexOfFirst {
+                    it.globalNumber == canonical.globalNumber &&
+                        it.numberInSurah == canonical.ayahInSurah
+                }.takeIf { it >= 0 }
+                    ?: ayahs.indexOfFirst { it.globalNumber == canonical.globalNumber }
+                global != null -> ayahs.indexOfFirst { it.globalNumber == global }
+                else -> -1
+            }
             if (idx >= 0) {
                 currentAyahIndex = idx
                 runCatching { listState.animateScrollToItem(idx) }
@@ -659,8 +669,19 @@ object QuranScreens {
                     ) {
                         itemsIndexed(content!!.ayahs) { index, ayah ->
                             val trackId = playback.currentTrack?.id
-                            val playingArabic = trackId == "quran:${ayah.globalNumber}" && playback.isPlaying
-                            val playingTr = trackId == "quran-tr:${ayah.globalNumber}" && playback.isPlaying
+                            val trackCanonical = trackId?.let { CanonicalAyahId.parseMediaId(it) }
+                            val trackGlobal = trackId?.let { CanonicalAyahId.globalNumberFromMediaId(it) }
+                            val sameAyah = when {
+                                trackCanonical != null ->
+                                    trackCanonical.globalNumber == ayah.globalNumber &&
+                                        trackCanonical.ayahInSurah == ayah.numberInSurah
+                                trackGlobal != null -> trackGlobal == ayah.globalNumber
+                                else -> false
+                            }
+                            val playingArabic = sameAyah && trackId != null &&
+                                !CanonicalAyahId.isTranslationMediaId(trackId) && playback.isPlaying
+                            val playingTr = sameAyah && trackId != null &&
+                                CanonicalAyahId.isTranslationMediaId(trackId) && playback.isPlaying
                             val playingThis = playingArabic || playingTr
                             GlassCard(
                                 modifier = Modifier
@@ -879,7 +900,10 @@ object QuranScreens {
                                             if (ayahs != null && ayahs.isNotEmpty()) {
                                                 // If current track already in queue, just resume; else start from index
                                                 val currentId = playback.currentTrack?.id
-                                                val matches = currentId != null && ayahs.any { "quran:${it.globalNumber}" == currentId }
+                                                val matches = currentId != null && ayahs.any { a ->
+                                                    val g = CanonicalAyahId.globalNumberFromMediaId(currentId)
+                                                    g != null && g == a.globalNumber
+                                                }" == currentId }
                                                 if (matches && !playback.isPlaying) {
                                                     app.playbackController.togglePlayPause()
                                                 } else {

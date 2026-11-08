@@ -62,16 +62,23 @@ class AlQuranCloudProvider(
         )
         val arAyahs = ar.getJSONArray("ayahs")
         val urAyahs = ur.getJSONArray("ayahs")
+        // Map translation by numberInSurah — never by array index alone
+        val trByAyah = HashMap<Int, String>()
+        for (i in 0 until urAyahs.length()) {
+            val u = urAyahs.getJSONObject(i)
+            val n = u.optInt("numberInSurah", -1)
+            if (n >= 1) trByAyah[n] = u.optString("text").orEmpty()
+        }
         val ayahs = buildList {
             for (i in 0 until arAyahs.length()) {
                 val a = arAyahs.getJSONObject(i)
-                val u = urAyahs.optJSONObject(i)
+                val numInSurah = a.getInt("numberInSurah")
                 add(
                     AyahText(
                         globalNumber = a.getInt("number"),
-                        numberInSurah = a.getInt("numberInSurah"),
+                        numberInSurah = numInSurah,
                         arabic = a.getString("text").trim().removePrefix("\uFEFF"),
-                        translation = u?.optString("text").orEmpty()
+                        translation = trByAyah[numInSurah].orEmpty()
                     )
                 )
             }
@@ -156,16 +163,23 @@ class AlQuranCloudProvider(
         )
         val arAyahs = ar.getJSONArray("ayahs")
         val trAyahs = tr.getJSONArray("ayahs")
+        // Map translation by numberInSurah — never by array index alone
+        val trByAyah = HashMap<Int, String>()
+        for (i in 0 until trAyahs.length()) {
+            val u = trAyahs.getJSONObject(i)
+            val n = u.optInt("numberInSurah", -1)
+            if (n >= 1) trByAyah[n] = u.optString("text").orEmpty()
+        }
         val ayahs = buildList {
             for (i in 0 until arAyahs.length()) {
                 val a = arAyahs.getJSONObject(i)
-                val u = trAyahs.optJSONObject(i)
+                val numInSurah = a.getInt("numberInSurah")
                 add(
                     AyahText(
                         globalNumber = a.getInt("number"),
-                        numberInSurah = a.getInt("numberInSurah"),
-                        arabic = a.getString("text"),
-                        translation = u?.optString("text").orEmpty()
+                        numberInSurah = numInSurah,
+                        arabic = a.getString("text").trim().removePrefix("\uFEFF"),
+                        translation = trByAyah[numInSurah].orEmpty()
                     )
                 )
             }
@@ -177,12 +191,25 @@ class AlQuranCloudProvider(
      * Translation audio via everyayah.com (Islamic Network CDN returns 403 for translation editions).
      * Requires surah number + ayah-in-surah, not global ayah index.
      */
-    fun translationAudioUrl(editionId: String, surah: Int, ayahInSurah: Int): String {
-        val ed = TranslationEditions.audioById(editionId)
-            ?: TranslationEditions.audioEditions.first()
-        val folder = ed.everyAyahFolder
-            ?: "English/Sahih_Intnl_Ibrahim_Walk_192kbps"
+    /**
+     * Translation audio for an exact (surah, ayahInSurah) pair.
+     * Returns null when identity is invalid or edition has no audio folder —
+     * callers must not play a substitute verse.
+     */
+    fun translationAudioUrlOrNull(editionId: String, surah: Int, ayahInSurah: Int): String? {
+        if (surah !in 1..114 || ayahInSurah < 1) return null
+        val ed = TranslationEditions.audioById(editionId) ?: return null
+        val folder = ed.everyAyahFolder ?: return null
         return TranslationEditions.everyAyahUrl(folder, surah, ayahInSurah)
+    }
+
+    fun translationAudioUrl(editionId: String, surah: Int, ayahInSurah: Int): String {
+        return translationAudioUrlOrNull(editionId, surah, ayahInSurah)
+            ?: TranslationEditions.everyAyahUrl(
+                "English/Sahih_Intnl_Ibrahim_Walk_192kbps",
+                surah.coerceIn(1, 114),
+                ayahInSurah.coerceAtLeast(1)
+            )
     }
 
     companion object {

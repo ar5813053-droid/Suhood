@@ -290,15 +290,19 @@ class PlaybackController(
                 _error.value = "No audio items"
                 return@onMain
             }
-            val tracks = items.map { (id, title, _) ->
+            // Keep tracks and MediaItems in the same order — never drop only one side
+            val paired = items.mapNotNull { (id, title, uri) ->
+                if (id.isBlank() || uri.isBlank()) null
+                else Triple(id, title, uri)
+            }
+            val tracks = paired.map { (id, title, _) ->
                 AudioTrack(
                     id = id, title = title, creator = artist, collection = "Quran",
                     categoryId = "tilawat", language = "Arabic", durationSeconds = 0, isDemo = false
                 )
             }
-            val mediaItems = items.mapNotNull { (id, title, uri) ->
-                if (uri.isBlank()) null
-                else MediaItem.Builder()
+            val mediaItems = paired.map { (id, title, uri) ->
+                MediaItem.Builder()
                     .setUri(uri)
                     .setMediaId(id)
                     .setMediaMetadata(

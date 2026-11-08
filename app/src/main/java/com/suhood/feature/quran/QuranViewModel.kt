@@ -14,6 +14,7 @@ import com.suhood.core.quran.SurahMeta
 import com.suhood.core.quran.VerifiedQaris
 import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.TranslationEdition
+import com.suhood.core.quran.CanonicalAyahId
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -62,6 +63,9 @@ class QuranViewModel(
     val translationAudioId: StateFlow<String> = _translationAudioId.asStateFlow()
 
     private val _qariId = MutableStateFlow(VerifiedQaris.list.first().id)
+
+    /** Bumped on every new queue so stale async work cannot attach the wrong translation. */
+    private val playbackGeneration = java.util.concurrent.atomic.AtomicLong(0L)
     val qariId: StateFlow<String> = _qariId.asStateFlow()
 
     val bookmarks = dao.observeBookmarks()
@@ -86,6 +90,9 @@ class QuranViewModel(
     }
 
     fun openSurah(number: Int) {
+        // Stop previous surah queue so a prior translation cannot play against new text
+        playbackGeneration.incrementAndGet()
+        runCatching { playback.stopAndClear() }
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
@@ -193,79 +200,126 @@ class QuranViewModel(
     }
 
     fun playAyah(globalNumber: Int, surah: Int, ayahInSurah: Int) {
-        if (globalNumber <= 0) {
-            _error.value = "Invalid ayah"
+        val identity = runCatching {
+            CanonicalAyahId(surah = surah, ayahInSurah = ayahInSurah, globalNumber = globalNumber)
+        }.getOrElse {
+            _error.value = "Invalid ayah identity (surah=$surah ayah=$ayahInSurah global=$globalNumber)"
             return
         }
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
         val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
-        val arUrl = provider.ayahAudioUrl(qariId, globalNumber)
+        val arUrl = provider.ayahAudioUrl(qariId, identity.globalNumber)
+        val gen = playbackGeneration.incrementAndGet()
         try {
             if (_playTranslationAudio.value) {
                 val matched = TranslationEditions.audioForTextEdition(_translationTextId.value)
                 val audioId = matched?.id ?: _translationAudioId.value
                 if (matched != null) _translationAudioId.value = matched.id
-                val trUrl = provider.translationAudioUrl(
-                    audioId, surah, ayahInSurah
+                val trUrl = provider.translationAudioUrlOrNull(
+                    audioId, identity.surah, identity.ayahInSurah
                 )
-                playback.playQueueUris(
-                    listOf(
-                        Triple("quran:$globalNumber", "Ayah $ayahInSurah", arUrl),
-                        Triple("quran-tr:$globalNumber", "Ayah $ayahInSurah · Translation", trUrl)
-                    ),
-                    artist = qari,
-                    startIndex = 0
-                )
+                if (trUrl == null) {
+                    _error.value =
+                        "No verified translation audio for Surah ${identity.surah} Ayah ${identity.ayahInSurah}"
+                    // Still play Arabic only — never substitute another verse's translation
+                    playback.playUri(
+                        mediaId = identity.arabicMediaId(),
+                        title = "Surah ${identity.surah} · Ayah ${identity.ayahInSurah}",
+                        artist = qari,
+                        uriString = arUrl,
+                        categoryId = "tilawat"
+                    )
+                } else if (gen == playbackGeneration.get()) {
+                    playback.playQueueUris(
+                        listOf(
+                            Triple(
+                                identity.arabicMediaId(),
+                                "Ayah ${identity.ayahInSurah}",
+                                arUrl
+                            ),
+                            Triple(
+                                identity.translationMediaId(),
+                                "Ayah ${identity.ayahInSurah} · Translation",
+                                trUrl
+                            )
+                        ),
+                        artist = qari,
+                        startIndex = 0
+                    )
+                }
             } else {
                 playback.playUri(
-                    mediaId = "quran:$globalNumber",
-                    title = "Surah $surah · Ayah $ayahInSurah",
+                    mediaId = identity.arabicMediaId(),
+                    title = "Surah ${identity.surah} · Ayah ${identity.ayahInSurah}",
                     artist = qari,
                     uriString = arUrl,
                     categoryId = "tilawat"
                 )
             }
-            saveLastRead(surah, ayahInSurah)
+            saveLastRead(identity.surah, identity.ayahInSurah)
         } catch (t: Throwable) {
             _error.value = t.message ?: "Unable to play audio"
         }
     }
 
     fun playSurahFrom(startAyahIndex: Int = 0) {
-        val ayahs = _content.value?.ayahs
-        if (ayahs.isNullOrEmpty()) {
+        val content = _content.value
+        val ayahs = content?.ayahs
+        val surahNum = content?.meta?.number
+        if (ayahs.isNullOrEmpty() || surahNum == null) {
             _error.value = "Ayahs not loaded yet — wait a moment"
             return
         }
         val qariId = _qariId.value.ifBlank { VerifiedQaris.list.first().id }
         val qari = VerifiedQaris.list.find { it.id == qariId }?.englishName ?: qariId
         val withTr = _playTranslationAudio.value
-        // Always prefer audio matching the selected text language
         val matchedAudio = TranslationEditions.audioForTextEdition(_translationTextId.value)
         val trEdition = matchedAudio?.id ?: _translationAudioId.value
         if (withTr && matchedAudio != null) {
             _translationAudioId.value = matchedAudio.id
         }
+        playbackGeneration.incrementAndGet()
         val items = mutableListOf<Triple<String, String, String>>()
         for (a in ayahs) {
+            val id = runCatching {
+                CanonicalAyahId(surahNum, a.numberInSurah, a.globalNumber)
+            }.getOrNull() ?: continue
             items += Triple(
-                "quran:${a.globalNumber}",
-                "Ayah ${a.numberInSurah}",
-                provider.ayahAudioUrl(qariId, a.globalNumber)
+                id.arabicMediaId(),
+                "Ayah ${id.ayahInSurah}",
+                provider.ayahAudioUrl(qariId, id.globalNumber)
             )
             if (withTr) {
-                val surahNum = _content.value?.meta?.number ?: 1
-                items += Triple(
-                    "quran-tr:${a.globalNumber}",
-                    "Ayah ${a.numberInSurah} · Translation",
-                    provider.translationAudioUrl(trEdition, surahNum, a.numberInSurah)
-                )
+                val trUrl = provider.translationAudioUrlOrNull(trEdition, id.surah, id.ayahInSurah)
+                if (trUrl != null) {
+                    items += Triple(
+                        id.translationMediaId(),
+                        "Ayah ${id.ayahInSurah} · Translation",
+                        trUrl
+                    )
+                }
+                // Skip missing translation audio rather than attach another ayah's file
             }
         }
-        val factor = if (withTr) 2 else 1
-        val safeIndex = (startAyahIndex.coerceIn(0, ayahs.lastIndex) * factor).coerceIn(0, items.lastIndex)
+        if (items.isEmpty()) {
+            _error.value = "No playable audio for this surah"
+            return
+        }
+        // Start at Arabic of requested ayah; count only arabic slots when translation pairs vary
+        var arabicOrdinal = 0
+        var startMediaIndex = 0
+        val targetOrdinal = startAyahIndex.coerceIn(0, ayahs.lastIndex)
+        for ((i, item) in items.withIndex()) {
+            if (!item.first.startsWith("quran-tr:")) {
+                if (arabicOrdinal == targetOrdinal) {
+                    startMediaIndex = i
+                    break
+                }
+                arabicOrdinal++
+            }
+        }
         runCatching {
-            playback.playQueueUris(items, artist = qari, startIndex = safeIndex)
+            playback.playQueueUris(items, artist = qari, startIndex = startMediaIndex)
         }.onFailure {
             _error.value = it.message ?: "Unable to start playback"
         }
@@ -285,25 +339,49 @@ class QuranViewModel(
         val withTr = _playTranslationAudio.value
         val matchedAudio = TranslationEditions.audioForTextEdition(_translationTextId.value)
         val trEdition = matchedAudio?.id ?: _translationAudioId.value
+        if (withTr && matchedAudio != null) {
+            _translationAudioId.value = matchedAudio.id
+        }
+        playbackGeneration.incrementAndGet()
         val items = mutableListOf<Triple<String, String, String>>()
         for (a in ayahs) {
+            val id = runCatching {
+                CanonicalAyahId(a.surahNumber, a.numberInSurah, a.globalNumber)
+            }.getOrNull() ?: continue
             items += Triple(
-                "quran:${a.globalNumber}",
-                "Surah ${a.surahNumber} · ${a.numberInSurah}",
-                provider.ayahAudioUrl(qariId, a.globalNumber)
+                id.arabicMediaId(),
+                "Surah ${id.surah} · ${id.ayahInSurah}",
+                provider.ayahAudioUrl(qariId, id.globalNumber)
             )
             if (withTr) {
-                items += Triple(
-                    "quran-tr:${a.globalNumber}",
-                    "Surah ${a.surahNumber} · ${a.numberInSurah} · TR",
-                    provider.translationAudioUrl(trEdition, a.surahNumber, a.numberInSurah)
-                )
+                val trUrl = provider.translationAudioUrlOrNull(trEdition, id.surah, id.ayahInSurah)
+                if (trUrl != null) {
+                    items += Triple(
+                        id.translationMediaId(),
+                        "Surah ${id.surah} · ${id.ayahInSurah} · TR",
+                        trUrl
+                    )
+                }
             }
         }
-        val factor = if (withTr) 2 else 1
-        val idx = (startIndex.coerceIn(0, ayahs.lastIndex) * factor).coerceIn(0, items.lastIndex)
+        if (items.isEmpty()) {
+            _error.value = "No playable audio for this page"
+            return
+        }
+        var arabicOrdinal = 0
+        var startMediaIndex = 0
+        val targetOrdinal = startIndex.coerceIn(0, ayahs.lastIndex)
+        for ((i, item) in items.withIndex()) {
+            if (!item.first.startsWith("quran-tr:")) {
+                if (arabicOrdinal == targetOrdinal) {
+                    startMediaIndex = i
+                    break
+                }
+                arabicOrdinal++
+            }
+        }
         runCatching {
-            playback.playQueueUris(items, artist = qari, startIndex = idx)
+            playback.playQueueUris(items, artist = qari, startIndex = startMediaIndex)
         }.onFailure {
             _error.value = it.message ?: "Unable to play page"
         }
