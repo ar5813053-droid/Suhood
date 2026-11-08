@@ -1,10 +1,10 @@
+package com.suhood.feature.settings
+
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-package com.suhood.feature.settings
-
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.height
@@ -28,37 +28,24 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Mosque
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.VolunteerActivism
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
-
 import androidx.compose.foundation.Image
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -80,6 +67,10 @@ import com.suhood.core.navigation.Routes
 import com.suhood.core.prayer.PrayerTimesCalculator
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+
+
+
+
 
 object SettingsScreens {
 
