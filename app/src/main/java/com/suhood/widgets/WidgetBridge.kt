@@ -80,7 +80,7 @@ object WidgetBridge {
                 calendar = cal
             )
         }.getOrDefault(result)
-        val smart = SmartNextSalah.resolve(refreshed, cal)
+        val smart = SmartNextSalah.resolve(refreshed, cal, customJumuahTime = null)
         val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
         val logs = runCatching { kotlinx.coroutines.runBlocking(Dispatchers.IO) {
             dao(context).getSalahForDate(today)

@@ -1,10 +1,12 @@
 package com.suhood
 
 import com.suhood.core.model.PrayerTime
+import com.suhood.core.prayer.PrayerPeriod
 import com.suhood.core.prayer.PrayerTimesCalculator
 import com.suhood.core.prayer.SmartNextSalah
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
@@ -20,12 +22,23 @@ class SmartNextSalahTest {
         longitude = 77.2
     )
 
-    private fun cal(h: Int, m: Int): Calendar =
-        Calendar.getInstance(TimeZone.getDefault()).apply {
+    private fun cal(h: Int, m: Int, dayOfWeek: Int = Calendar.MONDAY): Calendar =
+        Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            set(Calendar.YEAR, 2026)
+            set(Calendar.MONTH, Calendar.JANUARY)
+            // 2026-01-02 is Friday; 2026-01-05 is Monday
+            set(Calendar.DAY_OF_MONTH, if (dayOfWeek == Calendar.FRIDAY) 2 else 5)
+            set(Calendar.DAY_OF_WEEK, dayOfWeek) // may be overwritten by day fields
             set(Calendar.HOUR_OF_DAY, h)
             set(Calendar.MINUTE, m)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
+            // Force weekday after date set
+            while (get(Calendar.DAY_OF_WEEK) != dayOfWeek) {
+                add(Calendar.DAY_OF_MONTH, 1)
+            }
+            set(Calendar.HOUR_OF_DAY, h)
+            set(Calendar.MINUTE, m)
         }
 
     private fun pt(name: String, mins: Int) = PrayerTime(
@@ -100,5 +113,87 @@ class SmartNextSalahTest {
         assertTrue(s.isActiveHighlight)
         assertEquals("Isha", s.primaryName)
         assertEquals("Fajr", s.nextName)
+    }
+
+    @Test
+    fun friday_replacesDhuhrWithJumuah_notBoth() {
+        val friday = cal(10, 0, Calendar.FRIDAY)
+        assertTrue(SmartNextSalah.isFriday(friday))
+        val applied = SmartNextSalah.applyFridayJumuah(standardDay(), isFriday = true)
+        val names = applied.map { it.name }
+        assertTrue(names.contains(SmartNextSalah.JUMUAH_NAME))
+        assertFalse(names.any { it.equals("Dhuhr", true) })
+        assertEquals(1, names.count { it == SmartNextSalah.JUMUAH_NAME })
+    }
+
+    @Test
+    fun nonFriday_keepsDhuhr() {
+        val mon = cal(10, 0, Calendar.MONDAY)
+        assertFalse(SmartNextSalah.isFriday(mon))
+        val s = SmartNextSalah.resolve(result(standardDay()), mon)
+        assertEquals("Dhuhr", s.primaryName)
+        assertFalse(s.useJumuahTheme)
+        assertFalse(s.allTimes.any { it.first == SmartNextSalah.JUMUAH_NAME })
+    }
+
+    @Test
+    fun friday_beforeJumuah_primaryIsJumuah_withTheme() {
+        val friday = cal(11, 0, Calendar.FRIDAY)
+        val s = SmartNextSalah.resolve(result(standardDay()), friday)
+        assertEquals(SmartNextSalah.JUMUAH_NAME, s.primaryName)
+        assertTrue(s.useJumuahTheme)
+        assertEquals(PrayerPeriod.JUMUAH, s.period)
+        assertTrue(s.jumuahIsCalculatedReference)
+        assertTrue(s.countdownSeconds > 0)
+    }
+
+    @Test
+    fun friday_customJumuahTime_used() {
+        val friday = cal(11, 0, Calendar.FRIDAY)
+        val s = SmartNextSalah.resolve(
+            result(standardDay()),
+            friday,
+            customJumuahTime = "13:45"
+        )
+        assertEquals(SmartNextSalah.JUMUAH_NAME, s.primaryName)
+        assertEquals("13:45", s.primaryTime)
+        assertFalse(s.jumuahIsCalculatedReference)
+        assertTrue(s.useJumuahTheme)
+    }
+
+    @Test
+    fun friday_duringJumuahHighlight_themeOn_nextAsr() {
+        val friday = cal(13, 12, Calendar.FRIDAY) // just after 13:11
+        val s = SmartNextSalah.resolve(result(standardDay()), friday)
+        assertEquals(SmartNextSalah.JUMUAH_NAME, s.primaryName)
+        assertTrue(s.isActiveHighlight)
+        assertTrue(s.useJumuahTheme)
+        assertEquals("Asr", s.nextName)
+    }
+
+    @Test
+    fun friday_afterJumuah_nextAsr_themeOff() {
+        val friday = cal(14, 0, Calendar.FRIDAY)
+        val s = SmartNextSalah.resolve(result(standardDay()), friday)
+        assertEquals("Asr", s.primaryName)
+        assertFalse(s.useJumuahTheme)
+        assertNotEquals(PrayerPeriod.JUMUAH, s.period)
+    }
+
+    @Test
+    fun friday_evening_maghrib_notJumuah() {
+        val friday = cal(19, 0, Calendar.FRIDAY)
+        val s = SmartNextSalah.resolve(result(standardDay()), friday)
+        assertEquals("Maghrib", s.primaryName)
+        assertFalse(s.useJumuahTheme)
+    }
+
+    @Test
+    fun saturday_showsDhuhrNotJumuah() {
+        val sat = cal(11, 0, Calendar.SATURDAY)
+        val s = SmartNextSalah.resolve(result(standardDay()), sat)
+        assertEquals("Dhuhr", s.primaryName)
+        assertFalse(s.useJumuahTheme)
+        assertFalse(s.allTimes.any { it.first.contains("Jumu", ignoreCase = true) })
     }
 }

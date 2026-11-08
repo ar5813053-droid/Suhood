@@ -218,7 +218,8 @@ fun HomeScreen(
                 locLabel,
                 prayerResult
             )
-            smart = SmartNextSalah.resolve(prayerResult, cal)
+            val jumuahCustom = prayerSettings.jamaatDhuhr.takeIf { it.isNotBlank() }
+            smart = SmartNextSalah.resolve(prayerResult, cal, customJumuahTime = jumuahCustom)
             delay(1000)
         }
     }
@@ -277,11 +278,34 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Smart Next Salah bar — clean liquid-glass card
+        // Smart Next Salah bar — liquid-glass; Friday Jumu'ah uses deep green theme
         val highlightGreen = Color(0xFF6FCF97)
         val periodColor = SmartNextSalah.periodAccent(smart.period)
-        val barAccent = if (smart.isActiveHighlight) highlightGreen else periodColor
+        val jumuahTheme = smart.useJumuahTheme
+        val barAccent = when {
+            jumuahTheme -> Color(0xFF3D9B6E)
+            smart.isActiveHighlight -> highlightGreen
+            else -> periodColor
+        }
         val periodName = SmartNextSalah.periodLabel(smart.period)
+        val barBg = if (jumuahTheme) {
+            Brush.verticalGradient(
+                listOf(Color(0xFF0F2E1F), Color(0xFF0A1F15), Color(0xFF07140E))
+            )
+        } else {
+            Brush.verticalGradient(
+                listOf(Color(0xFF222228), Color(0xFF16161A))
+            )
+        }
+        val barBorder = if (jumuahTheme) {
+            Brush.verticalGradient(
+                listOf(Color(0xFF5CBF8A).copy(alpha = 0.35f), Color(0xFF2E8B57).copy(alpha = 0.12f))
+            )
+        } else {
+            Brush.verticalGradient(
+                listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.04f))
+            )
+        }
 
         Box(
             Modifier
@@ -290,27 +314,16 @@ fun HomeScreen(
                     elevation = 18.dp,
                     shape = RoundedCornerShape(24.dp),
                     ambientColor = Color.Black.copy(alpha = 0.45f),
-                    spotColor = Color.Black.copy(alpha = 0.3f)
+                    spotColor = if (jumuahTheme) Color(0xFF2E8B57).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.3f)
                 )
                 .clip(RoundedCornerShape(24.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF222228), Color(0xFF16161A))
-                    )
-                )
-                .border(
-                    0.8.dp,
-                    Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.04f))
-                    ),
-                    RoundedCornerShape(24.dp)
-                )
+                .background(barBg)
+                .border(0.8.dp, barBorder, RoundedCornerShape(24.dp))
                 .drawBehind {
-                    // Soft accent glow — right side, does not cover text
                     drawRect(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                barAccent.copy(alpha = 0.18f),
+                                barAccent.copy(alpha = if (jumuahTheme) 0.28f else 0.18f),
                                 Color.Transparent
                             ),
                             center = androidx.compose.ui.geometry.Offset(size.width * 0.85f, size.height * 0.2f),
@@ -362,14 +375,18 @@ fun HomeScreen(
                         Text(
                             smart.primaryName,
                             style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (smart.isActiveHighlight) highlightGreen else colors.textPrimary,
+                            color = when {
+                                jumuahTheme -> Color(0xFFF0FFF5)
+                                smart.isActiveHighlight -> highlightGreen
+                                else -> colors.textPrimary
+                            },
                             maxLines = 1
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             smart.primaryTimeDisplay,
                             style = SuhoodTypography.titleMedium.copy(fontWeight = FontWeight.Medium),
-                            color = colors.textSecondary,
+                            color = if (jumuahTheme) Color(0xFFD4F0E0) else colors.textSecondary,
                             maxLines = 1
                         )
                         Spacer(Modifier.height(4.dp))
@@ -377,9 +394,17 @@ fun HomeScreen(
                             if (smart.isActiveHighlight) "Started · ends soon"
                             else "in ${formatCountdown(smart.countdownSeconds)}",
                             style = SuhoodTypography.bodySmall,
-                            color = colors.textMuted,
+                            color = if (jumuahTheme) Color(0xFFB8E0C8) else colors.textMuted,
                             maxLines = 1
                         )
+                        if (jumuahTheme && smart.jumuahIsCalculatedReference && !smart.isActiveHighlight) {
+                            Text(
+                                "Calculated Dhuhr · confirm with local mosque",
+                                style = SuhoodTypography.labelSmall,
+                                color = Color(0xFF8FBF9F),
+                                maxLines = 1
+                            )
+                        }
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         if (locLabel.isNotBlank()) {

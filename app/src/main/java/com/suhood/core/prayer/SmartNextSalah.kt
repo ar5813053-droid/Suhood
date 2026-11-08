@@ -5,7 +5,7 @@ import java.util.Calendar
 import java.util.Locale
 
 enum class PrayerPeriod {
-    FAJR, DHUHR, ASR, MAGHRIB, ISHA
+    FAJR, DHUHR, JUMUAH, ASR, MAGHRIB, ISHA
 }
 
 data class SmartSalahBarState(
@@ -19,27 +19,35 @@ data class SmartSalahBarState(
     val nextTimeDisplay: String?,
     val period: PrayerPeriod,
     val dateLabel: String,
-    val allTimes: List<Pair<String, String>> = emptyList()
+    val allTimes: List<Pair<String, String>> = emptyList(),
+    /** True when the bar is showing Jumu'ah (Friday only) — drives green theme. */
+    val useJumuahTheme: Boolean = false,
+    /**
+     * When true, [primaryTime] is calculated Dhuhr used as a Jumu'ah reference
+     * (not a confirmed mosque congregation time).
+     */
+    val jumuahIsCalculatedReference: Boolean = false
 )
 
 object SmartNextSalah {
 
     private const val HIGHLIGHT_MINUTES = 10
+    const val JUMUAH_NAME = "Jumu'ah"
 
     /**
-     * @param now local calendar for the user
-     *
-     * Rules:
-     * - If within 10 minutes after a prayer start → highlight that prayer; next = following prayer
-     *   (after Isha highlight, next = tomorrow Fajr).
-     * - Else primary = next upcoming prayer today; nextName = the one after that (or null).
-     * - After last prayer of the day → primary = tomorrow's Fajr.
+     * @param now local calendar (user timezone / prayer location calendar)
+     * @param customJumuahTime optional HH:mm congregation override (e.g. jamaat Dhuhr).
+     *        When blank on Friday, Dhuhr's calculated time is used as a reference only.
      */
     fun resolve(
         result: PrayerTimesCalculator.Result,
-        now: Calendar = Calendar.getInstance()
+        now: Calendar = Calendar.getInstance(),
+        customJumuahTime: String? = null
     ): SmartSalahBarState {
-        val times = result.times
+        val friday = isFriday(now)
+        val dhuhrOriginal = result.times.find { it.name.equals("Dhuhr", true) || it.name.equals("Zuhr", true) }
+        val appliedCustom = friday && !customJumuahTime.isNullOrBlank() && parseHm(customJumuahTime) > 0
+        val times = applyFridayJumuah(result.times, friday, customJumuahTime)
         val dateLabel = result.dateLabel.ifBlank {
             String.format(Locale.US, "%1\$tA, %1\$td %1\$tb %1\$tY", now)
         }
@@ -47,7 +55,7 @@ object SmartNextSalah {
         if (times.isEmpty()) {
             return SmartSalahBarState(
                 "—", "--:--", "--:--", 0, false, null, null, null,
-                PrayerPeriod.FAJR, dateLabel, allTimes
+                PrayerPeriod.FAJR, dateLabel, allTimes, useJumuahTheme = false
             )
         }
 
@@ -55,7 +63,6 @@ object SmartNextSalah {
         val nowSec = nowMin * 60 + now.get(Calendar.SECOND)
 
         val withMins = times.map { p ->
-            // Prefer calculator minutes; fall back to parsing HH:mm
             val m = when {
                 p.minutesSinceMidnight > 0 -> p.minutesSinceMidnight
                 else -> parseHm(p.time)
@@ -72,10 +79,10 @@ object SmartNextSalah {
                     val (np, ns) = withMins[nextIdx]
                     Quad(np.name, np.time, format12h(np.time), ns)
                 } else {
-                    // After Isha highlight → tomorrow Fajr
                     val (fp, fs) = withMins.first()
                     Quad(fp.name, fp.time, format12h(fp.time), fs + 24 * 60)
                 }
+                val jumuah = isJumuahName(p.name)
                 return SmartSalahBarState(
                     primaryName = p.name,
                     primaryTime = p.time,
@@ -87,17 +94,19 @@ object SmartNextSalah {
                     nextTimeDisplay = nextDisplay,
                     period = periodOf(p.name),
                     dateLabel = dateLabel,
-                    allTimes = allTimes
+                    allTimes = allTimes,
+                    useJumuahTheme = jumuah,
+                    jumuahIsCalculatedReference = jumuah && !appliedCustom
                 )
             }
         }
 
-        // 2) Next upcoming today (start strictly after now)
+        // 2) Next upcoming today
         val upcomingIdx = withMins.indexOfFirst { (_, m) -> m > nowMin }
         if (upcomingIdx >= 0) {
             val (nextP, nextStart) = withMins[upcomingIdx]
-            // Optional: prayer after the upcoming one (for secondary line)
             val after = withMins.getOrNull(upcomingIdx + 1)
+            val jumuah = isJumuahName(nextP.name)
             return SmartSalahBarState(
                 primaryName = nextP.name,
                 primaryTime = nextP.time,
@@ -109,11 +118,13 @@ object SmartNextSalah {
                 nextTimeDisplay = after?.first?.time?.let { format12h(it) },
                 period = periodOf(nextP.name),
                 dateLabel = dateLabel,
-                allTimes = allTimes
+                allTimes = allTimes,
+                useJumuahTheme = jumuah,
+                jumuahIsCalculatedReference = jumuah && !appliedCustom
             )
         }
 
-        // 3) After last prayer of the day → tomorrow Fajr
+        // 3) After last prayer → tomorrow Fajr
         val (fajr, fajrStart) = withMins.first()
         return SmartSalahBarState(
             primaryName = fajr.name,
@@ -126,8 +137,52 @@ object SmartNextSalah {
             nextTimeDisplay = null,
             period = periodOf(fajr.name),
             dateLabel = dateLabel,
-            allTimes = allTimes
+            allTimes = allTimes,
+            useJumuahTheme = false,
+            jumuahIsCalculatedReference = false
         )
+    }
+
+    /** Friday in the calendar's timezone (local / location calendar). */
+    fun isFriday(now: Calendar): Boolean =
+        now.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY
+
+    fun isJumuahName(name: String): Boolean {
+        val n = name.lowercase(Locale.US).replace("'", "").replace(" ", "")
+        return n == "jumuah" || n == "jummah" || n == "jumua"
+    }
+
+    /**
+     * On Friday only: replace Dhuhr with Jumu'ah (never both).
+     * Other days: leave list unchanged (Dhuhr stays Dhuhr).
+     */
+    fun applyFridayJumuah(
+        times: List<com.suhood.core.model.PrayerTime>,
+        isFriday: Boolean,
+        customJumuahTime: String? = null
+    ): List<com.suhood.core.model.PrayerTime> {
+        if (!isFriday) return times
+        return times.map { p ->
+            if (p.name.equals("Dhuhr", true) || p.name.equals("Zuhr", true)) {
+                val customMins = customJumuahTime?.let { parseHm(it) }?.takeIf { it > 0 }
+                val mins = customMins ?: when {
+                    p.minutesSinceMidnight > 0 -> p.minutesSinceMidnight
+                    else -> parseHm(p.time)
+                }
+                val hhmm = if (customMins != null) {
+                    "%02d:%02d".format(mins / 60, mins % 60)
+                } else {
+                    p.time
+                }
+                p.copy(
+                    name = JUMUAH_NAME,
+                    time = hhmm,
+                    minutesSinceMidnight = mins
+                )
+            } else {
+                p
+            }
+        }
     }
 
     private data class Quad(
@@ -137,37 +192,39 @@ object SmartNextSalah {
         val targetMin: Int
     )
 
-    private fun periodOf(name: String): PrayerPeriod = when (name.lowercase(Locale.US)) {
-        "fajr" -> PrayerPeriod.FAJR
-        "dhuhr", "zuhr" -> PrayerPeriod.DHUHR
-        "asr" -> PrayerPeriod.ASR
-        "maghrib" -> PrayerPeriod.MAGHRIB
+    private fun periodOf(name: String): PrayerPeriod = when {
+        name.equals("Fajr", true) -> PrayerPeriod.FAJR
+        isJumuahName(name) -> PrayerPeriod.JUMUAH
+        name.equals("Dhuhr", true) || name.equals("Zuhr", true) -> PrayerPeriod.DHUHR
+        name.equals("Asr", true) -> PrayerPeriod.ASR
+        name.equals("Maghrib", true) -> PrayerPeriod.MAGHRIB
         else -> PrayerPeriod.ISHA
     }
 
     fun periodAccent(period: PrayerPeriod): Color = when (period) {
-        PrayerPeriod.FAJR -> Color(0xFF7EB6FF)      // dawn blue
-        PrayerPeriod.DHUHR -> Color(0xFFE0C36A)     // afternoon gold
-        PrayerPeriod.ASR -> Color(0xFFE8A87C)       // evening amber
-        PrayerPeriod.MAGHRIB -> Color(0xFFE07A5F)   // sunset coral
-        PrayerPeriod.ISHA -> Color(0xFF9A82F5)      // night violet
+        PrayerPeriod.FAJR -> Color(0xFF7EB6FF)
+        PrayerPeriod.DHUHR -> Color(0xFFE0C36A)
+        PrayerPeriod.JUMUAH -> Color(0xFF2E8B57) // deep Islamic sea-green
+        PrayerPeriod.ASR -> Color(0xFFE8A87C)
+        PrayerPeriod.MAGHRIB -> Color(0xFFE07A5F)
+        PrayerPeriod.ISHA -> Color(0xFF9A82F5)
     }
 
     fun periodLabel(period: PrayerPeriod): String = when (period) {
         PrayerPeriod.FAJR -> "Morning"
         PrayerPeriod.DHUHR -> "Afternoon"
+        PrayerPeriod.JUMUAH -> "Friday"
         PrayerPeriod.ASR -> "Evening"
         PrayerPeriod.MAGHRIB -> "Sunset"
         PrayerPeriod.ISHA -> "Night"
     }
 
     private fun parseHm(hm: String): Int {
-        val parts = hm.split(":")
+        val parts = hm.trim().split(":")
         if (parts.size < 2) return 0
         return parts[0].toIntOrNull()?.times(60)?.plus(parts[1].toIntOrNull() ?: 0) ?: 0
     }
 
-    /** [targetMin] may be > 24*60 for tomorrow. */
     private fun countdownToMinutes(nowSec: Int, targetMin: Int): Int {
         val targetSec = targetMin * 60
         var diff = targetSec - nowSec
