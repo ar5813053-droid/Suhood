@@ -32,6 +32,9 @@ data class PrayerSettings(
     val jamaatAsr: String = "",
     val jamaatMaghrib: String = "",
     val jamaatIsha: String = "",
+    /** Independent Friday Jumu'ah congregation time (not regular Dhuhr). */
+    val customJumuahEnabled: Boolean = false,
+    val customJumuahTime: String = "",
     /** Minute offsets applied in ADJUSTED mode (and optionally shown in AUTO) */
     val offsetFajr: Int = 0,
     val offsetDhuhr: Int = 0,
@@ -53,6 +56,8 @@ class PrayerSettingsStore(private val context: Context) {
     private val KEY_AUTO_FAJR = booleanPreferencesKey("auto_fajr")
     private val KEY_FAJR_LEAD = intPreferencesKey("fajr_lead")
     private val KEY_SKIP = stringPreferencesKey("fajr_skip")
+    private val KEY_JUMUAH_ENABLED = booleanPreferencesKey("jumuah_custom_enabled")
+    private val KEY_JUMUAH_TIME = stringPreferencesKey("jumuah_custom_time")
 
     private fun mKey(name: String) = stringPreferencesKey("masjid_$name")
     private fun jKey(name: String) = stringPreferencesKey("jamaat_$name")
@@ -75,6 +80,8 @@ class PrayerSettingsStore(private val context: Context) {
             jamaatAsr = p[jKey("asr")] ?: "",
             jamaatMaghrib = p[jKey("maghrib")] ?: "",
             jamaatIsha = p[jKey("isha")] ?: "",
+            customJumuahEnabled = p[KEY_JUMUAH_ENABLED] ?: false,
+            customJumuahTime = p[KEY_JUMUAH_TIME] ?: "",
             offsetFajr = p[oKey("fajr")] ?: 0,
             offsetDhuhr = p[oKey("dhuhr")] ?: 0,
             offsetAsr = p[oKey("asr")] ?: 0,
@@ -135,6 +142,8 @@ class PrayerSettingsStore(private val context: Context) {
             p[jKey("asr")] = n.jamaatAsr
             p[jKey("maghrib")] = n.jamaatMaghrib
             p[jKey("isha")] = n.jamaatIsha
+            p[KEY_JUMUAH_ENABLED] = n.customJumuahEnabled
+            p[KEY_JUMUAH_TIME] = n.customJumuahTime
             p[oKey("fajr")] = n.offsetFajr
             p[oKey("dhuhr")] = n.offsetDhuhr
             p[oKey("asr")] = n.offsetAsr
@@ -234,4 +243,12 @@ object EffectivePrayerTimes {
         "isha" -> settings.masjidIsha
         else -> "12:00"
     }
+}
+
+/** Resolved Jumu'ah HH:mm for Friday: custom setting, else null (caller uses Dhuhr). */
+fun PrayerSettings.effectiveJumuahCustomTime(): String? {
+    if (!customJumuahEnabled) return null
+    val t = customJumuahTime.trim()
+    if (t.isBlank() || !t.contains(":")) return null
+    return t
 }

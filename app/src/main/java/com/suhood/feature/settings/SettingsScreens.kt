@@ -1,3 +1,8 @@
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 package com.suhood.feature.settings
 
 import android.content.Intent
@@ -501,6 +506,71 @@ object SettingsScreens {
                 style = SuhoodTypography.bodyMedium,
                 color = colors.textSecondary
             )
+            Spacer(Modifier.height(12.dp))
+            val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+            var snap by remember {
+                mutableStateOf(com.suhood.core.permissions.PermissionStatusManager.snapshot(context))
+            }
+            DisposableEffect(lifecycleOwner) {
+                val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                    if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        snap = com.suhood.core.permissions.PermissionStatusManager.snapshot(context)
+                        runCatching {
+                            com.suhood.core.permissions.PermissionReminderScheduler.reschedule(context)
+                        }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(obs)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+            }
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text("Focus blocking status", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                Text(snap.blockingCapability.statusMessage, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                if (!snap.blockingCapability.isReliableBlocking) {
+                    Text(
+                        "Blocking is not marked active until a supported mechanism works.",
+                        style = SuhoodTypography.labelSmall,
+                        color = Color(0xFFE0C36A)
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            snap.items.filter { it.applicability != com.suhood.core.permissions.PermissionApplicability.NOT_APPLICABLE }.forEach { item ->
+                GlassCard(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.title, style = SuhoodTypography.titleSmall, color = colors.textPrimary)
+                            Text(item.reason, style = SuhoodTypography.bodySmall, color = colors.textMuted)
+                            Text("Feature: " + item.feature, style = SuhoodTypography.labelSmall, color = colors.textMuted)
+                            Text(
+                                if (item.granted) "Enabled" else "Not enabled",
+                                style = SuhoodTypography.labelMedium,
+                                color = if (item.granted) Color(0xFF6FCF97) else Color(0xFFE0C36A)
+                            )
+                            if (item.mayBeRestricted && !item.granted) {
+                                Text(
+                                    "Some devices restrict Accessibility for sideloaded apps. Enable restricted settings for Suhood if Android shows that option.",
+                                    style = SuhoodTypography.labelSmall,
+                                    color = colors.textMuted
+                                )
+                            }
+                        }
+                    }
+                    if (!item.granted) {
+                        Spacer(Modifier.height(8.dp))
+                        GlassButton(
+                            text = "Open settings",
+                            onClick = {
+                                runCatching {
+                                    com.suhood.core.permissions.PermissionStatusManager.openSettingsFor(context, item.kind)
+                                }
+                            },
+                            primary = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             GlassCard(Modifier.fillMaxWidth()) {
                 Text("Notifications", style = SuhoodTypography.titleSmall, color = colors.textPrimary)
@@ -751,6 +821,89 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
                     }
                 }
             }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Friday · Jumu'ah",
+                style = SuhoodTypography.titleSmall,
+                color = colors.textPrimary
+            )
+            Text(
+                "Independent of regular Dhuhr. On Friday the Home bar shows Jumu'ah using this time when enabled; otherwise calculated Dhuhr is used as a labelled fallback (not your mosque's confirmed congregation).",
+                style = SuhoodTypography.bodySmall,
+                color = colors.textMuted
+            )
+            Spacer(Modifier.height(8.dp))
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Custom Jumu'ah time", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                        Text(
+                            if (settings.customJumuahEnabled && settings.customJumuahTime.isNotBlank())
+                                "Manual · ${formatSalahTime12h(settings.customJumuahTime)}"
+                            else
+                                "Using calculated Dhuhr fallback",
+                            style = SuhoodTypography.bodySmall,
+                            color = colors.textMuted
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = settings.customJumuahEnabled,
+                        onCheckedChange = { on ->
+                            scope.launch {
+                                store.update {
+                                    it.copy(
+                                        customJumuahEnabled = on,
+                                        customJumuahTime = if (on && it.customJumuahTime.isBlank())
+                                            it.masjidDhuhr else it.customJumuahTime
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+            if (settings.customJumuahEnabled) {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    onClick = {
+                        openEditor(
+                            "Jumu'ah",
+                            settings.customJumuahTime.ifBlank { settings.masjidDhuhr }
+                        )
+                    }
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Jumu'ah", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
+                        Text(
+                            formatSalahTime12h(
+                                settings.customJumuahTime.ifBlank { settings.masjidDhuhr }
+                            ),
+                            style = SuhoodTypography.headlineSmall,
+                            color = Color(0xFF6FCF97)
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            store.update {
+                                it.copy(customJumuahEnabled = false, customJumuahTime = "")
+                            }
+                        }
+                    }
+                ) {
+                    Text("Reset to calculated Dhuhr", color = colors.textMuted)
+                }
+            }
         }
 
         // Alarm-style hour / minute wheel dialog
@@ -821,10 +974,18 @@ If this project helps you, a tip via UPI is optional gratitude. May Allah accept
                         onClick = {
                             val hhmm = toHhmm24(wheelHour12, wheelMinute, wheelAmPm)
                             scope.launch {
-                                // Seeds other slots + switches to MASJID so times apply app-wide
-                                store.setCustomSalahTime(prayer, hhmm)
-                                com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context)
-                                com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                                if (prayer == "Jumu'ah") {
+                                    store.update {
+                                        it.copy(
+                                            customJumuahEnabled = true,
+                                            customJumuahTime = hhmm
+                                        )
+                                    }
+                                } else {
+                                    store.setCustomSalahTime(prayer, hhmm)
+                                    com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(context)
+                                    com.suhood.core.prayer.FajrAutoScheduler.reschedule(context)
+                                }
                                 editing = null
                             }
                         }

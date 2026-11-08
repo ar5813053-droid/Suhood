@@ -143,7 +143,11 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.Suhood" />
 
-        <service
+                <receiver
+            android:name="com.suhood.core.permissions.PermissionReminderReceiver"
+            android:exported="false" />
+
+<service
             android:name="com.suhood.feature.focus.FocusAccessibilityService"
             android:exported="false"
             android:stopWithTask="false"

@@ -38,6 +38,7 @@ class SuhoodApplication : Application() {
             runCatching { com.suhood.widgets.WidgetBridge.refreshAll(this) }
             runCatching { com.suhood.widgets.WidgetBridge.scheduleNextPrayerRefresh(this) }
             runCatching { com.suhood.core.prayer.SalahReminderScheduler.rescheduleAll(this) }
+            runCatching { com.suhood.core.permissions.PermissionReminderScheduler.reschedule(this) }
             runCatching {
                 val store = com.suhood.feature.focus.SalahLockStore.get(this)
                 val snap = store.reconcileNow()

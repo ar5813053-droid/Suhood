@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.suhood.core.prayer.LocationHelper
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -91,6 +93,13 @@ import com.suhood.core.prayer.EffectivePrayerTimes
 import com.suhood.core.prayer.PrayerTimeMode
 import com.suhood.core.prayer.PrayerSettingsStore
 import com.suhood.core.prayer.SmartNextSalah
+import com.suhood.core.permissions.PermissionStatusManager
+import com.suhood.core.permissions.PermissionReminderStore
+import com.suhood.core.permissions.PermissionReminderScheduler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.suhood.core.prayer.effectiveJumuahCustomTime
 import com.suhood.core.prayer.PrayerTimesCache
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -218,7 +227,7 @@ fun HomeScreen(
                 locLabel,
                 prayerResult
             )
-            val jumuahCustom = prayerSettings.jamaatDhuhr.takeIf { it.isNotBlank() }
+            val jumuahCustom = prayerSettings.effectiveJumuahCustomTime()
             smart = SmartNextSalah.resolve(prayerResult, cal, customJumuahTime = jumuahCustom)
             delay(1000)
         }
@@ -277,6 +286,82 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(14.dp))
+
+
+        // Permission completion banner (reactive on resume)
+        val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+        var permSnap by remember {
+            mutableStateOf(PermissionStatusManager.snapshot(context.applicationContext))
+        }
+        var bannerSnoozed by remember { mutableStateOf(false) }
+        val permReminderStore = remember { PermissionReminderStore(context.applicationContext) }
+        val permReminderSettings by permReminderStore.settings.collectAsState(
+            initial = com.suhood.core.permissions.PermissionReminderSettings()
+        )
+        DisposableEffect(lifecycleOwner) {
+            val obs = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    permSnap = PermissionStatusManager.snapshot(context.applicationContext)
+                    runCatching { PermissionReminderScheduler.reschedule(context.applicationContext) }
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(obs)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+        }
+        val showPermBanner = permSnap.missingCount > 0 &&
+            !bannerSnoozed &&
+            permReminderSettings.bannerDismissedUntilEpochMs < System.currentTimeMillis()
+        if (showPermBanner) {
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFE0C36A),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Some Suhood features need permissions",
+                            style = SuhoodTypography.titleSmall,
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            permSnap.missingCount.toString() + " permissions remaining",
+                            style = SuhoodTypography.bodySmall,
+                            color = colors.textMuted
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlassButton(
+                        text = "Review permissions",
+                        onClick = { onNavigate(Routes.SETTINGS_PERMISSIONS) },
+                        primary = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    GlassButton(
+                        text = "Later",
+                        onClick = {
+                            bannerSnoozed = true
+                            kotlinx.coroutines.MainScope().launch {
+                                permReminderStore.dismissBannerForToday()
+                            }
+                        },
+                        primary = false
+                    )
+                }
+            }
+        }
 
         // Smart Next Salah bar — liquid-glass; Friday Jumu'ah uses deep green theme
         val highlightGreen = Color(0xFF6FCF97)

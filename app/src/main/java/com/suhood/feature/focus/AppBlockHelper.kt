@@ -46,6 +46,36 @@ object AppBlockHelper {
     fun openAccessibilitySettings(context: Context) =
         FocusAccessibilityService.openSettings(context)
 
+    fun canDrawOverlays(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+
+    fun openOverlaySettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:${context.packageName}")
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+
+    /**
+     * True only when a mechanism that can present a block UI is available.
+     * Usage-only detection is not treated as active blocking.
+     */
+    fun isBlockingMechanismReady(context: Context): Boolean {
+        val a11y = hasAccessibility(context)
+        val usage = hasUsageAccess(context)
+        val overlay = canDrawOverlays(context)
+        return a11y || (usage && overlay)
+    }
+
     fun foregroundPackage(context: Context): String? {
         // 1) Accessibility is most accurate when service is connected
         FocusAccessibilityService.currentForegroundPackage()?.let { return it }
