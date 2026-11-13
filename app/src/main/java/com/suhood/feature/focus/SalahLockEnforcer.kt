@@ -122,10 +122,18 @@ object SalahLockEnforcer {
         // Path A — lock activity (works best when called from FGS)
         main.post { launchLockActivity(app, blockedPkg, prayer) }
 
-        // Path B — Accessibility: overlay + leave app to Home
+        // Path B — Accessibility overlay (same TYPE_ACCESSIBILITY_OVERLAY stack as 3-scroll)
         main.post {
             runCatching {
                 FocusAccessibilityService.onSalahLockActivated(app, prayer)
+            }
+        }
+
+        // Path C — Display-over-apps overlay when Accessibility is unavailable
+        // Detection still comes from Usage Access via AppBlockHelper / monitor service.
+        main.post {
+            if (!FocusAccessibilityService.isEnabled(app) && AppBlockHelper.canDrawOverlays(app)) {
+                SalahLockOverlay.showFromContext(app)
             }
         }
     }

@@ -44,6 +44,12 @@ data class PermissionSnapshot(
     val allApplicableComplete: Boolean get() = missingApplicable.isEmpty()
 }
 
+enum class BlockingReliability {
+    FULL,       // Accessibility + can present block UI
+    LIMITED,    // Usage Access + Overlay only
+    UNAVAILABLE // Missing detection or overlay
+}
+
 enum class BlockingMode {
     NONE,
     ACCESSIBILITY,
@@ -56,6 +62,7 @@ data class BlockingCapability(
     val canDetectForeground: Boolean,
     val canPresentBlockUi: Boolean,
     val isReliableBlocking: Boolean,
+    val reliability: BlockingReliability,
     val statusMessage: String
 )
 
@@ -89,34 +96,49 @@ object PermissionStatusManager {
         val usage = AppBlockHelper.hasUsageAccess(context)
         val overlay = AppBlockHelper.canDrawOverlays(context)
 
+        // FULL only when Accessibility is confirmed enabled (can use TYPE_ACCESSIBILITY_OVERLAY).
+        // LIMITED when Usage Access + Display-over-apps can present a best-effort block UI.
+        // UNAVAILABLE otherwise — never claim active blocking.
         return when {
             a11y -> BlockingCapability(
                 mode = BlockingMode.ACCESSIBILITY,
                 canDetectForeground = true,
                 canPresentBlockUi = true,
                 isReliableBlocking = true,
-                statusMessage = "Accessibility is enabled — Focus can detect and present the block screen."
+                reliability = BlockingReliability.FULL,
+                statusMessage = "FULL — Accessibility is enabled. Suhood can detect blocked apps and show the lock screen."
             )
             usage && overlay -> BlockingCapability(
                 mode = BlockingMode.USAGE_AND_OVERLAY,
                 canDetectForeground = true,
                 canPresentBlockUi = true,
-                isReliableBlocking = false, // best-effort; OEMs may limit overlays
-                statusMessage = "Using Usage Access + overlay fallback. Blocking is best-effort without Accessibility."
+                isReliableBlocking = false,
+                reliability = BlockingReliability.LIMITED,
+                statusMessage = "LIMITED — Usage Access + Display over other apps. Detection may be delayed; not as reliable as Accessibility."
             )
             usage -> BlockingCapability(
                 mode = BlockingMode.USAGE_ONLY_DETECT,
                 canDetectForeground = true,
                 canPresentBlockUi = false,
                 isReliableBlocking = false,
-                statusMessage = "Usage Access can detect apps, but without Accessibility or overlay Suhood cannot present a block screen."
+                reliability = BlockingReliability.UNAVAILABLE,
+                statusMessage = "UNAVAILABLE — Usage Access can detect apps, but without Display-over-apps Suhood cannot show the lock screen."
+            )
+            overlay -> BlockingCapability(
+                mode = BlockingMode.NONE,
+                canDetectForeground = false,
+                canPresentBlockUi = true,
+                isReliableBlocking = false,
+                reliability = BlockingReliability.UNAVAILABLE,
+                statusMessage = "UNAVAILABLE — Overlay is granted but no detection permission (Accessibility or Usage Access)."
             )
             else -> BlockingCapability(
                 mode = BlockingMode.NONE,
                 canDetectForeground = false,
                 canPresentBlockUi = false,
                 isReliableBlocking = false,
-                statusMessage = "No detection permission enabled. Focus cannot block apps until Accessibility or Usage Access is granted."
+                reliability = BlockingReliability.UNAVAILABLE,
+                statusMessage = "UNAVAILABLE — Enable Accessibility (recommended) or Usage Access + Display over other apps."
             )
         }
     }

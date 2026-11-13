@@ -119,6 +119,7 @@ class JumuahAndPermissionLogicTest {
                 canDetectForeground = true,
                 canPresentBlockUi = true,
                 isReliableBlocking = true,
+                reliability = com.suhood.core.permissions.BlockingReliability.FULL,
                 statusMessage = "ok"
             )
         )
@@ -133,9 +134,38 @@ class JumuahAndPermissionLogicTest {
             canDetectForeground = true,
             canPresentBlockUi = false,
             isReliableBlocking = false,
+            reliability = com.suhood.core.permissions.BlockingReliability.UNAVAILABLE,
             statusMessage = "detect only"
         )
         assertFalse(cap.isReliableBlocking)
         assertFalse(cap.canPresentBlockUi)
     }
 }
+
+    @Test
+    fun reliability_fullRequiresAccessibility() {
+        val full = BlockingCapability(
+            mode = BlockingMode.ACCESSIBILITY,
+            canDetectForeground = true,
+            canPresentBlockUi = true,
+            isReliableBlocking = true,
+            reliability = com.suhood.core.permissions.BlockingReliability.FULL,
+            statusMessage = "FULL"
+        )
+        assertTrue(full.isReliableBlocking)
+        assertEquals(com.suhood.core.permissions.BlockingReliability.FULL, full.reliability)
+    }
+
+    @Test
+    fun reliability_limitedIsNotFull() {
+        val limited = BlockingCapability(
+            mode = BlockingMode.USAGE_AND_OVERLAY,
+            canDetectForeground = true,
+            canPresentBlockUi = true,
+            isReliableBlocking = false,
+            reliability = com.suhood.core.permissions.BlockingReliability.LIMITED,
+            statusMessage = "LIMITED"
+        )
+        assertFalse(limited.isReliableBlocking)
+        assertEquals(com.suhood.core.permissions.BlockingReliability.LIMITED, limited.reliability)
+    }

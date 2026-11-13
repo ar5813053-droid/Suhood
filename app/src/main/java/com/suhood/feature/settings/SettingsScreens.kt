@@ -540,9 +540,27 @@ object SettingsScreens {
                             )
                             if (item.mayBeRestricted && !item.granted) {
                                 Text(
-                                    "Some devices restrict Accessibility for sideloaded apps. Enable restricted settings for Suhood if Android shows that option.",
+                                    "Restricted settings: On Android 13+ (and some Xiaomi/Samsung/Vivo builds), open App info → the three-dot menu → Allow restricted settings, then enable Accessibility. If that option is missing, use Usage Access + Display over other apps for LIMITED blocking instead.",
                                     style = SuhoodTypography.labelSmall,
                                     color = colors.textMuted
+                                )
+                            }
+                            if (item.kind == com.suhood.core.permissions.PermissionKind.ACCESSIBILITY && !item.granted) {
+                                Spacer(Modifier.height(6.dp))
+                                GlassButton(
+                                    text = "Open App info",
+                                    onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                    android.net.Uri.parse("package:" + context.packageName)
+                                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            )
+                                        }
+                                    },
+                                    primary = false,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
