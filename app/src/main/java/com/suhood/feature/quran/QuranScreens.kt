@@ -77,7 +77,9 @@ object QuranScreens {
     @Composable
     private fun rememberVm(): QuranViewModel {
         val app = LocalContext.current.applicationContext as SuhoodApplication
-        val vm = viewModel(factory = QuranViewModel.Factory(app.database.dao(), app.playbackController))
+        val vm: QuranViewModel = viewModel(
+            factory = QuranViewModel.Factory(app.database.dao(), app.playbackController)
+        )
         vm.libraryAppContext = app
         return vm
     }
