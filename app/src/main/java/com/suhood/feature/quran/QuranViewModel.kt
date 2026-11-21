@@ -7,14 +7,13 @@ import com.suhood.core.audio.PlaybackController
 import com.suhood.core.database.QuranBookmarkEntity
 import com.suhood.core.database.QuranLastReadEntity
 import com.suhood.core.database.SuhoodDao
-import android.app.Application
 import com.suhood.core.quran.AlQuranCloudProvider
 import com.suhood.core.quran.CanonicalAyahId
 import com.suhood.core.quran.PageContent
 import com.suhood.core.quran.QuranLibraryRepository
 import com.suhood.core.quran.SurahContent
 import com.suhood.core.quran.SurahMeta
-import com.suhood.core.quran.TranslationEdition
+import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.VerifiedQaris
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow

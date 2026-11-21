@@ -202,7 +202,7 @@ fun QuranLibraryScreen(
                 item {
                     SectionTitle("Browse All Languages")
                     Text(
-                        "${languages.size} languages · ${languages.sumOf { it.count }} editions from verified catalogue",
+                        "${languages.size} languages · ${languages.sumOf { it.editions.size }} editions from verified catalogue",
                         style = SuhoodTypography.labelSmall,
                         color = TextSecondary,
                         modifier = Modifier.padding(horizontal = 16.dp, bottom = 8.dp)
