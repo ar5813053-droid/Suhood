@@ -1,42 +1,87 @@
 package com.suhood.core.quran
 
 /**
- * Text: AlQuran.Cloud. Audio: everyayah.com (SSS AAA file names).
- * Only languages with verified public verse audio are listed in [audioEditions].
+ * Text editions: AlQuran.Cloud identifiers only (verified public API).
+ * Audio: everyayah.com verse files only where a public folder is confirmed.
+ *
+ * Roman Hindi / Roman Urdu meaning-based Latin-script translations are NOT
+ * available on AlQuran.Cloud; they are listed as unavailable rather than fabricated.
  */
 data class TranslationEdition(
     val id: String,
     val language: String,
-    /** ISO-like code for matching text ↔ audio (en, ur, …). */
     val langCode: String,
     val name: String,
     val hasAudio: Boolean = false,
-    val everyAyahFolder: String? = null
+    val everyAyahFolder: String? = null,
+    /** When false, do not attempt to load (e.g. no verified source). */
+    val available: Boolean = true
 )
 
 object TranslationEditions {
     val textEditions = listOf(
+        // English
         TranslationEdition("en.sahih", "English", "en", "Sahih International"),
         TranslationEdition("en.pickthall", "English", "en", "Pickthall"),
         TranslationEdition("en.yusufali", "English", "en", "Yusuf Ali"),
         TranslationEdition("en.asad", "English", "en", "Muhammad Asad"),
+        // Urdu
         TranslationEdition("ur.jalandhry", "Urdu", "ur", "Fateh Muhammad Jalandhry"),
         TranslationEdition("ur.ahmedali", "Urdu", "ur", "Ahmed Ali"),
         TranslationEdition("ur.jawadi", "Urdu", "ur", "Syed Zeeshan Haider Jawadi"),
-        TranslationEdition("hi.hindi", "Hindi", "hi", "Suhel Farooq Khan & Naik"),
+        // Hindi (Devanagari)
+        TranslationEdition("hi.hindi", "Hindi", "hi", "Suhel Farooq Khan & Saifur Rahman Nadwi"),
+        TranslationEdition("hi.farooq", "Hindi", "hi", "Muhammad Farooq Khan"),
+        // Bengali
         TranslationEdition("bn.bengali", "Bengali", "bn", "Muhiuddin Khan"),
-        TranslationEdition("id.indonesian", "Indonesian", "id", "Indonesian Ministry"),
+        TranslationEdition("bn.hoque", "Bengali", "bn", "Zohurul Hoque"),
+        // Turkish
         TranslationEdition("tr.diyanet", "Turkish", "tr", "Diyanet İşleri"),
+        TranslationEdition("tr.yazir", "Turkish", "tr", "Elmalılı Hamdi Yazır"),
+        // French
         TranslationEdition("fr.hamidullah", "French", "fr", "Muhammad Hamidullah"),
+        // German
         TranslationEdition("de.aburida", "German", "de", "Abu Rida"),
+        TranslationEdition("de.bubenheim", "German", "de", "Bubenheim & Elyas"),
+        // Spanish
         TranslationEdition("es.cortes", "Spanish", "es", "Julio Cortes"),
-        TranslationEdition("ru.kuliev", "Russian", "ru", "Elmir Kuliev"),
-        TranslationEdition("bs.mlivo", "Bosnian", "bs", "Besim Korkut"),
-        TranslationEdition("nl.siregar", "Dutch", "nl", "Sofian S. Siregar"),
-        TranslationEdition("pt.elhayek", "Portuguese", "pt", "Samir El-Hayek"),
+        TranslationEdition("es.garcia", "Spanish", "es", "Muhammad Isa García"),
+        // Indonesian / Malay
+        TranslationEdition("id.indonesian", "Indonesian", "id", "Indonesian Ministry of Religious Affairs"),
+        TranslationEdition("id.jalalayn", "Indonesian", "id", "Jalalayn"),
+        TranslationEdition("ms.basmeih", "Malay", "ms", "Abdullah Muhammad Basmeih"),
+        // Persian
         TranslationEdition("fa.makarem", "Persian", "fa", "Naser Makarem Shirazi"),
-        TranslationEdition("zh.jian", "Chinese", "zh", "Ma Jian")
+        TranslationEdition("fa.fooladvand", "Persian", "fa", "Mohammad Mahdi Fooladvand"),
+        // Russian
+        TranslationEdition("ru.kuliev", "Russian", "ru", "Elmir Kuliev"),
+        TranslationEdition("ru.osmanov", "Russian", "ru", "Magomed-Nuri Osmanov"),
+        // Chinese
+        TranslationEdition("zh.jian", "Chinese", "zh", "Ma Jian"),
+        TranslationEdition("zh.majian", "Chinese", "zh", "Ma Jian (alt)"),
+        // Tamil / Malayalam
+        TranslationEdition("ta.tamil", "Tamil", "ta", "Jan Trust Foundation"),
+        TranslationEdition("ml.abdulhameed", "Malayalam", "ml", "Abdul Hameed & Kunhi"),
+        TranslationEdition("ml.karakunnu", "Malayalam", "ml", "Cheriyamundam Abdul Hameed & Kunhi Mohammed"),
+        // Placeholder entries — no verified AlQuran.Cloud Latin-script meaning translation
+        TranslationEdition(
+            id = "roman.hi.unavailable",
+            language = "Roman Hindi",
+            langCode = "hi-Latn",
+            name = "Not available from verified API sources",
+            available = false
+        ),
+        TranslationEdition(
+            id = "roman.ur.unavailable",
+            language = "Roman Urdu",
+            langCode = "ur-Latn",
+            name = "Not available from verified API sources",
+            available = false
+        )
     )
+
+    val availableTextEditions: List<TranslationEdition>
+        get() = textEditions.filter { it.available }
 
     /** Verified verse-by-verse translation audio on everyayah.com only. */
     val audioEditions = listOf(
@@ -65,9 +110,8 @@ object TranslationEditions {
         textById(textEditionId)?.langCode
             ?: textEditionId.substringBefore('.').lowercase().ifBlank { "en" }
 
-    /** Audio edition matching the text language, or null if none available. */
     fun audioForTextEdition(textEditionId: String): TranslationEdition? {
-        val code = langCodeOfText(textEditionId)
+        val code = langCodeOfText(textEditionId).substringBefore('-')
         return audioEditions.find { it.langCode == code }
     }
 

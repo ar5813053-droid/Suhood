@@ -148,11 +148,18 @@ class AlQuranCloudProvider(
     }
 
 
-    suspend fun loadSurahWithTranslation(surah: Int, translationEdition: String): SurahContent {
+        suspend fun loadSurahWithTranslation(surah: Int, translationEdition: String): SurahContent {
+        return loadSurahWithTranslations(surah, listOf(translationEdition))
+    }
+
+    /**
+     * Load Arabic + one or more translation editions.
+     * Each translation is mapped by numberInSurah (never list index).
+     * Unavailable / invalid edition ids are skipped.
+     */
+    suspend fun loadSurahWithTranslations(surah: Int, translationEditions: List<String>): SurahContent {
         val arJson = HttpJson.get("$BASE/surah/$surah/$arabicEdition")
-        val trJson = HttpJson.get("$BASE/surah/$surah/$translationEdition")
         val ar = JSONObject(arJson).getJSONObject("data")
-        val tr = JSONObject(trJson).getJSONObject("data")
         val meta = SurahMeta(
             number = ar.getInt("number"),
             nameArabic = ar.getString("name"),
@@ -162,24 +169,44 @@ class AlQuranCloudProvider(
             revelationType = ar.optString("revelationType")
         )
         val arAyahs = ar.getJSONArray("ayahs")
-        val trAyahs = tr.getJSONArray("ayahs")
-        // Map translation by numberInSurah — never by array index alone
-        val trByAyah = HashMap<Int, String>()
-        for (i in 0 until trAyahs.length()) {
-            val u = trAyahs.getJSONObject(i)
-            val n = u.optInt("numberInSurah", -1)
-            if (n >= 1) trByAyah[n] = u.optString("text").orEmpty()
+        val editions = translationEditions
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && TranslationEditions.textById(it)?.available != false }
+            .distinct()
+
+        // editionId -> (numberInSurah -> text)
+        val maps = linkedMapOf<String, Map<Int, String>>()
+        for (ed in editions) {
+            runCatching {
+                val trJson = HttpJson.get("$BASE/surah/$surah/$ed")
+                val tr = JSONObject(trJson).getJSONObject("data")
+                val trAyahs = tr.getJSONArray("ayahs")
+                val trByAyah = HashMap<Int, String>()
+                for (i in 0 until trAyahs.length()) {
+                    val u = trAyahs.getJSONObject(i)
+                    val n = u.optInt("numberInSurah", -1)
+                    if (n >= 1) trByAyah[n] = u.optString("text").orEmpty()
+                }
+                maps[ed] = trByAyah
+            }
         }
+
+        val primaryId = editions.firstOrNull()
         val ayahs = buildList {
             for (i in 0 until arAyahs.length()) {
                 val a = arAyahs.getJSONObject(i)
                 val numInSurah = a.getInt("numberInSurah")
+                val multi = maps.mapValues { (_, m) -> m[numInSurah].orEmpty() }
+                    .filterValues { it.isNotBlank() }
+                val primary = primaryId?.let { multi[it] }.orEmpty()
+                    .ifBlank { multi.values.firstOrNull().orEmpty() }
                 add(
                     AyahText(
                         globalNumber = a.getInt("number"),
                         numberInSurah = numInSurah,
-                        arabic = a.getString("text").trim().removePrefix("\uFEFF"),
-                        translation = trByAyah[numInSurah].orEmpty()
+                        arabic = a.getString("text").trim().removePrefix("﻿"),
+                        translation = primary,
+                        translations = multi
                     )
                 )
             }
@@ -187,7 +214,7 @@ class AlQuranCloudProvider(
         return SurahContent(meta, ayahs)
     }
 
-    /**
+/**
      * Translation audio via everyayah.com (Islamic Network CDN returns 403 for translation editions).
      * Requires surah number + ayah-in-surah, not global ayah index.
      */

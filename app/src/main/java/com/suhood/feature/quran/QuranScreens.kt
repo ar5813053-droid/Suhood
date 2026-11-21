@@ -536,6 +536,7 @@ object QuranScreens {
         val error by vm.error.collectAsStateWithLifecycle()
         val showTranslation by vm.showTranslation.collectAsStateWithLifecycle()
         val translationTextId by vm.translationTextId.collectAsStateWithLifecycle()
+        val selectedTranslationIds by vm.selectedTranslationIds.collectAsStateWithLifecycle()
         val playTranslationAudio by vm.playTranslationAudio.collectAsStateWithLifecycle()
         val translationAudioId by vm.translationAudioId.collectAsStateWithLifecycle()
         val qariId by vm.qariId.collectAsStateWithLifecycle()
@@ -702,23 +703,46 @@ object QuranScreens {
                                 Text(
                                     ayah.arabic,
                                     style = TextStyle(
-                                        fontSize = 24.sp,
+                                        fontSize = 26.sp,
                                         textAlign = TextAlign.Right,
                                         textDirection = TextDirection.Rtl,
                                         color = if (playingThis) colors.accentLavender else colors.textPrimary,
-                                        lineHeight = 40.sp
+                                        lineHeight = 44.sp,
+                                        letterSpacing = 0.2.sp
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                if (showTranslation && ayah.translation.isNotBlank()) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        ayah.translation,
-                                        style = SuhoodTypography.bodyMedium.copy(
-                                            fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
-                                        ),
-                                        color = if (playingTr) colors.accentMint else colors.textSecondary
-                                    )
+                                if (showTranslation) {
+                                    val multi = ayah.translations.entries.toList()
+                                    if (multi.isNotEmpty()) {
+                                        multi.forEach { (edId, text) ->
+                                            if (text.isBlank()) return@forEach
+                                            val ed = TranslationEditions.textById(edId)
+                                            Spacer(Modifier.height(10.dp))
+                                            Text(
+                                                (ed?.language ?: edId) + " · " + (ed?.name ?: ""),
+                                                style = SuhoodTypography.labelSmall,
+                                                color = colors.textMuted
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text,
+                                                style = SuhoodTypography.bodyMedium.copy(
+                                                    fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
+                                                ),
+                                                color = if (playingTr) colors.accentMint else colors.textSecondary
+                                            )
+                                        }
+                                    } else if (ayah.translation.isNotBlank()) {
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            ayah.translation,
+                                            style = SuhoodTypography.bodyMedium.copy(
+                                                fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
+                                            ),
+                                            color = if (playingTr) colors.accentMint else colors.textSecondary
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -785,19 +809,33 @@ object QuranScreens {
                         Spacer(Modifier.height(4.dp))
                         Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
                             TranslationEditions.searchText(translationSearch).forEach { ed ->
-                                val selected = ed.id == translationTextId
+                                val selected = ed.id in selectedTranslationIds
                                 val audioHint = if (TranslationEditions.hasAudioForText(ed.id)) " · audio" else ""
+                                val label = if (!ed.available) {
+                                    ed.language + " — unavailable (no verified source)"
+                                } else {
+                                    ed.language + " — " + ed.name + audioHint
+                                }
                                 Text(
-                                    "${ed.language} — ${ed.name}$audioHint",
+                                    label,
                                     style = SuhoodTypography.bodyMedium,
-                                    color = if (selected) colors.silverBright else colors.textSecondary,
+                                    color = when {
+                                        !ed.available -> colors.textMuted.copy(alpha = 0.55f)
+                                        selected -> colors.silverBright
+                                        else -> colors.textSecondary
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { vm.setTranslationTextEdition(ed.id) }
+                                        .clickable { vm.toggleTranslationEdition(ed.id) }
                                         .padding(vertical = 6.dp)
                                 )
                             }
                         }
+                        Text(
+                            "Tap languages to stack up to 6 translations under each Ayah. Order = selection order.",
+                            style = SuhoodTypography.labelSmall,
+                            color = colors.textMuted
+                        )
                         Spacer(Modifier.height(10.dp))
                         Row(
                             Modifier.fillMaxWidth(),
@@ -1044,7 +1082,7 @@ object QuranScreens {
                 Column(Modifier.weight(1f)) {
                     Text("Mushaf · Madinah pages", style = SuhoodTypography.titleMedium, color = colors.textPrimary)
                     Text(
-                        "Page $pageNumber / 604 · Uthmani (AlQuran.Cloud)",
+                        "Page $pageNumber / 604 · Uthmani · Premium Mushaf",
                         style = SuhoodTypography.labelSmall,
                         color = colors.textMuted
                     )
@@ -1082,19 +1120,24 @@ object QuranScreens {
                             contentPadding = PaddingValues(vertical = 12.dp)
                         ) {
                             items(ayahs, key = { it.globalNumber }) { a ->
-                                Text(
-                                    text = a.arabic + " ۝${a.numberInSurah}",
-                                    style = TextStyle(
-                                        fontSize = 26.sp,
-                                        lineHeight = 48.sp,
-                                        textAlign = TextAlign.Center,
-                                        textDirection = TextDirection.Rtl
-                                    ),
-                                    color = colors.textPrimary,
-                                    modifier = Modifier
+                                Column(
+                                    Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 6.dp)
-                                )
+                                        .padding(vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        text = a.arabic + "  ۝${a.numberInSurah}",
+                                        style = TextStyle(
+                                            fontSize = 28.sp,
+                                            lineHeight = 52.sp,
+                                            textAlign = TextAlign.Center,
+                                            textDirection = TextDirection.Rtl,
+                                            letterSpacing = 0.15.sp
+                                        ),
+                                        color = colors.textPrimary,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                             item {
                                 Spacer(Modifier.height(12.dp))

@@ -50,9 +50,16 @@ class QuranViewModel(
     private val _showTranslation = MutableStateFlow(true)
     val showTranslation: StateFlow<Boolean> = _showTranslation.asStateFlow()
 
-    /** Text translation edition id (e.g. en.sahih, ur.jalandhry). */
+    /** Primary text translation edition id (e.g. en.sahih, ur.jalandhry). */
     private val _translationTextId = MutableStateFlow("en.sahih")
     val translationTextId: StateFlow<String> = _translationTextId.asStateFlow()
+
+    /**
+     * Ordered list of selected translation edition ids shown under each Ayah.
+     * First entry is the primary [translationTextId].
+     */
+    private val _selectedTranslationIds = MutableStateFlow(listOf("en.sahih"))
+    val selectedTranslationIds: StateFlow<List<String>> = _selectedTranslationIds.asStateFlow()
 
     /** When true, queue plays Arabic ayah then translation audio then next ayah. */
     private val _playTranslationAudio = MutableStateFlow(false)
@@ -98,7 +105,10 @@ class QuranViewModel(
             _error.value = null
             runCatching {
                     if (_showTranslation.value) {
-                        provider.loadSurahWithTranslation(number, _translationTextId.value)
+                        provider.loadSurahWithTranslations(
+                            number,
+                            _selectedTranslationIds.value.ifEmpty { listOf(_translationTextId.value) }
+                        )
                     } else {
                         provider.loadSurahArabic(number)
                     }
@@ -119,20 +129,73 @@ class QuranViewModel(
     }
 
     fun setTranslationTextEdition(id: String) {
+        val ed = TranslationEditions.textById(id)
+        if (ed != null && !ed.available) {
+            _error.value = ed.language + " is not available from a verified translation source yet."
+            return
+        }
         _translationTextId.value = id
+        // Ensure primary is first in multi list
+        val cur = _selectedTranslationIds.value.toMutableList()
+        cur.remove(id)
+        cur.add(0, id)
+        _selectedTranslationIds.value = cur.distinct().take(6)
         _showTranslation.value = true
-        // Keep translation *audio* language in sync with text language
         val matched = TranslationEditions.audioForTextEdition(id)
         if (matched != null) {
             _translationAudioId.value = matched.id
         }
-        // If user had audio on but this language has no audio, turn audio off
-        if (_playTranslationAudio.value && matched == null) {
-            _playTranslationAudio.value = false
-        }
-        val surah = _content.value?.meta?.number ?: return
-        viewModelScope.launch { openSurah(surah) }
+        val surah = _content.value?.meta?.number
+        if (surah != null) viewModelScope.launch { openSurah(surah) }
     }
+
+    fun toggleTranslationEdition(id: String) {
+        val ed = TranslationEditions.textById(id)
+        if (ed != null && !ed.available) {
+            _error.value = ed.language + " is not available from a verified translation source yet."
+            return
+        }
+        val cur = _selectedTranslationIds.value.toMutableList()
+        if (id in cur) {
+            if (cur.size <= 1) return // keep at least one
+            cur.remove(id)
+        } else {
+            if (cur.size >= 6) {
+                _error.value = "You can show up to 6 translations at once."
+                return
+            }
+            cur.add(id)
+        }
+        _selectedTranslationIds.value = cur
+        _translationTextId.value = cur.first()
+        _showTranslation.value = true
+        val surah = _content.value?.meta?.number
+        if (surah != null) viewModelScope.launch { openSurah(surah) }
+    }
+
+    fun removeTranslationEdition(id: String) {
+        val cur = _selectedTranslationIds.value.toMutableList()
+        if (cur.size <= 1) return
+        cur.remove(id)
+        _selectedTranslationIds.value = cur
+        _translationTextId.value = cur.first()
+        val surah = _content.value?.meta?.number
+        if (surah != null) viewModelScope.launch { openSurah(surah) }
+    }
+
+    fun moveTranslationEdition(id: String, up: Boolean) {
+        val cur = _selectedTranslationIds.value.toMutableList()
+        val i = cur.indexOf(id)
+        if (i < 0) return
+        val j = if (up) i - 1 else i + 1
+        if (j !in cur.indices) return
+        val tmp = cur[i]
+        cur[i] = cur[j]
+        cur[j] = tmp
+        _selectedTranslationIds.value = cur
+        _translationTextId.value = cur.first()
+    }
+
 
     fun setPlayTranslationAudio(enabled: Boolean) {
         if (enabled) {

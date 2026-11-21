@@ -13,7 +13,10 @@ data class AyahText(
     val globalNumber: Int,
     val numberInSurah: Int,
     val arabic: String,
-    val translation: String = ""
+    /** Primary / first selected translation text (compat). */
+    val translation: String = "",
+    /** editionId → translation text for multi-language display. */
+    val translations: Map<String, String> = emptyMap()
 )
 
 data class SurahContent(
