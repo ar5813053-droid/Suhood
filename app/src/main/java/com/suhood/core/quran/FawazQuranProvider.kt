@@ -82,11 +82,14 @@ object FawazQuranProvider {
         return m
     }
 
-    /** Popular picks that must exist in the live catalogue (filtered at runtime). */
+    /**
+     * Preferred trending edition ids (exact keys from editions.min.json).
+     * Runtime [QuranLibraryRepository.trending] also matches stems and always
+     * surfaces Roman Urdu / Roman Hindi when present.
+     */
     val trendingPreferredIds = listOf(
-        "eng-abdelhaleem", // may not match underscore ids
-        "eng_saheehinternat",
-        "eng_mustafakhattab",
+        "eng_abdelhaleem",
+        "eng_mustafakhattaba",
         "urd_fatehmuhammadja",
         "urd_abulaalamaududi_la",
         "urd_muhammadjunagar_la",
@@ -95,9 +98,8 @@ object FawazQuranProvider {
         "ben_muhiuddinkhan",
         "tur_diyanetisleri",
         "fra_muhammadhamidul",
-        "spa_sheikhmuhammadisa",
+        "spa_muhammadisagarc",
         "ind_indonesianislam",
-        "rus_ministryofawqa",
-        "per_naserankaremshir"
+        "rus_ministryofawqaf"
     )
 }
