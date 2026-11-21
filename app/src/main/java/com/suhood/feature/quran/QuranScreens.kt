@@ -77,7 +77,9 @@ object QuranScreens {
     @Composable
     private fun rememberVm(): QuranViewModel {
         val app = LocalContext.current.applicationContext as SuhoodApplication
-        return viewModel(factory = QuranViewModel.Factory(app.database.dao(), app.playbackController))
+        val vm = viewModel(factory = QuranViewModel.Factory(app.database.dao(), app.playbackController))
+        vm.libraryAppContext = app
+        return vm
     }
 
     @Composable
@@ -92,7 +94,8 @@ object QuranScreens {
         onParah: (Int) -> Unit,
         onBookmarks: () -> Unit = {},
         onAllSurahs: () -> Unit = {},
-        onMushaf: () -> Unit = {}
+        onMushaf: () -> Unit = {},
+        onLibrary: () -> Unit = {}
     ) {
         val colors = suhoodColors
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -104,6 +107,7 @@ object QuranScreens {
                 GlassButton(text = "All surahs", onClick = onAllSurahs, primary = false)
                 GlassButton(text = "Bookmarks", onClick = onBookmarks, primary = false)
                 GlassButton(text = "Mushaf", onClick = onMushaf, primary = true)
+                GlassButton(text = "Quran Library", onClick = onLibrary, primary = false)
             }
             Spacer(Modifier.height(8.dp))
             LazyColumn(
@@ -196,6 +200,7 @@ object QuranScreens {
         onBookmarks: () -> Unit = {},
         onJuz: () -> Unit = {},
         onMushaf: () -> Unit = {},
+        onLibrary: () -> Unit = {},
         onLastRead: () -> Unit = {}
     ) {
         val vm = rememberVm()
@@ -359,6 +364,21 @@ object QuranScreens {
                         subtitle = "Page view",
                         icon = Icons.Filled.MenuBook,
                         onClick = onMushaf,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickNavTile(
+                        title = "Quran Library",
+                        subtitle = "Languages world-wide",
+                        icon = Icons.Filled.MenuBook,
+                        onClick = onLibrary,
                         modifier = Modifier.weight(1f)
                     )
                 }

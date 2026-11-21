@@ -81,6 +81,8 @@ object Routes {
     const val QURAN_BOOKMARKS = "quran/bookmarks"
     const val QURAN_PROGRESS = "quran/progress"
     const val QURAN_MUSHAF = "quran/mushaf"
+    const val QURAN_LIBRARY = "quran/library"
+    const val QURAN_LIBRARY_LANG = "quran/library/lang/{language}"
 
     // Worship / Tasbeeh / Adhkar / Dua / Quiz
     const val WORSHIP_DASHBOARD = "worship/dashboard"

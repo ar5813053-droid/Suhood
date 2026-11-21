@@ -287,6 +287,7 @@ fun SuhoodNavGraph(
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
                     onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
                     onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
+                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) },
                     onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
@@ -295,7 +296,9 @@ fun SuhoodNavGraph(
                     onBack = { navController.popBackStack() },
                     onParah = { id -> navController.navigate("quran/parah/$id") },
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
-                    onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) }
+                    onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) },
+                    onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
+                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) }
                 )
             }
             composable(
@@ -312,6 +315,29 @@ fun SuhoodNavGraph(
             composable(Routes.QURAN_MUSHAF) {
                 QuranScreens.MushafReader(onBack = { navController.popBackStack() })
             }
+            
+            composable(Routes.QURAN_LIBRARY) {
+                com.suhood.feature.quran.QuranLibraryScreen(
+                    onBack = { navController.popBackStack() },
+                    onLanguage = { lang ->
+                        navController.navigate(
+                            Routes.QURAN_LIBRARY_LANG.replace("{language}", java.net.URLEncoder.encode(lang, "UTF-8"))
+                        )
+                    }
+                )
+            }
+            composable(
+                Routes.QURAN_LIBRARY_LANG,
+                arguments = listOf(navArgument("language") { type = NavType.StringType })
+            ) { entry ->
+                val raw = entry.arguments?.getString("language").orEmpty()
+                val lang = java.net.URLDecoder.decode(raw, "UTF-8")
+                com.suhood.feature.quran.QuranLanguageDetailScreen(
+                    language = lang,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
             composable(Routes.QURAN_SURAH_LIST) {
                 QuranScreens.SurahList(
                     onBack = { navController.popBackStack() },
@@ -319,6 +345,7 @@ fun SuhoodNavGraph(
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
                     onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
                     onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
+                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) },
                     onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }

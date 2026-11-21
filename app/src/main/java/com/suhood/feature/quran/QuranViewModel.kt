@@ -12,8 +12,12 @@ import com.suhood.core.quran.PageContent
 import com.suhood.core.quran.SurahContent
 import com.suhood.core.quran.SurahMeta
 import com.suhood.core.quran.VerifiedQaris
-import com.suhood.core.quran.TranslationEditions
 import com.suhood.core.quran.TranslationEdition
+import com.suhood.core.quran.QuranLibraryRepository
+import android.app.Applications
+import com.suhood.core.quran.TranslationEdition
+import com.suhood.core.quran.QuranLibraryRepository
+import android.app.Application
 import com.suhood.core.quran.CanonicalAyahId
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,24 +107,25 @@ class QuranViewModel(
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
-            runCatching {
-                    if (_showTranslation.value) {
-                        provider.loadSurahWithTranslations(
-                            number,
-                            _selectedTranslationIds.value.ifEmpty { listOf(_translationTextId.value) }
-                        )
-                    } else {
-                        provider.loadSurahArabic(number)
-                    }
+            try {
+                val base = if (_showTranslation.value) {
+                    provider.loadSurahWithTranslations(
+                        number,
+                        _selectedTranslationIds.value.ifEmpty { listOf(_translationTextId.value) }
+                    )
+                } else {
+                    provider.loadSurahArabic(number)
                 }
-                .onSuccess {
-                    _content.value = it
-                    dao.setLastRead(QuranLastReadEntity(surah = number, ayah = 1))
-                }
-                .onFailure { _error.value = it.message ?: "Failed to load surah" }
+                val merged = mergeFawazLibrary(base)
+                _content.value = merged
+                dao.setLastRead(QuranLastReadEntity(surah = number, ayah = 1))
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load surah"
+            }
             _loading.value = false
         }
     }
+
 
     fun toggleTranslationVisible() {
         _showTranslation.value = !_showTranslation.value
@@ -467,6 +472,34 @@ class QuranViewModel(
 
     fun nextPage() = openPage(_pageNumber.value + 1)
     fun previousPage() = openPage(_pageNumber.value - 1)
+
+
+    @Volatile
+    var libraryAppContext: android.content.Context? = null
+
+    private suspend fun mergeFawazLibrary(base: SurahContent): SurahContent {
+        val ctx = libraryAppContext ?: return base
+        return runCatching {
+            val repo = QuranLibraryRepository.get(ctx)
+            repo.ensureCatalogue(force = false)
+            val ids = repo.myLibraryEditions().map { it.id }.take(8)
+            if (ids.isEmpty()) return@runCatching base
+            var ayahs = base.ayahs
+            for (id in ids) {
+                val map = repo.verseMapFor(id)
+                if (map.isEmpty()) continue
+                ayahs = ayahs.map { a ->
+                    val tr = map[base.meta.number to a.numberInSurah]
+                    if (tr.isNullOrBlank()) a
+                    else a.copy(
+                        translations = a.translations + (id to tr),
+                        translation = a.translation.ifBlank { tr }
+                    )
+                }
+            }
+            base.copy(ayahs = ayahs)
+        }.getOrDefault(base)
+    }
 
     class Factory(
         private val dao: SuhoodDao,
