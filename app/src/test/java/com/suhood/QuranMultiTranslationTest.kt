@@ -46,3 +46,19 @@ class QuranMultiTranslationTest {
         assertFalse(TranslationEditions.hasAudioForText("tr.diyanet"))
     }
 }
+
+    @Test
+    fun preferredLanguages_onePerLanguage() {
+        val list = TranslationEditions.preferredLanguages()
+        assertTrue(list.isNotEmpty())
+        val codes = list.map { it.edition.langCode.lowercase() }
+        assertEquals(codes.size, codes.toSet().size)
+        // Human labels only — no raw API slugs in user-facing fields
+        list.forEach { opt ->
+            assertFalse(opt.language.contains('_'))
+            assertFalse(opt.translatorName.contains('_') && opt.translatorName.startsWith("urd_"))
+            assertTrue(opt.edition.available)
+        }
+        assertTrue(list.any { it.edition.id == "en.sahih" })
+        assertTrue(list.any { it.edition.id == "ur.jalandhry" })
+    }

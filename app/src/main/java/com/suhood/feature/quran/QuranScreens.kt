@@ -735,32 +735,17 @@ object QuranScreens {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 if (showTranslation) {
-                                    val multi = ayah.translations.entries.toList()
-                                    if (multi.isNotEmpty()) {
-                                        multi.forEach { (edId, text) ->
-                                            if (text.isBlank()) return@forEach
-                                            val ed = TranslationEditions.textById(edId)
-                                            Spacer(Modifier.height(10.dp))
-                                            Text(
-                                                (ed?.language ?: edId) + " · " + (ed?.name ?: ""),
-                                                style = SuhoodTypography.labelSmall,
-                                                color = colors.textMuted
-                                            )
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                text,
-                                                style = SuhoodTypography.bodyMedium.copy(
-                                                    fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
-                                                ),
-                                                color = if (playingTr) colors.accentMint else colors.textSecondary
-                                            )
-                                        }
-                                    } else if (ayah.translation.isNotBlank()) {
-                                        Spacer(Modifier.height(8.dp))
+                                    // Single preferred translation under Arabic — no technical ids.
+                                    val body = ayah.translation.ifBlank {
+                                        ayah.translations.values.firstOrNull { it.isNotBlank() }.orEmpty()
+                                    }
+                                    if (body.isNotBlank()) {
+                                        Spacer(Modifier.height(10.dp))
                                         Text(
-                                            ayah.translation,
+                                            body,
                                             style = SuhoodTypography.bodyMedium.copy(
-                                                fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal
+                                                fontWeight = if (playingTr) FontWeight.SemiBold else FontWeight.Normal,
+                                                lineHeight = 22.sp
                                             ),
                                             color = if (playingTr) colors.accentMint else colors.textSecondary
                                         )
@@ -827,34 +812,26 @@ object QuranScreens {
                         val audioMatch = TranslationEditions.audioForTextEdition(translationTextId)
                         val hasAudio = audioMatch != null
 
-                        Text("Text language", style = SuhoodTypography.labelMedium, color = colors.accentLavender)
+                        Text("Language", style = SuhoodTypography.labelMedium, color = colors.accentLavender)
                         Spacer(Modifier.height(4.dp))
                         Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
-                            TranslationEditions.searchText(translationSearch).forEach { ed ->
-                                val selected = ed.id in selectedTranslationIds
-                                val audioHint = if (TranslationEditions.hasAudioForText(ed.id)) " · audio" else ""
-                                val label = if (!ed.available) {
-                                    ed.language + " — unavailable (no verified source)"
-                                } else {
-                                    ed.language + " — " + ed.name + audioHint
-                                }
+                            TranslationEditions.searchLanguages(translationSearch).forEach { option ->
+                                val ed = option.edition
+                                val selected = ed.id == translationTextId
+                                val label = option.language + " — " + option.translatorName
                                 Text(
                                     label,
                                     style = SuhoodTypography.bodyMedium,
-                                    color = when {
-                                        !ed.available -> colors.textMuted.copy(alpha = 0.55f)
-                                        selected -> colors.silverBright
-                                        else -> colors.textSecondary
-                                    },
+                                    color = if (selected) colors.silverBright else colors.textSecondary,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { vm.toggleTranslationEdition(ed.id) }
+                                        .clickable { vm.setTranslationTextEdition(ed.id) }
                                         .padding(vertical = 6.dp)
                                 )
                             }
                         }
                         Text(
-                            "Tap languages to stack up to 6 translations under each Ayah. Order = selection order.",
+                            "One translation at a time. Change language anytime.",
                             style = SuhoodTypography.labelSmall,
                             color = colors.textMuted
                         )

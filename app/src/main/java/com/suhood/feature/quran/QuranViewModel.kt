@@ -11,6 +11,7 @@ import com.suhood.core.quran.AlQuranCloudProvider
 import com.suhood.core.quran.CanonicalAyahId
 import com.suhood.core.quran.PageContent
 import com.suhood.core.quran.QuranLibraryRepository
+import com.suhood.core.quran.QuranLibraryStore
 import com.suhood.core.quran.SurahContent
 import com.suhood.core.quran.SurahMeta
 import com.suhood.core.quran.TranslationEditions
@@ -135,13 +136,13 @@ class QuranViewModel(
             _error.value = ed.language + " is not available from a verified translation source yet."
             return
         }
+        // One translation at a time — never stack multiple languages under each ayah.
         _translationTextId.value = id
-        // Ensure primary is first in multi list
-        val cur = _selectedTranslationIds.value.toMutableList()
-        cur.remove(id)
-        cur.add(0, id)
-        _selectedTranslationIds.value = cur.distinct().take(6)
+        _selectedTranslationIds.value = listOf(id)
         _showTranslation.value = true
+        libraryAppContext?.let { ctx ->
+            runCatching { QuranLibraryStore.get(ctx).setActiveTranslationId(id) }
+        }
         val matched = TranslationEditions.audioForTextEdition(id)
         if (matched != null) {
             _translationAudioId.value = matched.id
@@ -151,27 +152,8 @@ class QuranViewModel(
     }
 
     fun toggleTranslationEdition(id: String) {
-        val ed = TranslationEditions.textById(id)
-        if (ed != null && !ed.available) {
-            _error.value = ed.language + " is not available from a verified translation source yet."
-            return
-        }
-        val cur = _selectedTranslationIds.value.toMutableList()
-        if (id in cur) {
-            if (cur.size <= 1) return // keep at least one
-            cur.remove(id)
-        } else {
-            if (cur.size >= 6) {
-                _error.value = "You can show up to 6 translations at once."
-                return
-            }
-            cur.add(id)
-        }
-        _selectedTranslationIds.value = cur
-        _translationTextId.value = cur.first()
-        _showTranslation.value = true
-        val surah = _content.value?.meta?.number
-        if (surah != null) viewModelScope.launch { openSurah(surah) }
+        // One translation per language policy — selecting replaces the active edition.
+        setTranslationTextEdition(id)
     }
 
     fun removeTranslationEdition(id: String) {
@@ -472,30 +454,30 @@ class QuranViewModel(
 
     @Volatile
     var libraryAppContext: android.content.Context? = null
-
-    private suspend fun mergeFawazLibrary(base: SurahContent): SurahContent {
-        val ctx = libraryAppContext ?: return base
-        return runCatching {
-            val repo = QuranLibraryRepository.get(ctx)
-            repo.ensureCatalogue(force = false)
-            val ids = repo.myLibraryEditions().map { it.id }.take(8)
-            if (ids.isEmpty()) return@runCatching base
-            var ayahs = base.ayahs
-            for (id in ids) {
-                val map = repo.verseMapFor(id)
-                if (map.isEmpty()) continue
-                ayahs = ayahs.map { a ->
-                    val tr = map[base.meta.number to a.numberInSurah]
-                    if (tr.isNullOrBlank()) a
-                    else a.copy(
-                        translations = a.translations + (id to tr),
-                        translation = a.translation.ifBlank { tr }
-                    )
+        set(value) {
+            field = value
+            // Restore the user's preferred single translation (one per language policy).
+            if (value != null) {
+                val saved = runCatching { QuranLibraryStore.get(value).activeTranslationId() }.getOrNull()
+                if (!saved.isNullOrBlank() && saved != _translationTextId.value) {
+                    val ed = TranslationEditions.textById(saved)
+                    if (ed == null || ed.available) {
+                        _translationTextId.value = saved
+                        _selectedTranslationIds.value = listOf(saved)
+                        TranslationEditions.audioForTextEdition(saved)?.let {
+                            _translationAudioId.value = it.id
+                        }
+                    }
                 }
             }
-            base.copy(ayahs = ayahs)
-        }.getOrDefault(base)
-    }
+        }
+
+    /**
+     * Fawaz offline merge is intentionally a no-op for the primary reader path.
+     * The library uses one preferred AlQuran.Cloud edition per language and loads
+     * on demand — stacking extra catalogue ids would show technical identifiers.
+     */
+    private suspend fun mergeFawazLibrary(base: SurahContent): SurahContent = base
 
     class Factory(
         private val dao: SuhoodDao,

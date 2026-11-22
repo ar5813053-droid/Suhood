@@ -26,9 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -37,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,47 +46,43 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.suhood.core.designsystem.components.GlassButton
-import com.suhood.core.designsystem.components.GlassCard
-import com.suhood.core.designsystem.theme.SuhoodTypography
-import com.suhood.core.designsystem.theme.suhoodColors
-import com.suhood.core.quran.EditionDownloadState
-import com.suhood.core.quran.FawazEdition
-import com.suhood.core.quran.FawazLanguageGroup
+import com.suhood.core.quran.LanguageTranslationOption
 
 private val Bg = Color(0xFF08090B)
 private val Surface = Color(0xFF141519)
-private val Elevated = Color(0xFF1A1C20)
+private val Elevated = Color(0xFF1C1E24)
 private val TextPrimary = Color(0xFFF5F6F7)
-private val TextSecondary = Color(0xFFC7CBD1)
+private val TextSecondary = Color(0xFFB8BDC6)
+private val TextMuted = Color(0xFF8B919A)
 private val Border = Color.White.copy(alpha = 0.08f)
+private val Accent = Color(0xFFC9CDD4)
+private val SelectedBorder = Color(0xFF6B9EFF).copy(alpha = 0.55f)
 
+/**
+ * Quran Translations library — one preferred translation per language.
+ * Tapping a language selects it and opens the existing Quran reader (no download gate).
+ */
 @Composable
 fun QuranLibraryScreen(
     onBack: () -> Unit,
-    onLanguage: (String) -> Unit
+    onSelectTranslation: (editionId: String) -> Unit
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as Application
     val vm: QuranLibraryViewModel = viewModel(factory = QuranLibraryViewModel.Factory(app))
-    val colors = suhoodColors
-    val loading by vm.loading.collectAsStateWithLifecycle()
-    val error by vm.error.collectAsStateWithLifecycle()
-    val languages by vm.languages.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
-    val myLib by vm.myLibrary.collectAsStateWithLifecycle()
+    val languages by vm.languages.collectAsStateWithLifecycle()
+    val popular by vm.popular.collectAsStateWithLifecycle()
+    val activeId by vm.activeTranslationId.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
-    val progress by vm.downloadProgress.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) { vm.refresh() }
     LaunchedEffect(message) {
         if (message != null) {
-            kotlinx.coroutines.delay(2500)
+            kotlinx.coroutines.delay(1600)
             vm.clearMessage()
         }
     }
-
-    val trending = remember(languages) { vm.trending() }
-    val searchHits = remember(query, languages) { vm.searchResults() }
 
     Column(
         Modifier
@@ -97,148 +90,130 @@ fun QuranLibraryScreen(
             .background(Bg)
             .statusBarsPadding()
     ) {
+        // Header
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary
+                )
             }
-            Column(Modifier.weight(1f)) {
-                Text("Quran Library", style = SuhoodTypography.titleLarge, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
-                    "Explore the Quran in languages around the world.",
-                    style = SuhoodTypography.bodySmall,
-                    color = TextSecondary
+                    "Quran Translations",
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "Explore Quran translations in your language",
+                    color = TextMuted,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
+        // Search
         OutlinedTextField(
             value = query,
-            onValueChange = vm::setQuery,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Search language, translator, script…", color = TextSecondary.copy(alpha = 0.7f)) },
-            leadingIcon = { Icon(Icons.Filled.Search, null, tint = TextSecondary) },
+            onValueChange = { vm.setQuery(it) },
+            placeholder = {
+                Text("Search language or translator", color = TextMuted, fontSize = 14.sp)
+            },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted)
+            },
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Surface,
-                unfocusedContainerColor = Surface,
-                focusedBorderColor = Border,
-                unfocusedBorderColor = Border,
                 focusedTextColor = TextPrimary,
                 unfocusedTextColor = TextPrimary,
-                cursorColor = TextPrimary
-            )
+                focusedBorderColor = Border.copy(alpha = 0.35f),
+                unfocusedBorderColor = Border,
+                focusedContainerColor = Surface,
+                unfocusedContainerColor = Surface,
+                cursorColor = Accent
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         )
-
-        if (loading && languages.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFFB8BEC6))
-            }
-            return
-        }
 
         LazyColumn(
             contentPadding = PaddingValues(bottom = 32.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            if (!error.isNullOrBlank()) {
+            // Popular languages
+            if (query.isBlank() && popular.isNotEmpty()) {
                 item {
-                    Text(
-                        error ?: "",
-                        color = Color(0xFFE0C36A),
-                        style = SuhoodTypography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                    SectionLabel("Popular")
                 }
-            }
-            if (!message.isNullOrBlank()) {
                 item {
-                    Text(
-                        message ?: "",
-                        color = Color(0xFF9FE8C8),
-                        style = SuhoodTypography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            if (query.isBlank()) {
-                if (myLib.isNotEmpty()) {
-                    item {
-                        SectionTitle("My Translations")
-                    }
-                    items(myLib, key = { it.id }) { ed ->
-                        EditionCard(
-                            edition = ed,
-                            statusLabel = statusLabel(vm.status(ed.id), progress[ed.id]),
-                            onAdd = { vm.add(ed.id) },
-                            onRemove = { vm.remove(ed.id) },
-                            onDownload = { vm.download(ed) },
-                            onRemoveDownload = { vm.removeDownload(ed.id) }
-                        )
-                    }
-                }
-
-                if (trending.isNotEmpty()) {
-                    item { SectionTitle("Trending Picks") }
-                    item {
-                        Row(
-                            Modifier
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 12.dp)
-                        ) {
-                            trending.forEach { ed ->
-                                TrendingChip(ed) { onLanguage(ed.language) }
-                            }
+                    Row(
+                        Modifier
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        popular.forEach { option ->
+                            PopularChip(
+                                option = option,
+                                selected = option.edition.id == activeId,
+                                onClick = {
+                                    val id = vm.selectLanguage(option)
+                                    onSelectTranslation(id)
+                                }
+                            )
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
                 }
+            }
 
+            // All languages (one per language)
+            item {
+                SectionLabel(
+                    if (query.isBlank()) "All languages" else "Results"
+                )
+            }
+
+            if (languages.isEmpty()) {
                 item {
-                    SectionTitle("Browse All Languages")
                     Text(
-                        "${languages.size} languages · ${languages.sumOf { it.editions.size }} editions from verified catalogue",
-                        style = SuhoodTypography.labelSmall,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                        "No languages match your search.",
+                        color = TextMuted,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
                     )
                 }
-                items(languages, key = { it.language }) { group ->
-                    LanguageRow(group) { onLanguage(group.language) }
-                }
             } else {
-                item { SectionTitle("Search results (${searchHits.size})") }
-                items(searchHits, key = { it.id }) { ed ->
-                    EditionCard(
-                        edition = ed,
-                        statusLabel = statusLabel(vm.status(ed.id), progress[ed.id]),
-                        onAdd = { vm.add(ed.id) },
-                        onRemove = { vm.remove(ed.id) },
-                        onDownload = { vm.download(ed) },
-                        onRemoveDownload = { vm.removeDownload(ed.id) }
+                items(languages, key = { it.edition.langCode }) { option ->
+                    LanguageRow(
+                        option = option,
+                        selected = option.edition.id == activeId,
+                        onClick = {
+                            val id = vm.selectLanguage(option)
+                            onSelectTranslation(id)
+                        }
                     )
                 }
             }
 
             item {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 Text(
-                    "Source: Fawaz Ahmed Quran API (jsDelivr). Attribution stays with each translator. Downloads are optional and user-initiated.",
-                    style = SuhoodTypography.labelSmall,
-                    color = TextSecondary.copy(alpha = 0.75f),
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(Modifier.height(8.dp))
-                GlassButton(
-                    text = "Refresh catalogue",
-                    onClick = { vm.reloadCatalogue() },
-                    primary = false,
-                    modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()
+                    "Translations load on demand while you read. No download required.",
+                    color = TextMuted.copy(alpha = 0.75f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
         }
@@ -246,215 +221,158 @@ fun QuranLibraryScreen(
 }
 
 @Composable
-fun QuranLanguageDetailScreen(
-    language: String,
-    onBack: () -> Unit
-) {
-    val context = LocalContext.current
-    val app = context.applicationContext as Application
-    val vm: QuranLibraryViewModel = viewModel(factory = QuranLibraryViewModel.Factory(app))
-    val group = vm.languageGroup(language)
-    val progress by vm.downloadProgress.collectAsStateWithLifecycle()
-    val message by vm.message.collectAsStateWithLifecycle()
-
-    Column(
-        Modifier.fillMaxSize().background(Bg).statusBarsPadding()
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextPrimary)
-            }
-            Column {
-                Text(language, style = SuhoodTypography.titleLarge, color = TextPrimary)
-                Text(
-                    "${group?.count ?: 0} verified edition(s)",
-                    style = SuhoodTypography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-        }
-        if (!message.isNullOrBlank()) {
-            Text(message ?: "", color = Color(0xFF9FE8C8), modifier = Modifier.padding(16.dp), style = SuhoodTypography.labelSmall)
-        }
-        LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-            items(group?.editions.orEmpty(), key = { it.id }) { ed ->
-                EditionCard(
-                    edition = ed,
-                    statusLabel = statusLabel(vm.status(ed.id), progress[ed.id]),
-                    onAdd = { vm.add(ed.id) },
-                    onRemove = { vm.remove(ed.id) },
-                    onDownload = { vm.download(ed) },
-                    onRemoveDownload = { vm.removeDownload(ed.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
+private fun SectionLabel(text: String) {
     Text(
         text,
-        style = SuhoodTypography.titleMedium,
-        color = TextPrimary,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+        color = TextSecondary,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.3.sp,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
     )
 }
 
 @Composable
-private fun LanguageRow(group: FawazLanguageGroup, onClick: () -> Unit) {
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Elevated)
-                    .border(1.dp, Border, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    group.language.take(2).uppercase(),
-                    color = TextPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(group.language, color = TextPrimary, style = SuhoodTypography.titleSmall)
-                Text(
-                    buildString {
-                        append(group.count)
-                        append(if (group.count == 1) " translation" else " translations")
-                        if (group.hasRoman) append(" · includes Roman/Latin script")
-                    },
-                    color = TextSecondary,
-                    style = SuhoodTypography.labelSmall
-                )
-            }
-            Text("Explore", color = Color(0xFFB8BEC6), style = SuhoodTypography.labelMedium)
-        }
-    }
-}
-
-@Composable
-private fun TrendingChip(ed: FawazEdition, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .padding(6.dp)
-            .width(160.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Surface)
-            .border(1.dp, Border, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(12.dp)
-    ) {
-        Text(ed.language, color = TextPrimary, style = SuhoodTypography.titleSmall, maxLines = 1)
-        Text(
-            ed.author.ifBlank { ed.displayTitle },
-            color = TextSecondary,
-            style = SuhoodTypography.labelSmall,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (ed.isLikelyRomanScript) {
-            Text("Roman / Latin script", color = Color(0xFF9FE8C8), style = SuhoodTypography.labelSmall)
-        }
-    }
-}
-
-@Composable
-private fun EditionCard(
-    edition: FawazEdition,
-    statusLabel: String,
-    onAdd: () -> Unit,
-    onRemove: () -> Unit,
-    onDownload: () -> Unit,
-    onRemoveDownload: () -> Unit
+private fun PopularChip(
+    option: LanguageTranslationOption,
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
-    GlassCard(
+    val bg = if (selected) Elevated else Surface
+    val borderColor = if (selected) SelectedBorder else Border
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .width(88.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        ) {
+            Text(
+                option.language.take(2).uppercase(),
+                color = if (selected) Accent else TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            option.language,
+            color = TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun LanguageRow(
+    option: LanguageTranslationOption,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (selected) Elevated else Surface
+    val borderColor = if (selected) SelectedBorder else Border
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Text(
-            edition.author.ifBlank { edition.displayTitle },
-            color = TextPrimary,
-            style = SuhoodTypography.titleSmall,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            "${edition.language} · ${edition.direction.uppercase()} · ${edition.id}",
-            color = TextSecondary,
-            style = SuhoodTypography.labelSmall
-        )
-        if (edition.isLikelyRomanScript) {
-            Text("Latin/Roman script edition", color = Color(0xFF9FE8C8), style = SuhoodTypography.labelSmall)
-        }
-        if (edition.source.isNotBlank()) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.05f))
+        ) {
             Text(
-                "Source: ${edition.source}",
-                color = TextSecondary.copy(alpha = 0.8f),
-                style = SuhoodTypography.labelSmall,
-                maxLines = 2,
+                option.language.take(1).uppercase(),
+                color = TextSecondary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                option.title,
+                color = TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                option.subtitle,
+                color = TextMuted,
+                fontSize = 13.sp,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(statusLabel, color = TextSecondary, style = SuhoodTypography.labelSmall)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val st = statusLabel
-            GlassButton(
-                text = if (st.startsWith("In library") || st.contains("Added") || st.contains("Offline")) "Remove" else "Add",
-                onClick = {
-                    if (st.startsWith("In library") || st.contains("Offline") || st.contains("Added")) onRemove()
-                    else onAdd()
-                },
-                primary = !(st.startsWith("In library") || st.contains("Offline")),
-                modifier = Modifier.weight(1f)
-            )
-            GlassButton(
-                text = when {
-                    st.contains("Downloading") -> "…"
-                    st.contains("Offline") -> "Remove DL"
-                    else -> "Download"
-                },
-                onClick = {
-                    if (st.contains("Offline")) onRemoveDownload() else onDownload()
-                },
-                primary = false,
-                modifier = Modifier.weight(1f)
+        if (selected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = Accent,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
-private fun statusLabel(
-    status: com.suhood.core.quran.LibraryEditionStatus,
-    progress: Int?
-): String {
-    return when {
-        status.downloadState == EditionDownloadState.DOWNLOADING ->
-            "Downloading ${progress ?: status.progressPercent}%"
-        status.downloadState == EditionDownloadState.DOWNLOADED && status.inMyLibrary ->
-            "In library · Available Offline"
-        status.downloadState == EditionDownloadState.DOWNLOADED ->
-            "Available Offline"
-        status.inMyLibrary ->
-            "In library · Add"
-        else -> "Available · Not downloaded"
+/**
+ * Language detail is no longer a download gate.
+ * Kept as a thin redirect target for older nav routes — opens nothing heavy.
+ */
+@Composable
+fun QuranLanguageDetailScreen(
+    language: String,
+    onBack: () -> Unit,
+    onSelectTranslation: (editionId: String) -> Unit = {}
+) {
+    val option = TranslationEditionsCompat.optionForLanguageName(language)
+    LaunchedEffect(option) {
+        if (option != null) {
+            onSelectTranslation(option.edition.id)
+        }
     }
+    // Immediate back if somehow shown; selection handled by parent.
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Bg)
+            .statusBarsPadding()
+            .padding(20.dp)
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+        }
+        Text("Opening $language…", color = TextSecondary, fontSize = 14.sp)
+    }
+}
+
+/** Small bridge so language-detail route can resolve a preferred edition without Fawaz ids. */
+private object TranslationEditionsCompat {
+    fun optionForLanguageName(name: String): LanguageTranslationOption? =
+        com.suhood.core.quran.TranslationEditions.preferredLanguages()
+            .find { it.language.equals(name, ignoreCase = true) }
 }

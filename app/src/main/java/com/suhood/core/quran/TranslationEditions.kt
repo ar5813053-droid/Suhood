@@ -128,9 +128,134 @@ object TranslationEditions {
         }
     }
 
+    /**
+     * Preferred single edition id per language (verified AlQuran.Cloud sources only).
+     * Architecture stays flexible — change an id here to switch the default later.
+     */
+    private val preferredIdsInOrder = listOf(
+        "en.sahih",        // English
+        "ur.jalandhry",    // Urdu
+        "hi.hindi",        // Hindi
+        "bn.bengali",      // Bengali
+        "tr.diyanet",      // Turkish
+        "fr.hamidullah",   // French
+        "de.bubenheim",    // German
+        "es.garcia",       // Spanish
+        "id.indonesian",   // Indonesian
+        "ms.basmeih",      // Malay
+        "fa.makarem",      // Persian
+        "ru.kuliev",       // Russian
+        "zh.jian",         // Chinese
+        "ta.tamil",        // Tamil
+        "ml.abdulhameed"   // Malayalam
+    )
+
+    private val nativeNames = mapOf(
+        "en" to "English",
+        "ur" to "اردو",
+        "hi" to "हिन्दी",
+        "bn" to "বাংলা",
+        "tr" to "Türkçe",
+        "fr" to "Français",
+        "de" to "Deutsch",
+        "es" to "Español",
+        "id" to "Bahasa Indonesia",
+        "ms" to "Bahasa Melayu",
+        "fa" to "فارسی",
+        "ru" to "Русский",
+        "zh" to "中文",
+        "ta" to "தமிழ்",
+        "ml" to "മലയാളം"
+    )
+
+    private val popularLangCodes = listOf("en", "ur", "hi", "bn", "tr", "fr", "es", "id")
+
+    /**
+     * One preferred, verified translation per language — never multiple for the same language.
+     */
+    fun preferredLanguages(): List<LanguageTranslationOption> {
+        val byLang = linkedMapOf<String, LanguageTranslationOption>()
+        for (id in preferredIdsInOrder) {
+            val ed = textById(id) ?: continue
+            if (!ed.available) continue
+            val key = ed.langCode.lowercase()
+            if (key in byLang) continue
+            byLang[key] = LanguageTranslationOption(
+                language = ed.language,
+                nativeName = nativeNames[key] ?: ed.language,
+                translatorName = ed.name,
+                edition = ed
+            )
+        }
+        // Any other available languages not in preferred list (first edition wins)
+        for (ed in availableTextEditions) {
+            val key = ed.langCode.lowercase()
+            if (key in byLang) continue
+            if (key.startsWith("hi-") || key.startsWith("ur-")) continue // roman placeholders
+            byLang[key] = LanguageTranslationOption(
+                language = ed.language,
+                nativeName = nativeNames[key] ?: ed.language,
+                translatorName = ed.name,
+                edition = ed
+            )
+        }
+        return byLang.values.toList()
+    }
+
+    fun popularLanguages(): List<LanguageTranslationOption> {
+        val all = preferredLanguages().associateBy { it.edition.langCode.lowercase() }
+        return popularLangCodes.mapNotNull { all[it] }
+    }
+
+    fun searchLanguages(query: String): List<LanguageTranslationOption> {
+        val q = query.trim().lowercase()
+        val all = preferredLanguages()
+        if (q.isEmpty()) return all
+        return all.filter {
+            it.language.lowercase().contains(q) ||
+                it.nativeName.lowercase().contains(q) ||
+                it.translatorName.lowercase().contains(q) ||
+                it.edition.langCode.contains(q)
+        }
+    }
+
+    fun optionForEditionId(id: String): LanguageTranslationOption? =
+        preferredLanguages().find { it.edition.id == id }
+            ?: textById(id)?.takeIf { it.available }?.let {
+                LanguageTranslationOption(
+                    language = it.language,
+                    nativeName = nativeNames[it.langCode.lowercase()] ?: it.language,
+                    translatorName = it.name,
+                    edition = it
+                )
+            }
+
     fun everyAyahFileName(surah: Int, ayahInSurah: Int): String =
         "%03d%03d.mp3".format(surah.coerceIn(1, 114), ayahInSurah.coerceAtLeast(1))
 
     fun everyAyahUrl(folder: String, surah: Int, ayahInSurah: Int): String =
         "https://everyayah.com/data/$folder/${everyAyahFileName(surah, ayahInSurah)}"
+}
+
+/**
+ * User-facing row: one language → one preferred translation.
+ * Never exposes raw API identifiers.
+ */
+data class LanguageTranslationOption(
+    val language: String,
+    val nativeName: String,
+    val translatorName: String,
+    val edition: TranslationEdition
+) {
+    /** Clean primary label, e.g. "English" or "اردو". */
+    val title: String
+        get() = if (nativeName.isNotBlank() && nativeName != language) nativeName else language
+
+    /** Secondary line, e.g. "Sahih International". */
+    val subtitle: String
+        get() = when {
+            translatorName.isBlank() -> language
+            nativeName != language && nativeName.isNotBlank() -> "$language · $translatorName"
+            else -> translatorName
+        }
 }

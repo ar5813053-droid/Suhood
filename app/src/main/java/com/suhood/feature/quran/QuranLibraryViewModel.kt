@@ -5,96 +5,66 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.suhood.core.quran.EditionDownloadState
-import com.suhood.core.quran.FawazEdition
-import com.suhood.core.quran.FawazLanguageGroup
-import com.suhood.core.quran.LibraryEditionStatus
-import com.suhood.core.quran.QuranLibraryRepository
+import com.suhood.core.quran.LanguageTranslationOption
+import com.suhood.core.quran.QuranLibraryStore
+import com.suhood.core.quran.TranslationEditions
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * Quran Translations library — one preferred translation per language.
+ * Selection persists and is applied in the existing Quran reader (no download gate).
+ */
 class QuranLibraryViewModel(
-    app: Application,
-    private val repo: QuranLibraryRepository = QuranLibraryRepository.get(app)
+    app: Application
 ) : AndroidViewModel(app) {
 
-    val loading = repo.loading
-    val error = repo.error
-    val languages = repo.languages
-    val catalogue = repo.catalogue
-    val downloadProgress = repo.downloadProgress
+    private val store = QuranLibraryStore.get(app)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    private val _refreshTick = MutableStateFlow(0)
-    val myLibrary: StateFlow<List<FawazEdition>> =
-        combine(catalogue, _refreshTick) { _, _ -> repo.myLibraryEditions() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _languages = MutableStateFlow(TranslationEditions.preferredLanguages())
+    val languages: StateFlow<List<LanguageTranslationOption>> = _languages.asStateFlow()
+
+    private val _popular = MutableStateFlow(TranslationEditions.popularLanguages())
+    val popular: StateFlow<List<LanguageTranslationOption>> = _popular.asStateFlow()
+
+    private val _activeId = MutableStateFlow(store.activeTranslationId())
+    val activeTranslationId: StateFlow<String> = _activeId.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    init {
-        viewModelScope.launch { repo.ensureCatalogue() }
-    }
-
     fun setQuery(q: String) {
         _query.value = q
+        _languages.value = TranslationEditions.searchLanguages(q)
     }
 
-    fun searchResults(): List<FawazEdition> = repo.search(_query.value)
-
-    fun trending(): List<FawazEdition> = repo.trending()
-
-    fun languageGroup(name: String): FawazLanguageGroup? =
-        repo.languages.value.find { it.language.equals(name, true) }
-
-    fun status(id: String): LibraryEditionStatus = repo.status(id)
-
-    fun refreshStatuses() {
-        _refreshTick.value = _refreshTick.value + 1
-    }
-
-    fun add(id: String) {
-        repo.addToMyLibrary(id)
-        refreshStatuses()
-        _message.value = "Added to My Translations"
-    }
-
-    fun remove(id: String) {
-        repo.removeFromMyLibrary(id)
-        refreshStatuses()
-    }
-
-    fun download(edition: FawazEdition) {
-        viewModelScope.launch {
-            _message.value = "Downloading ${edition.language}…"
-            val result = repo.downloadEdition(edition)
-            refreshStatuses()
-            _message.value = result.fold(
-                onSuccess = { "Downloaded · available offline" },
-                onFailure = { "Download failed: ${it.message}" }
-            )
-        }
-    }
-
-    fun removeDownload(id: String) {
-        repo.removeDownload(id)
-        refreshStatuses()
+    /**
+     * Activate a language's preferred translation immediately.
+     * No download required — reader loads on demand from AlQuran.Cloud.
+     */
+    fun selectLanguage(option: LanguageTranslationOption): String {
+        val id = option.edition.id
+        store.setActiveTranslationId(id)
+        _activeId.value = id
+        _message.value = "${option.language} translation selected"
+        return id
     }
 
     fun clearMessage() {
         _message.value = null
     }
 
-    fun reloadCatalogue() {
-        viewModelScope.launch { repo.ensureCatalogue(force = true) }
+    fun refresh() {
+        viewModelScope.launch {
+            _activeId.value = store.activeTranslationId()
+            _popular.value = TranslationEditions.popularLanguages()
+            _languages.value = TranslationEditions.searchLanguages(_query.value)
+        }
     }
 
     class Factory(private val app: Application) : ViewModelProvider.Factory {

@@ -42,6 +42,14 @@ class QuranLibraryStore(context: Context) {
 
     fun isInLibrary(id: String): Boolean = id in myLibraryIds()
 
+    /** Active single translation edition id for the Quran reader (e.g. en.sahih). */
+    fun activeTranslationId(): String =
+        prefs.getString(KEY_ACTIVE_TRANSLATION, "en.sahih") ?: "en.sahih"
+
+    fun setActiveTranslationId(id: String) {
+        prefs.edit().putString(KEY_ACTIVE_TRANSLATION, id).apply()
+    }
+
     fun saveCatalogueJson(json: String) {
         runCatching { catalogueFile.writeText(json) }
         prefs.edit().putLong(KEY_CATALOGUE_AT, System.currentTimeMillis()).apply()
@@ -90,6 +98,7 @@ class QuranLibraryStore(context: Context) {
     companion object {
         private const val KEY_MY = "my_library_ids"
         private const val KEY_CATALOGUE_AT = "catalogue_fetched_at"
+        private const val KEY_ACTIVE_TRANSLATION = "active_translation_id"
 
         @Volatile private var instance: QuranLibraryStore? = null
         fun get(context: Context): QuranLibraryStore =

@@ -319,10 +319,16 @@ fun SuhoodNavGraph(
             composable(Routes.QURAN_LIBRARY) {
                 com.suhood.feature.quran.QuranLibraryScreen(
                     onBack = { navController.popBackStack() },
-                    onLanguage = { lang ->
-                        navController.navigate(
-                            Routes.QURAN_LIBRARY_LANG.replace("{language}", java.net.URLEncoder.encode(lang, "UTF-8"))
-                        )
+                    onSelectTranslation = { editionId ->
+                        runCatching {
+                            val appCtx = navController.context.applicationContext
+                            com.suhood.core.quran.QuranLibraryStore.get(appCtx)
+                                .setActiveTranslationId(editionId)
+                        }
+                        // Open existing Quran reader immediately — no download gate.
+                        navController.navigate("quran/reader/1") {
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
@@ -334,7 +340,18 @@ fun SuhoodNavGraph(
                 val lang = java.net.URLDecoder.decode(raw, "UTF-8")
                 com.suhood.feature.quran.QuranLanguageDetailScreen(
                     language = lang,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onSelectTranslation = { editionId ->
+                        runCatching {
+                            val appCtx = navController.context.applicationContext
+                            com.suhood.core.quran.QuranLibraryStore.get(appCtx)
+                                .setActiveTranslationId(editionId)
+                        }
+                        navController.navigate("quran/reader/1") {
+                            popUpTo(Routes.QURAN_LIBRARY) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
 
