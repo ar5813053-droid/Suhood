@@ -525,7 +525,12 @@ fun SuhoodNavGraph(
             composable(Routes.BOOKS) {
                 BooksDiscoverScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onOpenHadith = { id -> navController.navigate("hadith/book/$id") },
+                    onOpenArchive = { ident ->
+                        val enc = android.net.Uri.encode(ident)
+                        navController.navigate(Routes.BOOKS_READER.replace("{identifier}", enc))
+                    }
                 )
             }
             composable(

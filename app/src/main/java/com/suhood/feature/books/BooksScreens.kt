@@ -9,25 +9,70 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,294 +82,443 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.suhood.core.designsystem.components.SkeletonBookCard
+import com.suhood.core.designsystem.components.SkeletonCategoryRow
+import com.suhood.core.designsystem.components.SkeletonReaderPage
+import com.suhood.core.designsystem.components.SkeletonTopPicksRow
 import com.suhood.core.designsystem.theme.SuhoodTypography
 import com.suhood.core.designsystem.theme.suhoodColors
-import com.suhood.core.navigation.Routes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BooksDiscoverScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
-    val colors = suhoodColors
-    val scope = rememberCoroutineScope()
-    var query by remember { mutableStateOf("Islam") }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var books by remember { mutableStateOf<List<IaBook>>(emptyList()) }
-    var activeChip by remember { mutableStateOf("All") }
+private val Bg = Color(0xFF08090B)
+private val Surface = Color(0xFF141519)
+private val Elevated = Color(0xFF1C1E24)
+private val TextPrimary = Color(0xFFF5F6F7)
+private val TextSecondary = Color(0xFFB8BDC6)
+private val TextMuted = Color(0xFF8B919A)
+private val Border = Color.White.copy(alpha = 0.08f)
+private val Accent = Color(0xFFC9CDD4)
 
-    fun load(q: String) {
+/**
+ * Premium Islamic bookstore home.
+ * Hadith collections are integrated here — no separate Hadith destination required.
+ */
+@Composable
+fun BooksDiscoverScreen(
+    onNavigate: (String) -> Unit,
+    onBack: () -> Unit,
+    onOpenHadith: (String) -> Unit = {},
+    onOpenArchive: (String) -> Unit = {}
+) {
+    val colors = suhoodColors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var query by remember { mutableStateOf("") }
+    var activeCategory by remember { mutableStateOf("All") }
+    var loading by remember { mutableStateOf(true) }
+    var loadingMore by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableIntStateOf(1) }
+    var archiveBooks by remember { mutableStateOf<List<CatalogBook>>(emptyList()) }
+    var showOffline by remember { mutableStateOf(false) }
+
+    val hadith = remember { BooksCatalog.hadithBooks() }
+
+    fun loadPage(reset: Boolean) {
         scope.launch {
-            loading = true
-            error = null
+            if (reset) {
+                loading = true
+                page = 1
+                error = null
+            } else {
+                loadingMore = true
+            }
             try {
-                books = withContext(Dispatchers.IO) { InternetArchiveBooks.search(q) }
+                val needsNet = activeCategory != "Hadith"
+                if (needsNet && !BooksCatalog.isNetworkAvailable(context)) {
+                    if (reset) {
+                        archiveBooks = emptyList()
+                        showOffline = true
+                    }
+                    return@launch
+                }
+                if (activeCategory == "Hadith" && query.isBlank()) {
+                    archiveBooks = emptyList()
+                    return@launch
+                }
+                val q = when {
+                    query.isNotBlank() -> query
+                    else -> BooksCatalog.archiveQueryForCategory(activeCategory)
+                }
+                val nextPage = if (reset) 1 else page + 1
+                val result = withContext(Dispatchers.IO) {
+                    InternetArchiveBooks.search(q, rows = 18, page = nextPage)
+                        .map { BooksCatalog.toCatalog(it, activeCategory) }
+                }
+                archiveBooks = if (reset) result else archiveBooks + result
+                page = nextPage
             } catch (e: Exception) {
-                error = e.message ?: "Could not load books"
-                books = emptyList()
+                if (!BooksCatalog.isNetworkAvailable(context)) showOffline = true
+                else error = e.message ?: "Could not load books"
             } finally {
                 loading = false
+                loadingMore = false
             }
         }
     }
 
-    LaunchedEffect(Unit) { load(query) }
-    val chips = listOf("All", "Arabic", "English", "Urdu", "Quran", "Hadith")
+    LaunchedEffect(activeCategory) { loadPage(reset = true) }
 
-    Scaffold(
-        containerColor = colors.background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Suhood Books", fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                        Text("Islamic Knowledge Library", style = SuhoodTypography.labelSmall, color = colors.textMuted)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = colors.accentLavender)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
-            )
+    val displayed: List<CatalogBook> = remember(activeCategory, query, archiveBooks, hadith) {
+        val base = when {
+            activeCategory == "Hadith" && query.isBlank() -> hadith
+            activeCategory == "Hadith" -> hadith.filter {
+                it.title.contains(query, true) || it.author.contains(query, true) || it.description.contains(query, true)
+            }
+            activeCategory == "All" && query.isBlank() -> hadith.take(4) + archiveBooks
+            else -> archiveBooks
         }
-    ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad)) {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Text("Discover Islamic Books", style = SuhoodTypography.titleLarge.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary)
-                Text("Free public texts from the Internet Archive", style = SuhoodTypography.bodySmall, color = colors.textMuted)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search books, authors, topics…", color = colors.textMuted) },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = colors.accentLavender) },
-                    trailingIcon = {
-                        IconButton(onClick = { load(query) }) {
-                            Icon(Icons.Filled.ArrowForward, null, tint = colors.accentLavender)
-                        }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.accentLavender,
-                        unfocusedBorderColor = colors.borderSubtle,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary,
-                        cursorColor = colors.accentLavender,
-                        focusedContainerColor = colors.surface,
-                        unfocusedContainerColor = colors.surface
-                    )
-                )
-                Spacer(Modifier.height(10.dp))
+        if (query.isBlank() || activeCategory == "Hadith") base
+        else base.filter {
+            it.title.contains(query, true) || it.author.contains(query, true) || it.description.contains(query, true)
+        }
+    }
+
+    val topPicks = remember(hadith, archiveBooks) {
+        (hadith.take(3) + archiveBooks.take(5)).distinctBy { it.id }.take(8)
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Bg)
+            .statusBarsPadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Books", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Source: Internet Archive · Public listings only. Restricted items are not force-downloaded.",
-                    style = SuhoodTypography.labelSmall,
-                    color = colors.textMuted
+                    "Explore Islamic knowledge, one book at a time.",
+                    color = TextMuted,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                chips.forEach { chip ->
-                    val active = activeChip == chip
-                    FilterChip(
-                        selected = active,
-                        onClick = {
-                            activeChip = chip
-                            val q = when (chip) {
-                                "All" -> query.ifBlank { "Islam" }
-                                "Arabic" -> "language:Arabic OR language:ara"
-                                "English" -> "language:English OR language:eng"
-                                "Urdu" -> "language:Urdu OR language:urd"
-                                else -> chip
+        }
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("Search books, authors, topics", color = TextMuted, fontSize = 14.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
+            trailingIcon = {
+                if (query.isNotBlank()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextMuted)
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = Border.copy(alpha = 0.4f),
+                unfocusedBorderColor = Border,
+                focusedContainerColor = Surface,
+                unfocusedContainerColor = Surface,
+                cursorColor = Accent
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+            if (query.isBlank()) {
+                item {
+                    SectionTitle("Top Picks")
+                }
+                item {
+                    if (loading && topPicks.isEmpty()) {
+                        SkeletonTopPicksRow()
+                    } else {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(topPicks, key = { it.id }) { book ->
+                                TopPickCard(book) {
+                                    openBook(book, onOpenHadith, onOpenArchive) { showOffline = true }
+                                }
                             }
-                            load(q)
-                        },
-                        label = { Text(chip) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = colors.accentLavender.copy(alpha = 0.2f),
-                            selectedLabelColor = colors.accentLavender,
-                            containerColor = colors.surface,
-                            labelColor = colors.textSecondary
-                        )
-                    )
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
+
+                item { SectionTitle("Browse Categories") }
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(BooksCatalog.categories.filter { it != "All" }) { cat ->
+                            CategoryChip(
+                                label = cat,
+                                selected = activeCategory == cat,
+                                onClick = { activeCategory = cat }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                if (loading) "Searching…" else "${books.size} books found",
-                Modifier.padding(horizontal = 16.dp),
-                style = SuhoodTypography.labelSmall,
-                color = colors.textMuted
-            )
-            Spacer(Modifier.height(8.dp))
-            when {
-                loading -> BooksLoadingShimmer()
-                error != null -> Text(error!!, Modifier.padding(16.dp), color = colors.error)
-                books.isEmpty() -> Text("No books found.", Modifier.padding(16.dp), color = colors.textSecondary)
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    itemsIndexed(books, key = { _, b -> b.identifier }) { index, book ->
-                        BookListCard(book, index == 0) {
-                            onNavigate(Routes.BOOKS_DETAIL.replace("{identifier}", Uri.encode(book.identifier)))
+
+            item {
+                SectionTitle(
+                    when {
+                        query.isNotBlank() -> "Results"
+                        activeCategory == "All" -> "Popular & Library"
+                        else -> activeCategory
+                    }
+                )
+            }
+
+            if (loading && displayed.isEmpty()) {
+                items(6) { SkeletonBookCard() }
+            } else if (displayed.isEmpty()) {
+                item {
+                    Text(
+                        error ?: "No books found. Try another category or search.",
+                        color = TextMuted,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
+                    )
+                    if (error != null) {
+                        TextButton(onClick = { loadPage(true) }, modifier = Modifier.padding(horizontal = 12.dp)) {
+                            Text("Try again", color = Accent)
+                        }
+                    }
+                }
+            } else {
+                items(displayed, key = { it.id }) { book ->
+                    BookRowCard(book) {
+                        openBook(book, onOpenHadith, onOpenArchive) { showOffline = true }
+                    }
+                }
+                if (activeCategory != "Hadith") {
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = { if (!loadingMore) loadPage(false) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Text(if (loadingMore) "Loading…" else "Load more", color = Accent)
                         }
                     }
                 }
             }
         }
     }
+
+    if (showOffline) {
+        NoInternetDialog(
+            onRetry = {
+                showOffline = false
+                loadPage(true)
+            },
+            onClose = { showOffline = false }
+        )
+    }
 }
 
-@Composable
-private fun BooksLoadingShimmer() {
-    val colors = suhoodColors
-    val infinite = rememberInfiniteTransition(label = "sh")
-    val alpha by infinite.animateFloat(0.35f, 0.8f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "a")
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        repeat(5) {
-            Box(Modifier.fillMaxWidth().height(88.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface.copy(alpha = alpha)))
-        }
+private fun openBook(
+    book: CatalogBook,
+    onOpenHadith: (String) -> Unit,
+    onOpenArchive: (String) -> Unit,
+    onNeedNetwork: () -> Unit
+) {
+    when (book.sourceType) {
+        BookSourceType.HADITH -> onOpenHadith(book.openKey)
+        BookSourceType.ARCHIVE -> onOpenArchive(book.openKey)
     }
 }
 
 @Composable
-private fun BookListCard(book: IaBook, featured: Boolean, onClick: () -> Unit) {
-    val colors = suhoodColors
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        color = TextSecondary,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.3.sp,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 10.dp)
+    )
+}
+
+@Composable
+private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bg = if (selected) Elevated else Surface
+    val border = if (selected) Color(0xFF6B9EFF).copy(alpha = 0.5f) else Border
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun TopPickCard(book: CatalogBook, onClick: () -> Unit) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .width(132.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Surface)
+            .border(1.dp, Border, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        if (book.coverUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(book.coverUrl).crossfade(true).build(),
+                contentDescription = book.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Elevated),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Elevated),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.MenuBook, null, tint = TextMuted, modifier = Modifier.size(36.dp))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(book.title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(book.author, color = TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(book.category, color = TextSecondary, fontSize = 11.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun BookRowCard(book: CatalogBook, onClick: () -> Unit) {
     val context = LocalContext.current
     Row(
         Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
-            .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+            .background(Surface)
+            .border(1.dp, Border, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context).data(book.coverUrl).crossfade(true).build(),
-            contentDescription = book.title,
-            modifier = Modifier.width(52.dp).height(68.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceElevated),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            if (featured) {
-                Text("FEATURED", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colors.accentLavender)
+        if (book.coverUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(book.coverUrl).crossfade(true).build(),
+                contentDescription = book.title,
+                modifier = Modifier
+                    .width(64.dp)
+                    .height(90.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Elevated),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                Modifier
+                    .width(64.dp)
+                    .height(90.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Elevated),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.MenuBook, null, tint = TextMuted)
             }
-            Text(book.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, color = colors.textPrimary, fontSize = 14.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(book.creator, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp, color = colors.textSecondary)
         }
-        Icon(Icons.Filled.ChevronRight, null, tint = colors.textMuted)
+        Column(Modifier.weight(1f)) {
+            Text(book.title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(2.dp))
+            Text(book.author, color = TextMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            Text(book.category, color = TextSecondary, fontSize = 11.sp)
+            if (book.description.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(book.description, color = TextMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 16.sp)
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NoInternetDialog(onRetry: () -> Unit, onClose: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        containerColor = Surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.WifiOff, null, tint = TextSecondary)
+                Spacer(Modifier.width(8.dp))
+                Text("No Internet Connection", color = TextPrimary, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        text = {
+            Text(
+                "Connect to the internet to access this book. Please check your connection and try again.",
+                color = TextSecondary,
+                fontSize = 14.sp
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRetry) { Text("Try Again", color = Accent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onClose) { Text("Close", color = TextMuted) }
+        }
+    )
+}
+
+/**
+ * Detail is no longer a download gate — opens the reader path immediately.
+ */
 @Composable
 fun BookDetailScreen(identifier: String, onBack: () -> Unit, onRead: (String) -> Unit) {
-    val colors = suhoodColors
-    val context = LocalContext.current
-    var book by remember { mutableStateOf<IaBook?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-
     LaunchedEffect(identifier) {
-        loading = true
-        try {
-            book = withContext(Dispatchers.IO) { InternetArchiveBooks.metadata(identifier) }
-        } catch (e: Exception) {
-            error = e.message
-        } finally {
-            loading = false
-        }
+        onRead(identifier)
     }
-
-    Scaffold(
-        containerColor = colors.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Book", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = colors.accentLavender)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background)
-            )
-        }
-    ) { pad ->
-        when {
-            loading -> Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.accentLavender)
-            }
-            book == null -> Text(error ?: "Not found", Modifier.padding(pad).padding(16.dp), color = colors.textSecondary)
-            else -> {
-                val b = book!!
-                val cleanDesc = remember(b.description) {
-                    InternetArchiveBooks.stripToReadableText(b.description).ifBlank {
-                        "No description available."
-                    }
-                }
-                Column(
-                    Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context).data(b.coverUrl).crossfade(true).build(),
-                        contentDescription = b.title,
-                        modifier = Modifier.width(160.dp).height(220.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceElevated),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.height(20.dp))
-                    Text(b.title, style = SuhoodTypography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = colors.textPrimary, modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    Text(b.creator, color = colors.textSecondary, modifier = Modifier.fillMaxWidth())
-                    Text("${b.language} · ${b.year}", style = SuhoodTypography.labelSmall, color = colors.textMuted, modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(14.dp))
-                    Text(cleanDesc, color = colors.textSecondary, lineHeight = 20.sp, modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Formats: ${b.formats.take(12).joinToString().ifBlank { "See Internet Archive" }}",
-                        style = SuhoodTypography.labelSmall,
-                        color = colors.textMuted,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = { onRead(b.identifier) },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentLavender, contentColor = colors.background)
-                    ) {
-                        Icon(Icons.Filled.MenuBook, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Read in Suhood", fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(b.itemUrl))) },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.accentLavender)
-                    ) {
-                        Text("Open on Internet Archive")
-                    }
-                }
-            }
-        }
+    Box(Modifier.fillMaxSize().background(Bg), contentAlignment = Alignment.Center) {
+        SkeletonReaderPage()
     }
 }
+
 
 /**
  * Multi-format reader: Archive.org BookReader (PDF / DjVu / images) in WebView,
@@ -436,21 +630,15 @@ fun BookReaderScreen(identifier: String, onBack: () -> Unit) {
                             onLoading = { webLoading = it }
                         )
                         if (webLoading) {
-                            Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(color = colors.accentLavender)
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Loading book pages…", color = colors.textSecondary)
-                                }
+                            Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.92f))) {
+                                SkeletonReaderPage()
                             }
                         }
                     }
                 }
                 else -> {
                     if (textLoading) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = colors.accentLavender)
-                        }
+                        SkeletonReaderPage()
                     } else {
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
                             Text(

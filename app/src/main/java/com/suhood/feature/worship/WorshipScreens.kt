@@ -175,11 +175,11 @@ object WorshipScreens {
                 onClick = { onNavigate(Routes.QURAN) }
             )
             WorshipRow(
-                title = "Hadith",
-                subtitle = "Sahih collections to read",
+                title = "Books",
+                subtitle = "Hadith, Tafseer, Seerah & more",
                 icon = Icons.Filled.Book,
                 accent = colors.accentLavender,
-                onClick = { onNavigate(Routes.HADITH_HOME) }
+                onClick = { onNavigate(Routes.BOOKS) }
             )
             Spacer(Modifier.height(20.dp))
             PalestineBanner(compact = true)

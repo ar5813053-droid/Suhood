@@ -45,13 +45,12 @@ fun AllFeaturesScreen(onNavigate: (String) -> Unit, onBack: () -> Unit) {
                 FeatureItem("Duas", "Find & read duas", Icons.Filled.Favorite, Routes.DUA_LIBRARY),
                 FeatureItem("Qibla", "Direction to Makkah", Icons.Filled.Explore, Routes.QIBLA),
                 FeatureItem("Worship Quest", "XP & monthly missions", Icons.Filled.Star, Routes.QUEST),
-                FeatureItem("Hadith", "Bukhari, Muslim, Nawawi & more", Icons.Filled.MenuBook, Routes.HADITH_HOME)
             )
         ),
         FeatureSection(
             "Explore",
             listOf(
-                FeatureItem("Suhood Books", "Free Islamic library", Icons.Filled.LocalLibrary, Routes.BOOKS),
+                FeatureItem("Books", "Hadith, Tafseer, Seerah & more", Icons.Filled.LocalLibrary, Routes.BOOKS),
                 FeatureItem("Find Mosque", "Nearby mosques", Icons.Filled.Place, Routes.MOSQUE)
             )
         ),
