@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -52,43 +51,39 @@ fun rememberSkeletonBrush(): Brush {
 
 @Composable
 fun SkeletonBox(
-    modifier: Modifier = Modifier,
+    boxModifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(10.dp)
 ) {
     val brush = rememberSkeletonBrush()
-    Box(modifier = modifier.clip(shape).background(brush))
+    Box(modifier = boxModifier.clip(shape).background(brush))
 }
 
 @Composable
 fun SkeletonLine(
     widthFraction: Float = 1f,
-    height: Dp = 12.dp,
-    modifier: Modifier = Modifier
+    height: Dp = 12.dp
 ) {
     SkeletonBox(
-        modifier = modifier
+        boxModifier = Modifier
             .fillMaxWidth(widthFraction)
             .height(height)
     )
 }
 
 @Composable
-fun SkeletonBookCover(modifier: Modifier = Modifier) {
-    val m = if (modifier == Modifier) {
-        Modifier.width(120.dp).height(168.dp)
-    } else modifier
-    SkeletonBox(modifier = m, shape = RoundedCornerShape(12.dp))
+fun SkeletonBookCover(coverModifier: Modifier = Modifier.width(120.dp).height(168.dp)) {
+    SkeletonBox(boxModifier = coverModifier, shape = RoundedCornerShape(12.dp))
 }
 
 @Composable
-fun SkeletonBookCard(modifier: Modifier = Modifier) {
+fun SkeletonBookCard() {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SkeletonBookCover(Modifier = Modifier.width(72.dp).height(100.dp))
+        SkeletonBookCover(coverModifier = Modifier.width(72.dp).height(100.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SkeletonLine(widthFraction = 0.85f, height = 14.dp)
             SkeletonLine(widthFraction = 0.55f, height = 12.dp)
@@ -99,16 +94,16 @@ fun SkeletonBookCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SkeletonCategoryRow(modifier: Modifier = Modifier) {
+fun SkeletonCategoryRow() {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         repeat(4) {
             SkeletonBox(
-                modifier = Modifier
+                boxModifier = Modifier
                     .width(110.dp)
                     .height(72.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -118,30 +113,30 @@ fun SkeletonCategoryRow(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SkeletonTopPicksRow(modifier: Modifier = Modifier) {
+fun SkeletonTopPicksRow() {
     Row(
-        modifier = modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         repeat(3) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SkeletonBookCover()
-                SkeletonBox(modifier = Modifier.width(108.dp).height(12.dp))
-                SkeletonBox(modifier = Modifier.width(72.dp).height(10.dp))
+                SkeletonBox(boxModifier = Modifier.width(108.dp).height(12.dp))
+                SkeletonBox(boxModifier = Modifier.width(72.dp).height(10.dp))
             }
         }
     }
 }
 
 @Composable
-fun SkeletonReaderPage(modifier: Modifier = Modifier) {
+fun SkeletonReaderPage() {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SkeletonBookCover(modifier = Modifier.width(100.dp).height(140.dp))
+        SkeletonBookCover(coverModifier = Modifier.width(100.dp).height(140.dp))
         Spacer(Modifier.height(8.dp))
         SkeletonLine(widthFraction = 0.7f, height = 16.dp)
         SkeletonLine(widthFraction = 0.45f, height = 12.dp)
