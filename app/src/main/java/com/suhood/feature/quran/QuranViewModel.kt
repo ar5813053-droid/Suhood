@@ -10,7 +10,6 @@ import com.suhood.core.database.SuhoodDao
 import com.suhood.core.quran.AlQuranCloudProvider
 import com.suhood.core.quran.CanonicalAyahId
 import com.suhood.core.quran.PageContent
-import com.suhood.core.quran.QuranLibraryRepository
 import com.suhood.core.quran.QuranLibraryStore
 import com.suhood.core.quran.SurahContent
 import com.suhood.core.quran.SurahMeta
@@ -113,8 +112,7 @@ class QuranViewModel(
                 } else {
                     provider.loadSurahArabic(number)
                 }
-                val merged = mergeFawazLibrary(base)
-                _content.value = merged
+                _content.value = base
                 dao.setLastRead(QuranLastReadEntity(surah = number, ayah = 1))
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load surah"
@@ -471,13 +469,6 @@ class QuranViewModel(
                 }
             }
         }
-
-    /**
-     * Fawaz offline merge is intentionally a no-op for the primary reader path.
-     * The library uses one preferred AlQuran.Cloud edition per language and loads
-     * on demand — stacking extra catalogue ids would show technical identifiers.
-     */
-    private suspend fun mergeFawazLibrary(base: SurahContent): SurahContent = base
 
     class Factory(
         private val dao: SuhoodDao,

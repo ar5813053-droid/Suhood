@@ -287,7 +287,6 @@ fun SuhoodNavGraph(
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
                     onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
                     onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
-                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) },
                     onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
@@ -298,7 +297,6 @@ fun SuhoodNavGraph(
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
                     onAllSurahs = { navController.navigate(Routes.QURAN_SURAH_LIST) },
                     onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
-                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) }
                 )
             }
             composable(
@@ -316,45 +314,6 @@ fun SuhoodNavGraph(
                 QuranScreens.MushafReader(onBack = { navController.popBackStack() })
             }
             
-            composable(Routes.QURAN_LIBRARY) {
-                com.suhood.feature.quran.QuranLibraryScreen(
-                    onBack = { navController.popBackStack() },
-                    onSelectTranslation = { editionId ->
-                        runCatching {
-                            val appCtx = navController.context.applicationContext
-                            com.suhood.core.quran.QuranLibraryStore.get(appCtx)
-                                .setActiveTranslationId(editionId)
-                        }
-                        // Open existing Quran reader immediately — no download gate.
-                        navController.navigate("quran/reader/1") {
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-            composable(
-                Routes.QURAN_LIBRARY_LANG,
-                arguments = listOf(navArgument("language") { type = NavType.StringType })
-            ) { entry ->
-                val raw = entry.arguments?.getString("language").orEmpty()
-                val lang = java.net.URLDecoder.decode(raw, "UTF-8")
-                com.suhood.feature.quran.QuranLanguageDetailScreen(
-                    language = lang,
-                    onBack = { navController.popBackStack() },
-                    onSelectTranslation = { editionId ->
-                        runCatching {
-                            val appCtx = navController.context.applicationContext
-                            com.suhood.core.quran.QuranLibraryStore.get(appCtx)
-                                .setActiveTranslationId(editionId)
-                        }
-                        navController.navigate("quran/reader/1") {
-                            popUpTo(Routes.QURAN_LIBRARY) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-
             composable(Routes.QURAN_SURAH_LIST) {
                 QuranScreens.SurahList(
                     onBack = { navController.popBackStack() },
@@ -362,7 +321,6 @@ fun SuhoodNavGraph(
                     onBookmarks = { navController.navigate(Routes.QURAN_BOOKMARKS) },
                     onJuz = { navController.navigate(Routes.QURAN_PARAH_LIST) },
                     onMushaf = { navController.navigate(Routes.QURAN_MUSHAF) },
-                    onLibrary = { navController.navigate(Routes.QURAN_LIBRARY) },
                     onLastRead = { navController.navigate(Routes.QURAN_MUSHAF) }
                 )
             }
