@@ -73,12 +73,11 @@ fun SkeletonLine(
 }
 
 @Composable
-fun SkeletonBookCover(
-    modifier: Modifier = Modifier
-        .width(120.dp)
-        .height(168.dp)
-) {
-    SkeletonBox(modifier = modifier, shape = RoundedCornerShape(12.dp))
+fun SkeletonBookCover(modifier: Modifier = Modifier) {
+    val m = if (modifier == Modifier) {
+        Modifier.width(120.dp).height(168.dp)
+    } else modifier
+    SkeletonBox(modifier = m, shape = RoundedCornerShape(12.dp))
 }
 
 @Composable
@@ -127,8 +126,8 @@ fun SkeletonTopPicksRow(modifier: Modifier = Modifier) {
         repeat(3) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SkeletonBookCover()
-                SkeletonLine(widthFraction = 0.9f, height = 12.dp, modifier = Modifier.width(120.dp))
-                SkeletonLine(widthFraction = 0.6f, height = 10.dp, modifier = Modifier.width(120.dp))
+                SkeletonBox(modifier = Modifier.width(108.dp).height(12.dp))
+                SkeletonBox(modifier = Modifier.width(72.dp).height(10.dp))
             }
         }
     }
